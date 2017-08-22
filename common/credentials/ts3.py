@@ -1,6 +1,0 @@
-TS_USER = 'serveradmin'
-TS_PASSWORD = 'HbKvuZ73KJH98g'
-TS_HOST = 'localhost'
-TS_PORT = 10011
-TS_SERVER_PORT = 9987
-TS_SERVER_ID = 1

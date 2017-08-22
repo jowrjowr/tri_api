@@ -1,5 +1,0 @@
-DB_DATABASE = 'core'
-DB_USERNAME = 'core'
-DB_PASSWORD = 'alskflaksjdf'
-DB_HOST = 'localhost'
-DB_PORT = '3306'

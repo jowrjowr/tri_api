@@ -1,6 +1,0 @@
-api_key = 'b23b484667ff2e745fee6d18ca2038bf'
-base_url = 'https://forum.triumvirate.rocks/api/index.php?'
-mysql_user = 'forum'
-mysql_pass = 'L8QQ97jv64/gk'
-mysql_host = '127.0.0.1'
-mysql_db = 'forum'
