@@ -1,11 +1,16 @@
-from flask import request
+from flask import request, json, request, Response
 from tri_api import app
+
+import ts3
+import common.ldaphelpers as _ldaphelpers
+import common.logger as _logger
+import common.credentials.ts3 as _ts3
+import common.request_esi
+
+from tri_core.common.tsgroups import teamspeak_groups
 
 @app.route('/core/teamspeak/<charid>', methods=['DELETE', 'GET', 'POST'])
 def core_teamspeak(charid):
-
-    from flask import request
-    import common.logger as _logger
 
     ipaddress = request.headers['X-Real-Ip']
     # remove the TS information from a given char
@@ -23,30 +28,8 @@ def core_teamspeak(charid):
         return teamspeak_POST(charid)
 
 def teamspeak_POST(charid):
-    import json
-    import ldap
-    import ldap.modlist
-    import ts3
-    import common.request_esi
-    import common.logger as _logger
-    import common.credentials.ldap as _ldap
-    import common.credentials.ts3 as _ts3
-    from flask import Response, request
-    from tri_core.common.tsgroups import teamspeak_groups
 
     # make a new ts3 identity
-
-    # initialize connections
-
-    try:
-        ldap_conn = ldap.initialize(_ldap.ldap_host, bytes_mode=False)
-        ldap_conn.simple_bind_s(_ldap.admin_dn, _ldap.admin_dn_password)
-    except ldap.LDAPError as error:
-        msg = 'LDAP connection error: {}'.format(error)
-        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
-        js = json.dumps({ 'error': msg})
-        resp = Response(js, status=500, mimetype='application/json')
-        return resp
 
     try:
         # Note, that the client will wait for the response and raise a
@@ -66,21 +49,20 @@ def teamspeak_POST(charid):
     ts3conn.use(sid=_ts3.TS_SERVER_ID)
 
     # snag existing ts info. this will matter later.
-    try:
-        result = ldap_conn.search_s('ou=People,dc=triumvirate,dc=rocks',
-            ldap.SCOPE_SUBTREE,
-            filterstr='(uid={})'.format(charid),
-            attrlist=['teamspeakuid', 'teamspeakdbid', 'characterName', 'authGroup' ]
-        )
-        result_count = result.__len__()
-    except ldap.LDAPError as error:
+
+    dn = 'ou=People,dc=triumvirate,dc=rocks'
+    filterstr='(uid={})'.format(charid)
+    attrlist= ['teamspeakuid', 'teamspeakdbid', 'characterName', 'authGroup', 'uid', 'alliance', 'corporation']
+    code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
+
+    if code == False:
         msg = 'unable to fetch ldap users: {}'.format(error)
         _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
         js = json.dumps({ 'error': msg})
         resp = Response(js, status=500, mimetype='application/json')
         return resp
 
-    if result_count == 0:
+    if result == None:
         # this should NEVER happen
         msg = 'charid {0} not in ldap'.format(error)
         _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
@@ -88,41 +70,15 @@ def teamspeak_POST(charid):
         resp = Response(js, status=404, mimetype='application/json')
         return resp
 
-    dn, result = result[0]
-    encodedgroups = result['authGroup']
-    groups = []
-    for group in encodedgroups:
-        groups.append(group.decode('utf-8'))
+    (dn, info), = result.items()
 
-    charname = result['characterName'][0].decode('utf-8')
-
-    # get character affiliations
-
-    request_url = 'characters/affiliation/?datasource=tranquility'
-    data = '[{}]'.format(charid)
-    code, result = common.request_esi.esi(__name__, request_url, method='post', data=data, version='v1')
-
-    if not code == 200:
-        # something broke severely
-        msg = 'affiliations API error {0}: {1}'.format(code, result['error'])
-        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
-        js = json.dumps({ 'error': msg})
-        resp = Response(js, status=500, mimetype='application/json')
-        return resp
-
-    corpid = result[0]['corporation_id']
-    try:
-        allianceid = result[0]['alliance_id']
-    except KeyError:
-        allianceid = 0
+    groups = info['authGroup']
+    charname = info['characterName']
 
     # check if a duplicate
-    try:
-        ts_dbid = result['teamspeakdbid'][0].decode('utf-8')
-        ts_uid = result['teamspeakuid'][0].decode('utf-8')
-    except Exception as error:
-        ts_dbid = None
-        ts_uid = None
+
+    ts_dbid = info.get('teamspeakdbid')
+    ts_uid = info.get('teamspeakuid')
 
     if ts_dbid != None or ts_dbid != None:
         # we have a live account. nuke it and try again.
@@ -176,20 +132,11 @@ def teamspeak_POST(charid):
         return resp
 
     ts_uid = result[0]['client_unique_identifier']
+
     # matching account found. store in ldap.
 
-    attrs = []
-    attrs.append((ldap.MOD_REPLACE, 'teamspeakuid', ts_uid.encode('utf-8')))
-    attrs.append((ldap.MOD_REPLACE, 'teamspeakdbid', ts_dbid.encode('utf-8')))
-
-    try:
-        result = ldap_conn.modify_s(dn, attrs)
-    except ldap.LDAPError as error:
-        msg = 'unable to update tokens for {0}: {1}'.format(charname,error)
-        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
-        js = json.dumps({ 'error': msg})
-        resp = Response(js, status=500, mimetype='application/json')
-        return resp
+    _ldaphelpers.update_singlevalue(dn, 'teamspeakdbid', ts_dbid)
+    _ldaphelpers.update_singlevalue(dn, 'teamspeakuid', ts_uid)
 
     # setup groups for the ts user
 
@@ -204,50 +151,34 @@ def teamspeak_POST(charid):
         return Response({}, status=200, mimetype='application/json')
 
 def teamspeak_GET(charid):
-    import json
-    import ldap
-    import ldap.modlist
-    import common.logger as _logger
-    import common.credentials.ldap as _ldap
-    from flask import Response, request
 
     # fetch the teamspeak information from a given charid
-    try:
-        ldap_conn = ldap.initialize(_ldap.ldap_host, bytes_mode=False)
-        ldap_conn.simple_bind_s(_ldap.admin_dn, _ldap.admin_dn_password)
-    except ldap.LDAPError as error:
-        msg = 'LDAP connection error: {}'.format(error)
-        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
-        js = json.dumps({ 'error': msg})
-        resp = Response(js, status=500, mimetype='application/json')
-        return resp
 
-    try:
-        result = ldap_conn.search_s('ou=People,dc=triumvirate,dc=rocks',
-            ldap.SCOPE_SUBTREE,
-            filterstr='(uid={})'.format(charid),
-            attrlist=['teamspeakuid', 'teamspeakdbid' ]
-        )
-        result_count = result.__len__()
-    except ldap.LDAPError as error:
+    dn = 'ou=People,dc=triumvirate,dc=rocks'
+    filterstr='(uid={})'.format(charid)
+    attrlist= ['teamspeakuid', 'teamspeakdbid', 'characterName', 'authGroup', 'uid', 'alliance', 'corporation']
+    code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
+
+    if code == False:
         msg = 'unable to fetch ldap users: {}'.format(error)
         _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
         js = json.dumps({ 'error': msg})
         resp = Response(js, status=500, mimetype='application/json')
         return resp
 
-    dn, result = result[0]
+    if result == None:
+        # this should NEVER happen
+        msg = 'charid {0} not in ldap'.format(error)
+        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
+        js = json.dumps({ 'error': msg})
+        resp = Response(js, status=404, mimetype='application/json')
+        return resp
 
-    try:
-        ts_dbid = result['teamspeakdbid'][0].decode('utf-8')
-        ts_uid = result['teamspeakuid'][0].decode('utf-8')
-    except Exception as error:
-        ts_dbid = None
-        ts_uid = None
+    (dn, info), = result.items()
 
     result = dict()
-    result['teamspeakdbid'] = ts_dbid
-    result['teamspeakuid'] = ts_uid
+    result['teamspeakdbid'] = info.get('teamspeakdbid')
+    result['teamspeakuid'] = info.get('teamspeakuid')
 
     js = json.dumps(result)
     resp = Response(js, status=200, mimetype='application/json')
@@ -255,14 +186,6 @@ def teamspeak_GET(charid):
 
 def teamspeak_DELETE(charid):
 
-    import json
-    import ldap
-    import ldap.modlist
-    import ts3
-    import common.logger as _logger
-    import common.credentials.ldap as _ldap
-    import common.credentials.ts3 as _ts3
-    from flask import Response, request
 
     # remove the teamspeak information the character's ldap
 
@@ -285,32 +208,19 @@ def teamspeak_DELETE(charid):
 
     ts3conn.use(sid=_ts3.TS_SERVER_ID)
 
-    try:
-        ldap_conn = ldap.initialize(_ldap.ldap_host, bytes_mode=False)
-        ldap_conn.simple_bind_s(_ldap.admin_dn, _ldap.admin_dn_password)
-    except ldap.LDAPError as error:
-        _logger.log('[' + __name__ + '] LDAP connection error: {}'.format(error),_logger.LogLevel.ERROR)
-        js = json.dumps({ 'error': 'ldap connection error'})
-        resp = Response(js, status=500, mimetype='application/json')
-        return resp
+    dn = 'ou=People,dc=triumvirate,dc=rocks'
+    filterstr='(uid={})'.format(charid)
+    attrlist= ['teamspeakuid', 'teamspeakdbid', 'characterName', 'authGroup', 'uid', 'alliance', 'corporation']
+    code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
 
-    # find the ldap entry
-
-    try:
-        result = ldap_conn.search_s('ou=People,dc=triumvirate,dc=rocks',
-            ldap.SCOPE_SUBTREE,
-            filterstr='(uid={})'.format(charid),
-            attrlist=[ 'characterName', 'teamspeakdbid' ]
-        )
-        result_count = result.__len__()
-    except ldap.LDAPError as error:
+    if code == False:
         msg = 'unable to fetch ldap users: {}'.format(error)
         _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
         js = json.dumps({ 'error': msg})
         resp = Response(js, status=500, mimetype='application/json')
         return resp
 
-    if result_count == 0:
+    if result == None:
         # this should NEVER happen
         msg = 'charid {0} not in ldap'.format(error)
         _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
@@ -318,12 +228,10 @@ def teamspeak_DELETE(charid):
         resp = Response(js, status=404, mimetype='application/json')
         return resp
 
-    dn, result = result[0]
+    (dn, info), = result.items()
 
-    try:
-        ts_dbid = result['teamspeakdbid'][0].decode('utf-8')
-    except Exception as error:
-        ts_dbid = None
+    ts_dbid = info.get('teamspeakdbid')
+    ts_uid = info.get('teamspeakuid')
 
     if ts_dbid == None:
         # shouldn't happen!
@@ -382,19 +290,8 @@ def teamspeak_DELETE(charid):
 
     # purge from ldap
 
-    mod_attrs = []
-    mod_attrs.append((ldap.MOD_DELETE, 'teamspeakuid', None ))
-    mod_attrs.append((ldap.MOD_DELETE, 'teamspeakdbid', None ))
-
-    try:
-        result = ldap_conn.modify_s(dn, mod_attrs)
-    except ldap.LDAPError as error:
-        msg = 'unable to remove teamspeak entries for user {0}: {1}'.format(dn, error)
-        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
-        js = json.dumps({ 'error': msg })
-        resp = Response(js, status=500, mimetype='application/json')
-        return resp
-
+    _ldaphelpers.update_singlevalue(dn, 'teamspeakdbid', None)
+    _ldaphelpers.update_singlevalue(dn, 'teamspeakuid', None)
 
     # success if we made it this far
 

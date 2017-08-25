@@ -1,44 +1,26 @@
-from flask import request
+from flask import Flask, json, request, Response
 from tri_api import app
+from joblib import Parallel, delayed
+from common.check_role import check_role
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import common.logger as _logger
+import common.ldaphelpers as _ldaphelpers
 
-@app.route('/core/structures', methods=['GET'])
-def core_structures():
+import common.request_esi
 
-    from flask import Flask, request, Response
-    from joblib import Parallel, delayed
-    from common.check_role import check_role
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-    import common.logger as _logger
-    import common.request_esi
-    import json
+@app.route('/core/<charid>/structures', methods=['GET'])
+def core_structures(charid):
+
 
     # get all the structure shit for the char in question
-
-    if 'id' not in request.args:
-        js = json.dumps({ 'error': 'need an id to check'})
-        _logger.log('[' + __name__ + '] need an id to check', _logger.LogLevel.WARNING)
-        resp = Response(js, status=401, mimetype='application/json')
-        return resp
-    _logger.log('[' + __name__ + '] querying structures for {0}'.format(request.args['id']), _logger.LogLevel.INFO)
-
-
-    # filtering garbage requires exception catching, as it turns out...
-
-    try:
-        id = int(request.args['id'])
-    except ValueError:
-        _logger.log('[' + __name__ + '] id parameters must be integer: {0}'.format(id), _logger.LogLevel.WARNING)
-        js = json.dumps({ 'error': 'id parameter must be integer'})
-        resp = Response(js, status=401, mimetype='application/json')
-        return resp
 
     # check that the user has the right roles (to make the esi endpoint work)
 
     allowed_roles = ['Director', 'Station_Manager']
-    code, result = check_role(__name__, id, allowed_roles)
+    code, result = check_role(__name__, charid, allowed_roles)
 
     if code == 'error':
-        error = 'unable to check character roles for {0}: ({1}) {2}'.format(id, code, result)
+        error = 'unable to check character roles for {0}: ({1}) {2}'.format(charid, code, result)
         _logger.log('[' + __name__ + ']' + error,_logger.LogLevel.ERROR)
         js = json.dumps({ 'error': error})
         resp = Response(js, status=500, mimetype='application/json')
@@ -53,21 +35,31 @@ def core_structures():
         _logger.log('[' + __name__ + '] sufficient roles to view corp structure information',_logger.LogLevel.DEBUG)
 
     # get corpid
-    request_url = 'characters/affiliation/?datasource=tranquility'
-    data = '[{}]'.format(id)
-    code, result = common.request_esi.esi(__name__, request_url, method='post', version='v1', data=data)
-    if not code == 200:
-        _logger.log('[' + __name__ + '] unable to get character affiliations for {0}: {1}'.format(charid, error),_logger.LogLevel.ERROR)
-        return(False, 'error')
 
-    corpid = result[0]['corporation_id']
+    dn = 'ou=People,dc=triumvirate,dc=rocks'
+    filterstr='(uid={})'.format(charid)
+    attrlist=['uid', 'corporation']
+    code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
+
+    if code == False:
+        msg = 'unable to fetch ldap information: {}'.format(error)
+        _logger.log('[' + function + '] {}'.format(msg),_logger.LogLevel.ERROR)
+        return None
+
+    if result == None:
+        msg = 'uid {0} not in ldap'.format(uid)
+        _logger.log('[' + function + '] {}'.format(msg),_logger.LogLevel.DEBUG)
+        return None
+    (dn, info), = result.items()
+
+    corpid = info.get('corporation')
 
     esi_url = 'corporations/' + str(corpid)
     esi_url = esi_url + '/structures?datasource=tranquility'
 
     # get all structures that this user has access to
 
-    code, result_parsed = common.request_esi.esi(__name__, esi_url, 'get', charid=id)
+    code, result_parsed = common.request_esi.esi(__name__, esi_url, 'get', charid=charid)
 
     if not code == 200:
         # something broke severely
@@ -89,7 +81,7 @@ def core_structures():
     structures = dict()
 
     with ThreadPoolExecutor(10) as executor:
-        futures = { executor.submit(structure_parse, id, object, object['structure_id']): object for object in result_parsed }
+        futures = { executor.submit(structure_parse, charid, object, object['structure_id']): object for object in result_parsed }
         for future in as_completed(futures):
             structure_id = futures[future]['structure_id']
             data = future.result()

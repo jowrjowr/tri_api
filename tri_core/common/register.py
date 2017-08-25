@@ -32,51 +32,26 @@ def registeruser(charid, atoken, rtoken, isalt, altof):
         _logger.log('[' + __name__ + '] LDAP connection error: {}'.format(error),_logger.LogLevel.ERROR)
         return(False, 'error')
 
-    # character affiliations
-    request_url = 'characters/affiliation/?datasource=tranquility'
-    data = '[{}]'.format(charid)
-    code, result = common.request_esi.esi(__name__, request_url, method='post', data=data, version='v1')
-    if not code == 200:
-        _logger.log('[' + __name__ + '] unable to get character affiliations for {0}: {1}'.format(charid, error),_logger.LogLevel.ERROR)
-        return(False, 'error')
+    # character info
 
-    _logger.log('[' + __name__ + '] character affiliations output for {0}: {1}'.format(charid, json.dumps(result)),_logger.LogLevel.DEBUG)
-    corpid = result[0]['corporation_id']
-    try:
-        allianceid = result[0]['alliance_id']
-    except Exception as e:
-        allianceid = None
-    # username
     request_url = 'characters/{0}/?datasource=tranquility'.format(charid)
-
-    code, result = common.request_esi.esi(__name__, request_url, 'get')
-    _logger.log('[' + __name__ + '] character output for {0}: {1}'.format(charid, json.dumps(result)),_logger.LogLevel.DEBUG)
-
+    code, result = common.request_esi.esi(__name__, request_url, method='get', version='v4')
     if not code == 200:
-        _logger.log('[' + __name__ + '] /characters API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.ERROR)
+        _logger.log('[' + __name__ + '] unable to get character info for {0}: {1}'.format(charid, error),_logger.LogLevel.ERROR)
         return(False, 'error')
 
-    try:
-        charname = result['name']
-    except KeyError as error:
-        _logger.log('[' + __name__ + '] User does not exist: {0})'.format(charid), _logger.LogLevel.ERROR)
+    charname = result['name']
+    corpid = result.get('corporation_id')
+
+    # alliance id, if any
+    request_url = 'corporations/{0}/?datasource=tranquility'.format(corpid)
+    code, result = common.request_esi.esi(__name__, request_url, method='get', version='v3')
+    if not code == 200:
+        _logger.log('[' + __name__ + '] unable to get character info for {0}: {1}'.format(charid, error),_logger.LogLevel.ERROR)
         return(False, 'error')
 
-    # get corp name
-    request_url = "corporations/" + str(corpid) + '/?datasource=tranquility'
-
-    code, result = common.request_esi.esi(__name__, request_url, 'get')
-    _logger.log('[' + __name__ + '] corporations output for {0}: {1}'.format(corpid, json.dumps(result)),_logger.LogLevel.DEBUG)
-
-    if not code == 200:
-        _logger.log('[' + __name__ + '] /corporations API error {0} for corp id {1}: {2}'.format(code, corpid, result['error']), _logger.LogLevel.ERROR)
-        return('SORRY, INTERNAL API ERROR')
-
-    try:
-        corpname = result['corporation_name']
-    except Exception as error:
-        _logger.log('[' + __name__ + '] /corporations API did not return corp name for corpid {0}: {1}'.format(corpid, error), _logger.LogLevel.ERROR)
-        return('SORRY, ESI API ERROR')
+    allianceid = result.get('alliance_id')
+    corpname = result.get('corporation_name')
 
     # setup the service user/pass
 
@@ -91,7 +66,7 @@ def registeruser(charid, atoken, rtoken, isalt, altof):
     cn = cn.replace("'", '')
     cn = cn.lower()
     dn = "cn={},ou=People,dc=triumvirate,dc=rocks".format(cn)
-    # build a random password until one is 
+    # build a random password until one is built for the user
     password = uuid.uuid4().hex
     password_hash = ldap_salted_sha1.hash(password)
 
@@ -101,9 +76,7 @@ def registeruser(charid, atoken, rtoken, isalt, altof):
     user['charname'] = charname
     user['accountstatus'] = 'blue'
     user['corpid'] = corpid
-
     user['allianceid'] = allianceid
-
     user['atoken'] = atoken
     user['rtoken'] = rtoken
     user['password_hash'] = password_hash

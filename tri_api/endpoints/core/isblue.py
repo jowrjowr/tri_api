@@ -24,7 +24,6 @@ def core_char_isblue(charid):
 
     # if ldap says you are blue, that is sufficient.
 
-
     if result is not None:
 
         (dn, info), = result.items()
@@ -47,7 +46,6 @@ def core_char_isblue(charid):
 
 @app.route('/core/isblue', methods=['GET'])
 def core_isblue():
-
 
     # core isblue function that tells whether a user, corp, or alliance is currently blue to triumvirate
     _logger.log('[' + __name__ + '] testing {0}'.format(request.args['id']), _logger.LogLevel.DEBUG)
@@ -146,26 +144,34 @@ def test_char(charid):
     import common.logger as _logger
 
     # get character affiliations
-    request_url = 'characters/affiliation/?datasource=tranquility'
-    data = '[{}]'.format(charid)
-    code, result = common.request_esi.esi(__name__, request_url, method='post', data=data, version='v1')
-    _logger.log('[' + __name__ + '] affiliations output: {}'.format(result), _logger.LogLevel.DEBUG)
 
+    # character info
+
+    request_url = 'characters/{0}/?datasource=tranquility'.format(charid)
+    code, result = common.request_esi.esi(__name__, request_url, method='get', version='v4')
     if not code == 200:
-        # something broke severely
-        _logger.log('[' + __name__ + '] affiliations API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.ERROR)
-        error = result['error']
-        result = { 'code': code, 'error': error }
-        return code, result
-        
-    corpid = result[0]['corporation_id']
-    try:
-        allianceid = result[0]['alliance_id']
-    except KeyError:
-        allianceid = 0
-    
+        _logger.log('[' + __name__ + '] unable to get character info for {0}: {1}'.format(charid, error),_logger.LogLevel.ERROR)
+        return(False, 'error')
+
+    charname = result['name']
+    corpid = result.get('corporation_id')
+
+    # alliance id, if any
+    request_url = 'corporations/{0}/?datasource=tranquility'.format(corpid)
+    code, result = common.request_esi.esi(__name__, request_url, method='get', version='v3')
+    if not code == 200:
+        _logger.log('[' + __name__ + '] unable to get character info for {0}: {1}'.format(charid, error),_logger.LogLevel.ERROR)
+        return(False, 'error')
+
+    allianceid = result.get('alliance_id')
+
+    if allianceid is None:
+        # no alliance no blue
+        result = { 'code': 0 }
+        return 200, result
+
     # test the character's corporation
-    
+
     code, result = test_corp(corpid)
     if not code == 200:
         # something broke severely
@@ -173,7 +179,7 @@ def test_char(charid):
         _logger.log('[' + __name__ + '] error testing corp {0} for charid {1}: {2}'.format(corpid, charid, error), _logger.LogLevel.ERROR)
         result = { 'code': code, 'error': error }
         return code, result
-    
+
     if result['code'] == 1:
         # the direct corporation test is passed
         return 200, result
@@ -237,12 +243,12 @@ def test_alliance(allianceid):
     import common.logger as _logger
 
     # hard code for viral society alt alliance
-    if id == 99003916:
+    if allianceid == 99003916:
         result = { 'code': 1 }
         return 200, result
 
     # hardcode handling for noobcorps
-    if id == 0:
+    if allianceid is 0 or None:
         result = { 'code': 0 }
         return 200, result
 

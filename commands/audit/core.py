@@ -81,9 +81,12 @@ def audit_core():
         request_url = 'characters/affiliation/?datasource=tranquility'
         chunk = json.dumps(chunk)
         code, result = common.request_esi.esi(__name__, request_url, method='post', data=chunk, version='v1')
+        print(code, result)
+
         for item in result:
 
             # locate the dn from the charid
+            print(item)
             charid = item['character_id']
             for user in users.keys():
                 try:

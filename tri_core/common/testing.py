@@ -100,25 +100,27 @@ def usertest(charid):
     charname = result['name']
 
     # character affiliations
-    # doing via requests directly so no caching the request
 
-    request_url = 'characters/affiliation/?datasource=tranquility'
-    data = '[{}]'.format(charid)
-    code, result = common.request_esi.esi(__name__, request_url, method='post', data=data, version='v1')
+    # character info
 
+    request_url = 'characters/{0}/?datasource=tranquility'.format(charid)
+    code, result = common.request_esi.esi(__name__, request_url, method='get', version='v4')
     if not code == 200:
-        _logger.log('[' + __name__ + '] affiliations API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.ERROR)
-        return False, 'error', None
+        _logger.log('[' + __name__ + '] unable to get character info for {0}: {1}'.format(charid, error),_logger.LogLevel.ERROR)
+        return(False, 'error')
 
-    corpid = result[0]['corporation_id']
-    try:
-        allianceid = result[0]['alliance_id']
-    except Exception as error:
-        # the only way this can happen is if the character does not have an alliance.
-        # unlikely but worth catching for completeness' sake
-        _logger.log('[' + __name__ + '] User does not have an alliance: {0})'.format(charid), _logger.LogLevel.DEBUG)
-        allianceid = 0
+    charname = result['name']
+    corpid = result.get('corporation_id')
 
+    # alliance id, if any
+    request_url = 'corporations/{0}/?datasource=tranquility'.format(corpid)
+    code, result = common.request_esi.esi(__name__, request_url, method='get', version='v3')
+    if not code == 200:
+        _logger.log('[' + __name__ + '] unable to get character info for {0}: {1}'.format(charid, error),_logger.LogLevel.ERROR)
+        return(False, 'error')
+
+    allianceid = result.get('alliance_id')
+    corpname = result.get('corporation_name')
 
     # validate that the person who wants services is, in fact, blue to us
     request_url = 'core/{0}/isblue'.format(charid)
@@ -156,10 +158,10 @@ def usertest(charid):
             return False, 'error', None
     else:
         _logger.log('[' + __name__ + '] ldap entry for {0} found'.format(charid),_logger.LogLevel.DEBUG)
-    
+
     # past here, the user is validated to be in our database to some degree
-    
-    # account status is one of three things: 
+
+    # account status is one of three things:
     # public, banned, blue
 
     (dn, info), = result.items()
