@@ -291,7 +291,7 @@ def readsession(cookie):
     payload = r.get(session)
 
     if payload == None:
-        _logger.log('[' + __name__ + '] unable to retrive session data: ' + str(err), _logger.LogLevel.ERROR)
+        _logger.log('[' + __name__ + '] unable to retrive session data', _logger.LogLevel.ERROR)
         return False
 
     # dismantle the payload
