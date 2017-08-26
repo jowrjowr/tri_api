@@ -1,14 +1,12 @@
 def audit_forums():
 
     import common.logger as _logger
-    import common.credentials.ldap as _ldap
     import common.credentials.database as _database
     import common.credentials.forums as _forumcreds
     import common.ldaphelpers as _ldaphelpers
     import common.request_esi
     from common.graphite import sendmetric
     from collections import defaultdict
-    import ldap
     import json
     import urllib
     import html
@@ -20,15 +18,6 @@ def audit_forums():
     import uuid
 
     _logger.log('[' + __name__ + '] auditing forums',_logger.LogLevel.INFO)
-
-    # setup connections
-
-    ldap_conn = ldap.initialize(_ldap.ldap_host, bytes_mode=False)
-    try:
-        ldap_conn.simple_bind_s(_ldap.admin_dn, _ldap.admin_dn_password)
-    except ldap.LDAPError as error:
-        _logger.log('[' + __name__ + '] LDAP connection error: {}'.format(error),_logger.LogLevel.ERROR)
-        return False
 
     try:
         sql_conn_core = mysql.connect(
@@ -74,8 +63,7 @@ def audit_forums():
     # get all the forum users and stuff them into a dict for later processing
 
     cursor = sql_conn_forum.cursor()
-    query = 'SELECT name, member_group_id, mgroup_others, ip_address FROM core_members'
-
+    query = 'SELECT name, member_group_id, mgroup_others, ip_address, pp_main_photo, pp_thumb_photo FROM core_members'
     try:
         cursor.execute(query)
         rows = cursor.fetchall()
@@ -93,7 +81,7 @@ def audit_forums():
     # special forum users that are not to be audited
     special = [ 'Admin', 'Sovereign' ]
 
-    for charname, primary_group, secondary_string, last_ip in rows:
+    for charname, primary_group, secondary_string, last_ip,  pp_main_photo, pp_thumb_photo in rows:
 
         # dont work on these
         if charname in special:
@@ -108,6 +96,8 @@ def audit_forums():
         users[charname]['doomheim'] = False
         users[charname]['primary'] = primary_group
         users[charname]['last_ip'] = last_ip
+        users[charname]['pp_main_photo'] = pp_main_photo
+        users[charname]['pp_thumb_photo'] = pp_thumb_photo
 
         # convert the comma separated list of groups to an array of integers
 
@@ -141,18 +131,17 @@ def audit_forums():
             users[charname]['corporation'] = None
         else:
             (dn, info), = result.items()
-            # alliance
-            try:
-                users[charname]['alliance'] = int( info['alliance'] )
 
-            except Exception as e:
-                users[charname]['alliance'] = None
-            # corporation
+            alliance = info.get('alliance')
+            corporation = info.get('corporation')
 
-            try:
-                users[charname]['corporation'] = int( info['corporation'] )
-            except Exception as e:
-                users[charname]['corporation'] = None
+            if alliance is not None:
+                alliance = int(alliance)
+            if corporation is not None:
+                corporation = int(corporation)
+
+            users[charname]['alliance'] = alliance
+            users[charname]['corporation'] = corporation
 
             users[charname]['charid'] = int( info['uid'] )
             users[charname]['accountstatus'] = info['accountStatus']
@@ -209,22 +198,7 @@ def audit_forums():
                 users[charname]['charid'] = charid
                 attributes.append(('uid', [str(charid).encode('utf-8')]))
 
-                request_url = 'characters/affiliation/?datasource=tranquility'
-                data = '[{}]'.format(charid)
-                code, result = common.request_esi.esi(__name__, request_url, method='post', data=data)
-
-                if not code == 200:
-                    # something broke severely
-                    _logger.log('[' + __name__ + '] affiliations API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.ERROR)
-                    return
-
-                try:
-                    alliance = result[0]['alliance_id']
-                except KeyError:
-                    alliance = None
-
-                attributes.append(('corporation', [str(result[0]['corporation_id']).encode('utf-8')]))
-                attributes.append(('alliance', [str(alliance).encode('utf-8')]))
+                # further affiliations will be handled by maintenance scripts
 
                 # a random password keeps them from logging in but who cares
 
@@ -258,31 +232,28 @@ def audit_forums():
         secondary_groups = users[charname]['secondary']
         forum_lastip = users[charname]['last_ip']
 
-        # anchor forum portrait
+        if users[charname]['pp_main_photo'] is None:
+        # set forum portrait to their in-game avatar if the user doesn't have one
 
-        esi_url = 'characters/' + str(charid) + '/portrait/?datasource=tranquility'
+            esi_url = 'characters/{0}/portrait/?datasource=tranquility'.format(charid)
+            code, result = common.request_esi.esi(__name__, esi_url, 'get')
+            _logger.log('[' + __name__ + '] /characters portrait output: {}'.format(result), _logger.LogLevel.DEBUG)
 
-        code, result = common.request_esi.esi(__name__, esi_url, 'get')
-        _logger.log('[' + __name__ + '] /characters output: {}'.format(result), _logger.LogLevel.DEBUG)
+            if code == 200:
 
-        if code == 200:
+                portrait = result['px128x128']
+                query = 'UPDATE core_members SET pp_main_photo=%s, pp_thumb_photo=%s, pp_photo_type="custom" WHERE name = %s'
+                try:
+                    cursor.execute(query, (portrait, portrait, charname,))
+                    sql_conn_forum.commit()
+                except Exception as err:
+                    _logger.log('[' + __name__ + '] mysql error: ' + str(err), _logger.LogLevel.ERROR)
+                    return
 
-            portrait = result['px128x128']
-            cursor = sql_conn_forum.cursor()
+            else:
+                # something broke severely
+                _logger.log('[' + __name__ + '] /characters portrait API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.ERROR)
 
-            query = 'UPDATE core_members SET pp_main_photo=%s, pp_thumb_photo=%s, pp_photo_type="custom" WHERE name = %s'
-            try:
-                pass
-                #cursor.execute(query, (portrait, portrait, charname,))
-                #sql_conn_forum.commit()
-            except Exception as err:
-                _logger.log('[' + __name__ + '] mysql error: ' + str(err), _logger.LogLevel.ERROR)
-                return False
-
-        else:
-            # something broke severely
-            _logger.log('[' + __name__ + '] /characters portrait API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.ERROR)
-            portrait = None
 
         ## start doing checks
 
@@ -294,7 +265,8 @@ def audit_forums():
         if alliance not in vanguard and primary_group != 2:
 
             # this char is not in a vanguard alliance but has non-public forum access
-
+            print(charname, primary_group, alliance)
+            print(type(alliance))
             forumpurge(charname)
 
             # log
@@ -375,7 +347,7 @@ def audit_forums():
                 except Exception as err:
                     _logger.log('[' + __name__ + '] mysql error: ' + str(err), _logger.LogLevel.ERROR)
                     return False
-        cursor.close()
+    cursor.close()
     sql_conn_forum.close()
     _logger.log('[' + __name__ + '] non-vanguard forum users reset: {0}'.format(non_tri),_logger.LogLevel.INFO)
 
