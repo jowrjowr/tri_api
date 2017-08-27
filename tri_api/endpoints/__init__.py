@@ -10,6 +10,7 @@ import tri_api.endpoints.core.corpaudit
 import tri_api.endpoints.core.blacklist
 import tri_api.endpoints.core.allianceaudit
 import tri_api.endpoints.core.trisupers
+import tri_api.endpoints.core.user
 
 import tri_api.endpoints.auth
 import tri_api.endpoints.char
