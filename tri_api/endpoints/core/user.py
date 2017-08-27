@@ -70,7 +70,7 @@ def core_user(char_id):
         main_ally_id = udata['alliance'][0].decode('utf-8')
         main_ally_name = udata['allianceName'][0].decode('utf-8')
 
-        main_groups = [entry.decode('utf-8') for entry in udata['characterName']]
+        main_groups = [entry.decode('utf-8') for entry in udata['authGroup']]
 
         js = dumps({
             'character_id': main_char_id,
