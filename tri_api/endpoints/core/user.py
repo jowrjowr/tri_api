@@ -31,7 +31,7 @@ def core_user(char_id):
             users = ldap_conn.search_s('ou=People,dc=triumvirate,dc=rocks', ldap.SCOPE_SUBTREE,
                                        filterstr='(&(objectclass=pilot)(uid={0}))'.format(char_id),
                                        attrlist=['uid', 'altOf', 'characterName', 'corporation', 'corporationName',
-                                                     'alliance', 'allianceName', 'authGroup'])
+                                                     'alliance', 'allianceName', 'authGroup', 'corporationRole'])
         except ldap.LDAPError as error:
             _logger.log('[' + __name__ + '] unable to fetch ldap users: {}'.format(error), _logger.LogLevel.ERROR)
             raise
@@ -47,7 +47,7 @@ def core_user(char_id):
                 users = ldap_conn.search_s('ou=People,dc=triumvirate,dc=rocks', ldap.SCOPE_SUBTREE,
                                            filterstr='(&(objectclass=pilot)(uid={0}))'.format(udata['altOf'][0].decode('utf-8')),
                                            attrlist=['uid', 'altOf', 'characterName', 'corporation', 'corporationName',
-                                                     'alliance', 'allianceName', 'authGroup'])
+                                                     'alliance', 'allianceName', 'authGroup', 'corporationRole'])
 
                 _logger.log('[' + __name__ + '] user length: {0} [{1}]'.format(users.__len__(), users),
                             _logger.LogLevel.INFO)
@@ -70,7 +70,53 @@ def core_user(char_id):
         main_ally_id = udata['alliance'][0].decode('utf-8')
         main_ally_name = udata['allianceName'][0].decode('utf-8')
 
+        main_access = []
         main_groups = [entry.decode('utf-8') for entry in udata['authGroup']]
+        main_roles = [entry.decode('utf-8') for entry in udata['corporationRole']]
+
+        # define access groups
+        if 'vanguard' in main_groups:
+            # basic stuff
+            main_access += ['opsboard', 'doctrines', 'srp']
+
+            # services
+            main_access += ['forum', 'jabber', 'teamspeak']
+
+            if 'triumvirate' in main_groups or 'skyteam' in main_groups or 'skirmishfc' in main_groups:
+                main_access += ['discord']
+
+            # fcs
+            if 'skyteam' in main_groups or 'skirmishfc' in main_groups:
+                main_access += ['broadcast']
+
+            # supers
+            if 'trisupers' in main_groups:
+                main_access += ['supers']
+
+            # blacklist
+            if 'Director' in main_roles or 'Personnel_Manager' in main_roles:
+                main_access += ['blacklist']
+
+            # directors
+            if 'Director' in main_roles:
+                main_access += ['structures', 'audit_corp']
+
+            # command
+            if 'command' in main_groups or main_char_name=="frsd" or main_char_name=="Saeka Tyr":
+                main_access += ['audit_triumvirate', 'audit_vanguard']
+        elif 'temp' in main_groups:
+            # basic stuff
+            main_access += ['opsboard', 'doctrines']
+
+            # services
+            main_access += ['teamspeak']
+
+            if 'skyteam' in main_groups or 'skirmishfc' in main_groups:
+                main_access += ['discord']
+
+            # fcs
+            if 'skyteam' in main_groups:
+                main_access += ['broadcast']
 
         js = dumps({
             'character_id': main_char_id,
@@ -79,6 +125,7 @@ def core_user(char_id):
             'corporation_name': main_corp_name,
             'alliance_id': main_ally_id,
             'alliance_name': main_ally_name,
+            'access': main_access,
             'groups': main_groups
         })
         return Response(js, status=200, mimetype='application/json')
