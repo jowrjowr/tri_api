@@ -21,7 +21,9 @@ def core_fleets(char_id):
         cursor = sql_conn.cursor()
     except mysql.Error as err:
         _logger.log('[' + __name__ + '] mysql error: ' + str(err), _logger.LogLevel.ERROR)
-        return False
+        js = json.dumps({'error': 'mysql error'})
+        resp = Response(js, status=500, mimetype='application/json')
+        return resp
 
     cursor = sql_conn.cursor()
 
