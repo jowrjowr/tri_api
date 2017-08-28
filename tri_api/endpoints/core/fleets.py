@@ -28,7 +28,8 @@ def core_fleets(char_id):
 
     query = 'SELECT idCoreOpsBoard,Time,FC,Type,Doctrine,Hype,PostedBy,Scope,authgroup FROM OpsBoard WHERE Time > NOW()'
     try:
-        rows = cursor.execute(query)
+        rowcount = cursor.execute(query)
+        rows = cursor.fetchall()
     except mysql.Error as err:
         _logger.log('[' + __name__ + '] mysql error: ' + str(err), _logger.LogLevel.ERROR)
         js = json.dumps({'error': str(err)})
