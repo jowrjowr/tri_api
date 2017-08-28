@@ -2,7 +2,7 @@ from flask import request
 from tri_api import app
 
 @app.route('/core/fleets/<int:char_id>/', methods=['GET'])
-def core_user(char_id):
+def core_fleets(char_id):
     from flask import Response, request
     from json import dumps
 
