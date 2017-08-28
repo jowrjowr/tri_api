@@ -62,7 +62,7 @@ def core_fleets(char_id):
         for row in rows:
             fleet = {
                 'id': row[0],
-                'time': row[1],
+                'time': row[1].strftime("%y-%m-%d %H:%M"),
                 'fc': row[2],
                 'type': row[3],
                 'doctrine': row[4],
