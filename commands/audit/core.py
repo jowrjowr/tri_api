@@ -97,35 +97,14 @@ def user_audit(dn, details):
     raw_groups = details['authGroup']
 
     # affiliations information
-    # ESI current
 
-    request_url = 'characters/{0}/?datasource=tranquility'.format(charid)
-    code, result = common.request_esi.esi(__name__, request_url, method='get', version='v4')
-    if not code == 200:
-        _logger.log('[' + __name__ + '] unable to get character info for {0}: {1}'.format(charid, error),_logger.LogLevel.ERROR)
-        return False
+    affilliations = _esihelpers.esi_affiliations(charid)
+    esi_allianceid = affilliations.get('allianceid')
+    esi_alliancename = affilliations.get('alliancename')
+    esi_corpid = affilliations.get('corpid')
+    esi_corpname = affilliations.get('corpname')
 
-    esi_corpid = result.get('corporation_id')
-
-    # alliance id, if any
-    request_url = 'corporations/{0}/?datasource=tranquility'.format(esi_corpid)
-    code, result = common.request_esi.esi(__name__, request_url, method='get', version='v3')
-    if not code == 200:
-        _logger.log('[' + __name__ + '] unable to get character info for {0}: {1}'.format(charid, error),_logger.LogLevel.ERROR)
-        return False
-
-    esi_allianceid = result.get('alliance_id')
-
-    if esi_allianceid is not None:
-        alliance_info = _esihelpers.alliance_info(esi_allianceid)
-        esi_alliancename = alliance_info.get('alliance_name')
-    else:
-        esi_alliancename = None
-
-    if esi_corpid is not None:
-        corporation_info = _esihelpers.corporation_info(esi_corpid)
-        esi_corpname = corporation_info.get('corporation_name')
-    else:
+    if not esi_corpid:
         # most likely doomheim, so treating as such.
         esi_corpid = 1000001
         esi_corpname = 'Doomheim'

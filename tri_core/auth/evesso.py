@@ -8,17 +8,22 @@ import requests
 import common.logger as _logger
 import common.credentials.eve as _eve
 import common.ldaphelpers as _ldaphelpers
+import common.esihelpers as _esihelpers
 from common.check_scope import check_scope
 
 import tri_core.common.session as _session
-import tri_core.common.testing as _testing
 
 from tri_core.common.register import registeruser
 from tri_core.common.storetokens import storetokens
-from tri_core.common.scopes import scope
+from tri_core.common.scopes import scope, blue_scope
 from tri_core.common.session import readsession
+from tri_core.common.testing import vg_blues, vg_alliances
 
 from requests_oauthlib import OAuth2Session
+
+@app.route('/auth/eve/register_blue', methods=['GET'])
+def auth_evesso_blue():
+    return evesso(tempblue=True)
 
 @app.route('/auth/eve/register', methods=['GET'])
 def auth_evesso():
@@ -35,7 +40,7 @@ def auth_evesso_alt():
         payload = readsession(cookie)
         return evesso(isalt=True, altof=payload['charID'])
 
-def evesso(isalt=False, altof=None):
+def evesso(isalt=False, altof=None, tempblue=False):
 
     client_id = _eve.client_id
     client_secret = _eve.client_secret
@@ -50,14 +55,20 @@ def evesso(isalt=False, altof=None):
     ipaddress = request.headers['X-Real-Ip']
     if isalt == True:
         _logger.securitylog(__name__, 'SSO login initiated', ipaddress=ipaddress, detail='alt of {}'.format(altof))
+    if tempblue == True:
+        _logger.securitylog(__name__, 'SSO login initiated', ipaddress=ipaddress, detail='temp blue')
+        # the scope list for temp blues is very short
+        auth_scopes = blue_scope
+
     else:
+        auth_scopes = scope
         _logger.securitylog(__name__, 'SSO login initiated', ipaddress=ipaddress)
 
     # setup the redirect url for the first stage of oauth flow
 
     oauth_session = OAuth2Session(
         client_id=client_id,
-        scope=scope,
+        scope=auth_scopes,
         redirect_uri=redirect_url,
         auto_refresh_kwargs={
             'client_id': client_id,
@@ -69,21 +80,24 @@ def evesso(isalt=False, altof=None):
         base_auth_url,
         isalt=isalt,
         altof=altof,
+        tempblue=tempblue,
         )
     session['oauth2_state'] = state
 
-    # store alt parameters
+    # store useful parameters in oauth state
+
+    session['tempblue'] = tempblue
+
+    # alt details
+    # technically altof will be any previous cookie which can be the same main char. this will be used.
 
     session['isalt'] = isalt
-
-    # technically altof will be any previous cookie which can be the same main char. this will be used.
     session['altof'] = altof
 
     return redirect(auth_url, code=302)
 
 @app.route('/auth/eve/callback', methods=['GET'])
 def auth_evesso_callback():
-
 
     client_id = _eve.client_id
     client_secret = _eve.client_secret
@@ -98,12 +112,23 @@ def auth_evesso_callback():
 
     altof = session.get('altof')
     isalt = session.get('isalt')
+    tempblue = session.get('tempblue')
     state = session.get('oauth2_state')
+    ipaddress = request.headers['X-Real-Ip']
 
-    if altof == None:
-        _logger.log('[' + __name__ + '] SSO callback received',_logger.LogLevel.INFO)
+    # security logging
+
+    if isalt == True:
+        _logger.securitylog(__name__, 'SSO callback received', ipaddress=ipaddress, detail='alt of {}'.format(altof))
+    elif tempblue == True:
+        _logger.securitylog(__name__, 'SSO callback received', ipaddress=ipaddress, detail='temp blue')
+        # make sure we only check for the blue scope list
+        auth_scopes = blue_scope
     else:
-        _logger.log('[' + __name__ + '] SSO callback received (alt of {0})'.format(altof),_logger.LogLevel.INFO)
+        _logger.securitylog(__name__, 'SSO callback received', ipaddress=ipaddress)
+        auth_scopes = scope
+
+    # handle oauth token manipulation
 
     oauth_session = OAuth2Session(
         client_id=client_id,
@@ -140,110 +165,155 @@ def auth_evesso_callback():
         _logger.log('[' + __name__ + '] unable to verify eve sso access token: {0}'.format(error),_logger.LogLevel.ERROR)
         return('ERROR: '.format(error))
 
+    ## fetch the information for later checking
+    
+    # token data
+    
     tokendata = json.loads(result.text)
     charid = tokendata['CharacterID']
     tokentype = tokendata['TokenType']
     expires_at = tokendata['ExpiresOn']
     charname = tokendata['CharacterName']
+    
+    # full ESI affiliations
+    
+    affilliations = _esihelpers.esi_affiliations(charid)
+    allianceid = affilliations.get('allianceid')
+    alliancename = affilliations.get('alliancename')
+    corpid = affilliations.get('corpid')
 
-    # store the tokens regardless of their status. we're greedy.
-    storetokens(charid, access_token, refresh_token)
+    # ldap, if any
 
-    # test the user
-    status, details, registered_altof = _testing.usertest(charid)
+    userinfo = _ldaphelpers.ldap_userinfo(charid)
 
-    # can't proceed if error
+    # get alt status, if any, from ldap
+    if userinfo:
+        altof = userinfo.get('altOf')
 
-    if details == 'error':
-        _logger.log('[' + __name__ + '] error in testing user {0}'.format(charid),_logger.LogLevel.ERROR)
-        message = 'SORRY, internal error. Try again.'
-        return make_response(message)
-    # remaining details: isalt, public, registered, banned
+        if altof is not None:
+            isalt = True
 
-    if details == 'isalt' and isalt == False:
-        # the login process is being ran as a main. fix that.
-        isalt = True
-        altof = registered_altof
-    # remaining details: public, registered, banned
+    # fix authgroup to an empty array in case nothing
 
-    # security logging
-
-    ipaddress = request.headers['X-Real-Ip']
-
-    if isalt == True:
-        _logger.securitylog(__name__, 'SSO callback completed', charid=charid, ipaddress=ipaddress)
+    if not userinfo:
+        authgroups = []
     else:
-        _logger.securitylog(__name__, 'SSO callback completed', charid=charid, ipaddress=ipaddress, detail='alt of {0}'.format(altof))
+        authgroups = userinfo.get('authGroup')
+        if authgroups is None:
+            authgroups = []
 
     # verify that the atoken we get actually has the correct scopes that we requested
     # just in case someone got cute and peeled some off.
 
-    code, result = check_scope(__name__, charid, scope, atoken=access_token)
+    code, result = check_scope(__name__, charid, auth_scopes, atoken=access_token)
 
     if code == 'error':
         # something in the check broke
-        _logger.log('[' + __name__ + '] error in testing scopes for {0}: {1}'.format(charid, result),_logger.LogLevel.ERROR)
+        msg = 'error in testing scopes for {0}: {1}'.format(charid, result)
+        _logger.log('[' + __name__ + '] {0}'.format(msg),_logger.LogLevel.ERROR)
         message = 'SORRY, internal error. Try again.'
         response = make_response(message)
         return response
 
     elif code == False:
         # the user peeled something off the scope list. naughty.
-        _logger.log('[' + __name__ + '] user {0} modified scope list. missing: {1}'.format(charid, result),_logger.LogLevel.WARNING)
+        msg = 'user {0} modified scope list. missing: {1}'.format(charid, result)
+        _logger.log('[' + __name__ + '] {0}'.format(msg),_logger.LogLevel.WARNING)
+
         _logger.securitylog(__name__, 'core login scope modification', charid=charid, ipaddress=ipaddress)
-        message = "Don't tinker with the scope list, please. If you have an issue with it, talk to vanguard leadership."
+
+        message = "Don't tinker with the scope list, please.<br>"
+        message += "If you have an issue with it, talk to vanguard leadership."
         response = make_response(message)
         return response
     elif code == True:
         # scopes validate
         _logger.log('[' + __name__ + '] user {0} has expected scopes'.format(charid, result),_logger.LogLevel.DEBUG)
 
-    # handle results of user test
+        # store the tokens now
+        storetokens(charid, access_token, refresh_token)
 
-    if details == 'banned':
+    ## TESTS
+    ##
+    ## check affiliations and for bans
+
+    # check to see if the user is banned
+
+    if 'banned' in authgroups:
         # banned users not allowed under any conditions
         message = 'nope.avi'
         if isalt == True:
-            _logger.log('[' + __name__ + '] banned user {0} ({1}) tried to register alt {2}'.format(charid, charname, altof),_logger.LogLevel.WARNING)
+            msg = 'banned user {0} ({1}) tried to register alt {2}'.format(charid, charname, altof)
+            _logger.log('[' + __name__ + '] {0}'.format(msg),_logger.LogLevel.WARNING)
             _logger.securitylog(__name__, 'banned user tried to register', charid=charid, ipaddress=ipaddress, detail='alt of {0}'.format(altof))
         else:
-            _logger.log('[' + __name__ + '] banned user {0} ({1}) tried to register'.format(charid, charname),_logger.LogLevel.WARNING)
+            msg = 'banned user {0} ({1}) tried to register'.format(charid, charname)
+            _logger.log('[' + __name__ + '] {0}'.format(msg),_logger.LogLevel.WARNING)
             _logger.securitylog(__name__, 'banned user tried to register', charid=charid, ipaddress=ipaddress)
         return make_response(message)
 
-    # remaining details: public, registered
 
-    if details == 'public' and isalt == False:
-        # non-blue characters who are not alts do not get to register
+    # only vanguard & blues are allowed to use auth
+    if allianceid not in vg_blues() and allianceid not in vg_alliances():
+        if not isalt:
+            # not an alt, not a blue. go away.
+            msg = 'please contact a recruiter if you are interested in joining vanguard'
+            logmsg = 'non-blue user {0} ({1}) tried to register'.format(charid, charname)
+            _logger.log('[' + __name__ + '] {0}'.format(logmsg),_logger.LogLevel.WARNING)
+            _logger.securitylog(__name__, 'non-blue user tried to register', charid=charid, ipaddress=ipaddress)
+            return make_response(msg)
+        else:
+            # someone is registering a non-blue alt, nbd
+            pass
 
-        _logger.log('[' + __name__ + '] non-blue user {0} ({1}) tried to register'.format(charid, charname),_logger.LogLevel.WARNING)
-        _logger.securitylog(__name__, 'non-blue user tried to register', charid=charid, ipaddress=ipaddress)
-        message = 'Sorry, you have to be in vanguard to register for vanguard services'
-        return make_response(message)
+    # make sure the temp blue endpoint not being used by vanguard proper
+    if tempblue:
+        # this is a vanguard blue, but not vanguard proper.
+        # ...or at least ought to be.
+        if allianceid in vg_alliances():
+            # naughty! but not worth logging
+            msg = 'please use the other login endpoint. <br>'
+            msg += 'this is a lower privileged one for blues <b>ONLY</b>'
+            return make_response(msg)
 
-    if details == 'public' and isalt == True:
-        # non-blue characters can become alts
-        pass
+    # is this a temp blue trying to login with the wrong endpoint?
+    if allianceid in vg_blues():
+        if not tempblue:
+            # no big deal. we got extra scopes for it.
+            tempblue = True
 
-    # true status is the only other return value so assume true
-    # construct the session and declare victory
+    # the user has passed the various exclusions, gg
 
-    expire_date = datetime.datetime.now()
-    expire_date = expire_date + datetime.timedelta(days=7)
+    # security logging
 
-    # construct http response
+    msg = 'SSO callback completed'
+    if isalt == True:
+        _logger.securitylog(__name__, msg, charid=charid, ipaddress=ipaddress)
+    elif tempblue == True:
+        _logger.securitylog(__name__, msg, charid=charid, ipaddress=ipaddress, detail='blue from {0}'.format(alliancename))
+    else:
+        _logger.securitylog(__name__, msg, charid=charid, ipaddress=ipaddress, detail='alt of {0}'.format(altof))
+
+    expire_date = datetime.datetime.now() + datetime.timedelta(days=14)
+
+    # build the cookie and construct the http response
 
     if isalt == True:
         # if the character being logged in is an alt, make a session for the main.
-        response = make_response(redirect('https://www.triumvirate.rocks/altregistration'))
+
+        if userinfo:
+            # the alt is alredy registered. go to homepage.
+            response = make_response(redirect('https://www.triumvirate.rocks'))
+        else:
+            # go to alt registration page to show update.
+            response = make_response(redirect('https://www.triumvirate.rocks/altregistration'))
+
         cookie = _session.makesession(altof)
-        response.set_cookie('tri_charid', str(altof), domain='.triumvirate.rocks', expires=expire_date)
         _logger.log('[' + __name__ + '] created session for user: {0} (alt of {1})'.format(charname, altof),_logger.LogLevel.INFO)
     else:
         # proceed normally otherwise
         response = make_response(redirect('https://www.triumvirate.rocks'))
         cookie = _session.makesession(charid)
-        response.set_cookie('tri_charid', str(charid), domain='.triumvirate.rocks', expires=expire_date)
         _logger.log('[' + __name__ + '] created session for user: {0} (charid {1})'.format(charname, charid),_logger.LogLevel.INFO)
 
     response.set_cookie('tri_core', cookie, domain='.triumvirate.rocks', expires=expire_date)
@@ -256,32 +326,47 @@ def auth_evesso_callback():
 
     # handle registered users
 
-    if details == 'registered':
-        # registered main.
-        _logger.log('[' + __name__ + '] user {0} ({1}) already registered'.format(charid, charname),_logger.LogLevel.INFO)
-        _logger.securitylog(__name__, 'core login', charid=charid, ipaddress=ipaddress)
-        code, result = _ldaphelpers.ldap_altupdate(__name__, altof, charid)
-        return response
+    if userinfo is not None:
+        # already in ldap, and not banned
 
-    if details == 'isalt':
-        # is a registered alt
-        _logger.log('[' + __name__ + '] alt user {0} (alt of {1}) already registered'.format(charname, altof),_logger.LogLevel.INFO)
-        _logger.securitylog(__name__, 'core login', charid=charid, ipaddress=ipaddress, detail='via alt {0}'.format(altof))
-        code, result = _ldaphelpers.ldap_altupdate(__name__, altof, charid)
-        return response
+        if isalt:
+            # is a registered alt
+            _logger.log('[' + __name__ + '] alt user {0} (alt of {1}) already registered'.format(charname, altof),_logger.LogLevel.INFO)
+            _logger.securitylog(__name__, 'core login', charid=charid, ipaddress=ipaddress, detail='via alt {0}'.format(altof))
+            code, result = _ldaphelpers.ldap_altupdate(__name__, altof, charid)
+            return response
+        else:
+            if tempblue:
+                # registered blue main.
+                _logger.log('[' + __name__ + '] user {0} ({1}) already registered'.format(charid, charname),_logger.LogLevel.INFO)
+                _logger.securitylog(__name__, 'core login', charid=charid, ipaddress=ipaddress, detail='blue from {0}'.format(alliancename))
+                code, result = _ldaphelpers.ldap_altupdate(__name__, altof, charid)
+                return response
+            else:
+                # registered vanguard main.
+                _logger.log('[' + __name__ + '] user {0} ({1}) already registered'.format(charid, charname),_logger.LogLevel.INFO)
+                _logger.securitylog(__name__, 'core login', charid=charid, ipaddress=ipaddress)
+                code, result = _ldaphelpers.ldap_altupdate(__name__, altof, charid)
+                return response
 
     # after this point, the only folks that are left are unregistered users
 
-    if isalt == False:
+    # handle new temp blues
+    if tempblue:
         _logger.log('[' + __name__ + '] user {0} ({1}) not registered'.format(charid, charname),_logger.LogLevel.INFO)
-        _logger.securitylog(__name__, 'core user registered', charid=charid, ipaddress=ipaddress)
-        code, result = registeruser(charid, access_token, refresh_token, isalt=False, altof=None)
+        _logger.securitylog(__name__, 'core user registered', charid=charid, ipaddress=ipaddress, detail='blue from {0}'.format(alliancename))
+        code, result = registeruser(charid, access_token, refresh_token, tempblue=True)
         return response
 
-    if isalt == True:
+    # handle new alts
+
+    if isalt:
         _logger.log('[' + __name__ + '] alt user {0} (alt of {1}) not registered'.format(charname, altof),_logger.LogLevel.INFO)
         _logger.securitylog(__name__, 'alt user registered', charid=charid, ipaddress=ipaddress, detail='alt of {0}'.format(altof))
         code, result = registeruser(charid, access_token, refresh_token, isalt=isalt, altof=altof)
         return response
-
-    return make_response('wtf happened? run registration again. this is a catchall failure.')
+    else:
+        _logger.log('[' + __name__ + '] user {0} ({1}) not registered'.format(charid, charname),_logger.LogLevel.INFO)
+        _logger.securitylog(__name__, 'core user registered', charid=charid, ipaddress=ipaddress)
+        code, result = registeruser(charid, access_token, refresh_token)
+        return response

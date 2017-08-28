@@ -12,3 +12,6 @@ scope += ['esi-characters.read_fatigue.v1', 'esi-mail.read_mail.v1' ]
 scope = set(scope)
 scope = list(scope)
 
+# blues get a truncated scope for basic data
+
+blue_scope = ['publicData']

@@ -1,7 +1,8 @@
-def registeruser(charid, atoken, rtoken, isalt, altof):
+def registeruser(charid, atoken, rtoken, isalt=False, altof=None, tempblue=False):
     # put the barest skeleton of information into ldap/mysql
 
     import common.logger as _logger
+    import common.esihelpers as _esihelpers
     import common.credentials.database as _database
     import common.credentials.ldap as _ldap
     import common.request_esi
@@ -32,26 +33,15 @@ def registeruser(charid, atoken, rtoken, isalt, altof):
         _logger.log('[' + __name__ + '] LDAP connection error: {}'.format(error),_logger.LogLevel.ERROR)
         return(False, 'error')
 
-    # character info
+    # affiliations
 
-    request_url = 'characters/{0}/?datasource=tranquility'.format(charid)
-    code, result = common.request_esi.esi(__name__, request_url, method='get', version='v4')
-    if not code == 200:
-        _logger.log('[' + __name__ + '] unable to get character info for {0}: {1}'.format(charid, error),_logger.LogLevel.ERROR)
-        return(False, 'error')
+    affiliations = _esihelpers.esi_affiliations(charid)
 
-    charname = result['name']
-    corpid = result.get('corporation_id')
-
-    # alliance id, if any
-    request_url = 'corporations/{0}/?datasource=tranquility'.format(corpid)
-    code, result = common.request_esi.esi(__name__, request_url, method='get', version='v3')
-    if not code == 200:
-        _logger.log('[' + __name__ + '] unable to get character info for {0}: {1}'.format(charid, error),_logger.LogLevel.ERROR)
-        return(False, 'error')
-
-    allianceid = result.get('alliance_id')
-    corpname = result.get('corporation_name')
+    charname = affiliations.get('charname')
+    corpid = affiliations.get('corpid')
+    corpname = affiliations.get('corporation_name')
+    allianceid = affiliations.get('allianceid')
+    alliancename = affiliations.get('alliancename')
 
     # setup the service user/pass
 
@@ -87,7 +77,13 @@ def registeruser(charid, atoken, rtoken, isalt, altof):
 
     # sort out basic auth groups
 
-    authgroups = ['public', 'vanguard'] # default level of access for blues
+    if tempblue:
+        # default level of access for vanguard blues
+        authgroups = [ 'public', 'vanguardBlue' ]
+    else:
+        # default level of access for vanguard
+        authgroups = [ 'public', 'vanguard' ]
+
     if 'allianceid' in user.keys():
         if user['allianceid'] == 933731581:
             # tri specific authgroup

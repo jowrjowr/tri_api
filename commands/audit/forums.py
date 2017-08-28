@@ -424,6 +424,10 @@ def corp_map(corpid):
     if corpid == 614700844:       return 69
     # NM
     if corpid == 1975749457:      return 70
+    # SUPERFLUOUS WANDERLUST
+    if corpid == 98144067:        return 71
+    # Jenova Rising
+    if corpid == 98226378:        return 72
 
     # no match
 
