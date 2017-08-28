@@ -164,7 +164,7 @@ def parse_message(cover, presence_from, message):
     else:
         body = message
 
-    if cover == "fcon":
+    if cover == "fcon" or cover == "test":
         return "@here\n**[{0}]** | __{1}__\n```css\n{2}```" \
             .format(cover, time.strftime("%H:%M:%S %z / %d-%m-%Y", time.localtime(None)), body)
     else:

@@ -60,11 +60,17 @@ def core_fleets(char_id):
         fleets = []
 
         for row in rows:
+
+            fleet_type = row[3]
+
+            if fleet_type == "THIRD PARTY":
+                fleet_type = "FLEET"
+
             fleet = {
                 'id': row[0],
                 'time': row[1].strftime("%y-%m-%d %H:%M"),
                 'fc': row[2],
-                'type': row[3],
+                'type': fleet_type,
                 'doctrine': row[4],
                 'text': row[5],
                 'by': row[6]
