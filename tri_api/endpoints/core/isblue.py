@@ -10,27 +10,14 @@ def core_char_isblue(charid):
 
     # query ldap first
 
-    dn = 'ou=People,dc=triumvirate,dc=rocks'
-    filterstr = 'uid={}'.format(charid)
-    attributes = ['accountStatus']
-    code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attributes)
 
-    if code == False:
-        msg = 'unable to connect to ldap'
-        _logger.log('[' + __name__ + '] {0}'.format(msg),_logger.LogLevel.ERROR)
-        js = json.dumps({ 'error': msg })
-        resp = Response(js, status=500, mimetype='application/json')
-        return resp
+    userinfo = _ldaphelpers.ldap_userinfo(charid)
 
     # if ldap says you are blue, that is sufficient.
 
-    if result is not None:
+    if userinfo:
 
-        (dn, info), = result.items()
-
-        status = info['accountStatus']
-
-        if status == 'blue':
+        if userinfo['accountStatus'] == 'blue':
             js = json.dumps( { 'code': 1 } )
         else:
             # not blue

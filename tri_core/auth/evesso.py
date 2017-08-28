@@ -120,6 +120,7 @@ def auth_evesso_callback():
 
     if isalt == True:
         _logger.securitylog(__name__, 'SSO callback received', ipaddress=ipaddress, detail='alt of {}'.format(altof))
+        auth_scopes = scope
     elif tempblue == True:
         _logger.securitylog(__name__, 'SSO callback received', ipaddress=ipaddress, detail='temp blue')
         # make sure we only check for the blue scope list
