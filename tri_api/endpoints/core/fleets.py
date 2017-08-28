@@ -20,7 +20,7 @@ def core_fleets(char_id):
             host=_database.DB_HOST)
     except mysql.Error as err:
         _logger.log('[' + __name__ + '] mysql error: ' + str(err), _logger.LogLevel.ERROR)
-        js = json.dumps({'error': 'mysql error'})
+        js = json.dumps({'error': str(err)})
         resp = Response(js, status=500, mimetype='application/json')
         return resp
 
@@ -28,10 +28,12 @@ def core_fleets(char_id):
 
     query = 'SELECT idCoreOpsBoard,Time,FC,Type,Doctrine,Hype,PostedBy,Scope,authgroup FROM OpsBoard WHERE Time > NOW()'
     try:
-        rows = cursor.fetchall()
+        rows = cursor.execute(query)
     except mysql.Error as err:
         _logger.log('[' + __name__ + '] mysql error: ' + str(err), _logger.LogLevel.ERROR)
-        return
+        js = json.dumps({'error': str(err)})
+        resp = Response(js, status=500, mimetype='application/json')
+        return resp
     finally:
         cursor.close()
 
