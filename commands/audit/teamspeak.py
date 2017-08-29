@@ -56,6 +56,20 @@ def ts3_logs(ts3conn):
     except Exception as err:
         logger.error('[' + __name__ + '] Redis generic error: ' + str(err))
 
+    # is there another instance running?
+
+    try:
+        if r.get('ts_log_processing') is not None:
+            msg = 'existing TS log processing running. skipping.'
+            _logger.log('[' + __name__ + '] {0}'.format(msg), _logger.LogLevel.WARNING)
+            return
+        else:
+            r.set('ts_log_processing', 'yep')
+
+    except Exception as err:
+        _logger.log('[' + __name__ + '] Redis error: ' + str(err), _logger.LogLevel.ERROR)
+        return
+
     # we start from a zero position and work our way back to a checkpoint in redis
 
     try:
@@ -137,6 +151,7 @@ def ts3_logs(ts3conn):
     checkpoint = time.time()
     try:
         r.set('ts_log_checkpoint', checkpoint)
+        r.delete('ts_log_processing')
     except Exception as err:
         _logger.log('[' + __name__ + '] Redis error: ' + str(err), _logger.LogLevel.ERROR)
 
