@@ -5,6 +5,7 @@ def audit_forums():
     import common.credentials.forums as _forumcreds
     import common.ldaphelpers as _ldaphelpers
     import common.request_esi
+    from tri_core.common.testing import vg_blues, vg_alliances
     from common.graphite import sendmetric
     from collections import defaultdict
     import json
@@ -59,6 +60,12 @@ def audit_forums():
 
     for row in rows:
         forum_mappings[row[0]] = row[1]
+
+    # handle vanguard blues as well
+    # these are a special case of limited access
+
+    for alliance in vg_blues():
+        forum_mappings[alliance] = 73
 
     # get all the forum users and stuff them into a dict for later processing
 
@@ -264,9 +271,7 @@ def audit_forums():
 
         if alliance not in vanguard and primary_group != 2:
 
-            # this char is not in a vanguard alliance but has non-public forum access
-            print(charname, primary_group, alliance)
-            print(type(alliance))
+            # this char is not in a vanguard alliance or blue but has non-public forum access
             forumpurge(charname)
 
             # log
@@ -424,6 +429,10 @@ def corp_map(corpid):
     if corpid == 614700844:       return 69
     # NM
     if corpid == 1975749457:      return 70
+    # SUPERFLUOUS WANDERLUST
+    if corpid == 98144067:        return 71
+    # Jenova Rising
+    if corpid == 98226378:        return 72
 
     # no match
 

@@ -114,8 +114,9 @@ def teamspeak_groups(charid):
     # snag mysql permissions info
 
     try:
-        query = 'SELECT teamspeak FROM Permissions WHERE allianceID=%s'
-        perm_count = cursor.execute(query, (allianceid,))
+        query = 'SELECT teamspeak FROM Permissions WHERE allianceID=%s '
+        query += 'UNION SELECT teamspeak from BluePermissions WHERE allianceID=%s'
+        perm_count = cursor.execute(query, (allianceid, allianceid))
         row = cursor.fetchone()
     except Exception as errmsg:
         _logger.log('[' + __name__ + '] mysql error: ' + str(errmsg), _logger.LogLevel.ERROR)
@@ -136,7 +137,7 @@ def teamspeak_groups(charid):
     ignored_tsgroups = [ 8, 15, 16, 17, 18, 19, 20 ]
 
     # these LDAP groups are managed in different ways.
-    ignored_ldapgroups = [ 'vanguard', 'public', 'triumvirate' ]
+    ignored_ldapgroups = [ 'vanguard', 'vanguardBlue', 'public', 'triumvirate' ]
 
     # set difference to find the effective ts groups that we'll manage
 
@@ -181,12 +182,7 @@ def teamspeak_groups(charid):
             if group['name'] == corp_ticker:
                 corp_groupid = int(group['sgid'])
 
-        if corp_groupid == None:
-            # on balance this shouldn't happen
-            msg = 'unable to locate a server group for tri corp "{0}"'.format(corp_name)
-            _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
-            return(False, msg)
-        else:
+        if corp_groupid:
             correct_ts_groups.append(corp_groupid)
 
     # groups for special authgroups

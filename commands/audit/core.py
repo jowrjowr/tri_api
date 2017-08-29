@@ -7,7 +7,7 @@ import math
 import resource
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from tri_core.common.testing import vg_alliances
+from tri_core.common.testing import vg_alliances, vg_blues
 
 def audit_core():
     # keep the ldap account status entries in sync
@@ -97,35 +97,14 @@ def user_audit(dn, details):
     raw_groups = details['authGroup']
 
     # affiliations information
-    # ESI current
 
-    request_url = 'characters/{0}/?datasource=tranquility'.format(charid)
-    code, result = common.request_esi.esi(__name__, request_url, method='get', version='v4')
-    if not code == 200:
-        _logger.log('[' + __name__ + '] unable to get character info for {0}: {1}'.format(charid, error),_logger.LogLevel.ERROR)
-        return False
+    affilliations = _esihelpers.esi_affiliations(charid)
+    esi_allianceid = affilliations.get('allianceid')
+    esi_alliancename = affilliations.get('alliancename')
+    esi_corpid = affilliations.get('corpid')
+    esi_corpname = affilliations.get('corpname')
 
-    esi_corpid = result.get('corporation_id')
-
-    # alliance id, if any
-    request_url = 'corporations/{0}/?datasource=tranquility'.format(esi_corpid)
-    code, result = common.request_esi.esi(__name__, request_url, method='get', version='v3')
-    if not code == 200:
-        _logger.log('[' + __name__ + '] unable to get character info for {0}: {1}'.format(charid, error),_logger.LogLevel.ERROR)
-        return False
-
-    esi_allianceid = result.get('alliance_id')
-
-    if esi_allianceid is not None:
-        alliance_info = _esihelpers.alliance_info(esi_allianceid)
-        esi_alliancename = alliance_info.get('alliance_name')
-    else:
-        esi_alliancename = None
-
-    if esi_corpid is not None:
-        corporation_info = _esihelpers.corporation_info(esi_corpid)
-        esi_corpname = corporation_info.get('corporation_name')
-    else:
+    if not esi_corpid:
         # most likely doomheim, so treating as such.
         esi_corpid = 1000001
         esi_corpname = 'Doomheim'
@@ -166,7 +145,7 @@ def user_audit(dn, details):
 
     # GROUP MADNESS
 
-    vanguard = vg_alliances()
+    vanguard = vg_alliances() + vg_blues()
 
     if vanguard == False:
         return
@@ -174,14 +153,14 @@ def user_audit(dn, details):
     # NOT banned:
 
     if 'banned' not in raw_groups and status is not 'banned':
-        if esi_allianceid in vanguard and 'vanguard' not in eff_groups:
-            # oops. time to fix you.
-            # you'll get more privileges on the next go-round
-            _ldaphelpers.update_singlevalue(dn, 'accountStatus', 'blue')
 
+        # this character is blue but not marked as such
+        if esi_allianceid in vg_alliances() or esi_allianceid in vg_blues():
+            if not status == 'blue':
+                _ldaphelpers.update_singlevalue(dn, 'accountStatus', 'blue')
 
-        if not esi_allianceid in vanguard:
-            # reset authgroups and account status
+        # pubbies do not need status. this does not affect alts meaningfully.
+        if not esi_allianceid in vg_alliances() and esi_allianceid not in vg_blues():
 
             if not status == 'public':
                 _ldaphelpers.update_singlevalue(dn, 'accountStatus', 'public')
@@ -189,17 +168,25 @@ def user_audit(dn, details):
             if len(eff_groups) > 0:
                 _ldaphelpers.purge_authgroups(dn, eff_groups)
 
+        # some checks for those marked blue already
         if status == 'blue':
 
             triumvirate = 933731581
 
-            if esi_allianceid == triumvirate and 'triumvirate' not in eff_groups:
-                # all non-banned tri get trimvirate
-                _ldaphelpers.add_value(dn, 'authGroup', 'triumvirate')
+            if 'triumvirate' not in eff_groups:
+                if esi_allianceid == triumvirate:
+                    # tri get trimvirate
+                    _ldaphelpers.add_value(dn, 'authGroup', 'triumvirate')
+
+            if 'vanguardBlue' not in eff_groups:
+                if esi_allianceid in vg_blues():
+                    # vanguard blues get this
+                    _ldaphelpers.add_value(dn, 'authGroup', 'vanguardBlue')
 
             if 'vanguard' not in eff_groups:
-                # all non-banned blue get vanguard
-                _ldaphelpers.add_value(dn, 'authGroup', 'vanguard')
+                if esi_allianceid in vg_alliances():
+                    # vanguard alliances get vanguard
+                    _ldaphelpers.add_value(dn, 'authGroup', 'vanguard')
 
     # purge shit from banned people
 
