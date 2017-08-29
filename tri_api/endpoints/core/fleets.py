@@ -68,7 +68,7 @@ def core_fleets(char_id):
 
             fleet = {
                 'id': row[0],
-                'time': row[1].strftime("%Y/%m/%d %H:%M:%S"),
+                'time': row[1].isoformat(),
                 'fc': row[2],
                 'type': fleet_type,
                 'doctrine': row[4],
