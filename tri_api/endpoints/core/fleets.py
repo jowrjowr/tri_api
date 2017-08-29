@@ -26,7 +26,7 @@ def core_fleets(char_id):
 
     cursor = sql_conn.cursor()
 
-    query = 'SELECT idCoreOpsBoard,Time,FC,Type,Doctrine,Hype,PostedBy,Scope,authgroup FROM OpsBoard WHERE Time > NOW() ORDER BY Time Desc'
+    query = 'SELECT idCoreOpsBoard,Time,FC,Type,Doctrine,Hype,PostedBy,Scope,authgroup FROM OpsBoard WHERE Time > NOW() ORDER BY Time ASC'
     try:
         rowcount = cursor.execute(query)
         rows = cursor.fetchall()
