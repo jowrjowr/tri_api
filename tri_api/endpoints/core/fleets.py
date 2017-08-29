@@ -63,7 +63,7 @@ def core_fleets(char_id):
 
             fleet_type = row[3]
 
-            if fleet_type == "THIRD PARTY":
+            if fleet_type == "THIRD PARTY FIGHT":
                 fleet_type = "FLEET"
 
             fleet = {
