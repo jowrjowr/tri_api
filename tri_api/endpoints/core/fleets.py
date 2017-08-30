@@ -40,7 +40,7 @@ def core_fleets(char_id):
 
     dn = 'ou=People,dc=triumvirate,dc=rocks'
     filterstr = 'uid={}'.format(char_id)
-    attributes = ['corporation', 'authGroup', 'characterName']
+    attributes = ['corporation', 'authGroup', 'characterName', 'corporationName']
     code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attributes)
 
     if code == False:
@@ -57,6 +57,7 @@ def core_fleets(char_id):
         name = info['characterName']
         groups = info['authGroup']
         corp = int(info['corporation'])
+        corpName = info['corporationName']
 
         fleets = []
 
@@ -92,6 +93,7 @@ def core_fleets(char_id):
                 fleet['group'] = 'triumvirate'
                 fleets.append(fleet)
             elif scope == corp:
+                fleet['group'] = corpName
                 fleets.append(fleet)
         return Response(json.dumps(fleets), status=200, mimetype='application/json')
     else:
