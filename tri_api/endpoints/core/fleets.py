@@ -124,7 +124,7 @@ def core_fleets_past(char_id):
 
     cursor = sql_conn.cursor()
 
-    query = 'SELECT idCoreOpsBoard,Time,FC,Type,Doctrine,Hype,PostedBy,Scope,authgroup FROM OpsBoard WHERE Time < NOW() ORDER BY Time ASC SELECT TOP 10'
+    query = 'SELECT TOP 10 idCoreOpsBoard,Time,FC,Type,Doctrine,Hype,PostedBy,Scope,authgroup FROM OpsBoard WHERE Time < NOW() ORDER BY Time ASC'
     try:
         rowcount = cursor.execute(query)
         rows = cursor.fetchall()
