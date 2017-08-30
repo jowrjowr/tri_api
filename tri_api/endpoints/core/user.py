@@ -115,6 +115,9 @@ def core_user(char_id):
 
             # command
             if 'command' in main_groups or main_char_name=="frsd" or main_char_name=="Saeka Tyr":
+                if 'utilities' not in main_access:
+                    main_access['utilities'] = []
+
                 main_access['utilities'].append('audit_triumvirate')
                 main_access['utilities'].append('audit_vanguard')
         elif 'temp' in main_groups:
