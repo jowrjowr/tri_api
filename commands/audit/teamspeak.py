@@ -439,7 +439,7 @@ def ts3_validate_users(ts3conn):
             cldbid = int(client['client_database_id'])
             client_username = client['client_nickname']
 
-            if client_username == registered_username and token == None and kicked == False:
+            if client_username.lower() == registered_username.lower() and token == None and kicked == False:
                 # a registered TS user needs to have an ESI token on their LDAP
                 reason = 'Please login to CORE. Your token has become invalid.'
                 try:
