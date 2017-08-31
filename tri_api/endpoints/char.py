@@ -77,19 +77,7 @@ def characters(char_id):
     (dn, info), = mains.items()
     json_dict = {'main': {}, 'alts': []}
 
-    json_dict['main']['character_id'] = info['uid']
-    json_dict['main']['character_name'] = info['characterName']
-    json_dict['main']['corporation_id'] = info['corporation']
-    json_dict['main']['corporation_name'] = info['corporationName']
-    json_dict['main']['alliance_id'] = info['alliance']
-    json_dict['main']['alliance_name'] = info['allianceName']
-    json_dict['main']['authgroups'] = info['authGroup']
-
-    if 'esiAccessToken' in info:
-        json_dict['main']['esi_token'] = True
-        json_dict['main']['esi_token_valid'] = check_scope('acc_management', charid=char_id, scopes=scope)[0]
-    else:
-        json_dict['main']['esi_token'] = False
+    json_dict['main'] = fetch_chardetails(info)
 
     # grab alt details
 
