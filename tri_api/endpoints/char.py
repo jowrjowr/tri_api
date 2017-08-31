@@ -95,7 +95,7 @@ def characters(char_id):
 
     dn = 'ou=People,dc=triumvirate,dc=rocks'
     filterstr='altOf={0}'.format(char_id)
-    attrlist=['uid', 'characterName', 'corporation', 'alliance', 'esiAccessToken', 'authGroup']
+    attrlist=['uid', 'characterName', 'corporation', 'alliance', 'esiAccessToken', 'authGroup', 'corporationName', 'allianceName']
     code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
 
     if code == False:
