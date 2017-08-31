@@ -57,7 +57,7 @@ def characters(char_id):
 
     dn = 'ou=People,dc=triumvirate,dc=rocks'
     filterstr='uid={0}'.format(char_id)
-    attrlist=['uid', 'characterName', 'corporation', 'alliance', 'esiAccessToken', 'authGroup']
+    attrlist=['uid', 'characterName', 'corporation', 'alliance', 'esiAccessToken', 'authGroup', 'corporationName', 'allianceName']
     code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
     if code == False:
         msg = 'unable to fetch ldap information: {}'.format(error)
@@ -80,7 +80,9 @@ def characters(char_id):
     json_dict['main']['character_id'] = info['uid']
     json_dict['main']['character_name'] = info['characterName']
     json_dict['main']['corporation_id'] = info['corporation']
+    json_dict['main']['corporation_name'] = info['corporationName']
     json_dict['main']['alliance_id'] = info['alliance']
+    json_dict['main']['alliance_name'] = info['allianceName']
     json_dict['main']['authgroups'] = info['authGroup']
 
     if 'esiAccessToken' in info:
@@ -136,12 +138,15 @@ def fetch_chardetails(info):
     new_entry['character_id'] = alt_charid
     new_entry['character_name'] = alt_charname
     new_entry['corporation_id'] = info['corporation']
+    new_entry['corporation_name'] = info['corporationName']
     new_entry['authgroups'] = info['authGroup']
 
     if 'alliance' in info:
         new_entry['alliance_id'] = info['alliance']
+        new_entry['alliance_name'] = info['allianceName']
     else:
         new_entry['alliance_id'] = None
+        new_entry['alliance_name'] = None
 
     # set some defaults
 
