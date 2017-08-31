@@ -1,7 +1,7 @@
 from flask import request
 from tri_api import app
 
-@app.route('/characters/<main_charid>/alts/<alt_charid>/remove', methods=['GET', 'DELETE'])
+@app.route('/characters/<main_charid>/alts/<alt_charid>/remove/', methods=['GET', 'DELETE'])
 def alt_remove(main_charid, alt_charid):
     from flask import Response
     from json import dumps
@@ -41,7 +41,7 @@ def alt_remove(main_charid, alt_charid):
         js = dumps({'error' : msg})
         return Response(js, status=500, mimetype='application/json')
 
-@app.route('/characters/<char_id>', methods=['GET'])
+@app.route('/characters/<char_id>/', methods=['GET'])
 def characters(char_id):
     from concurrent.futures import ThreadPoolExecutor, as_completed
     from common.check_scope import check_scope
