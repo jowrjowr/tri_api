@@ -438,6 +438,8 @@ def ts3_validate_users(ts3conn):
             clid = client['clid']
             cldbid = int(client['client_database_id'])
             client_username = client['client_nickname']
+            if not client_username or not registered_username:
+                continue
 
             if client_username.lower() == registered_username.lower() and token == None and kicked == False:
                 # a registered TS user needs to have an ESI token on their LDAP

@@ -406,7 +406,6 @@ def authgroup_map(authgroup):
     if authgroup == 'trisupers':        return 13
     if authgroup == 'triprobers':       return 53
     if authgroup == 'dreads':           return 54
-    if authgroup == 'vgsupers':         return 57
     if authgroup == 'skirmishfc':       return 11
     if authgroup == 'administration':   return 9
     if authgroup == 'skyteam':          return 12
