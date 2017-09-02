@@ -134,6 +134,7 @@ def core_corpaudit(charid):
 
 def fetch_chardetails(charid):
 
+    import common.esihelpers as _esihelpers
     import common.ldaphelpers as _ldaphelpers
     import common.logger as _logger
     import common.request_esi
@@ -143,7 +144,7 @@ def fetch_chardetails(charid):
 
     dn = 'ou=People,dc=triumvirate,dc=rocks'
     filterstr='(uid={})'.format(charid)
-    attrlist=['characterName', 'authGroup', 'teamspeakdbid', 'esiAccessToken', 'altOf', 'corporation', 'lastKill', 'lastKillTime']
+    attrlist=['characterName', 'authGroup', 'teamspeakdbid', 'esiAccessToken', 'altOf', 'corporation', 'lastKill', 'lastKillTime','corporationName']
     code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
 
     if result == None or code == False:
@@ -159,35 +160,12 @@ def fetch_chardetails(charid):
         chardetails['lastKillTime'] = None
         chardetails['altof'] = None
 
-        # map the id to a name
+        # fetch affiliations
 
-        request_url = 'characters/{0}/?datasource=tranquility'.format(charid)
-        code, result = common.request_esi.esi(__name__, request_url, 'get')
+        affiliations = _esihelpers.esi_affiliations(charid)
 
-        if not code == 200:
-            _logger.log('[' + __name__ + '] /characters API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.ERROR)
-            charname = 'Unknown'
-        try:
-            charname = result['name']
-        except KeyError as error:
-            _logger.log('[' + __name__ + '] User does not exist: {0})'.format(charid), _logger.LogLevel.ERROR)
-            charname = None
-
-        try:
-            corp_id = result['corporation_id']
-
-            request_url = 'corporations/{0}/?datasource=tranquility'.format(corp_id)
-            code, result = common.request_esi.esi(__name__, request_url, 'get')
-
-            if not code == 200:
-                _logger.log('[' + __name__ + '] /corporations API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.WARNING)
-            else:
-                chardetails['corporation'] = result['corporation_name']
-        except KeyError as error:
-            _logger.log('[' + __name__ + '] User corporationid does not exist: {0})'.format(charid), _logger.LogLevel.ERROR)
-            charname = None
-
-        chardetails['charname'] = charname
+        chardetails['corporation'] = affiliations.get('corpname')
+        chardetails['charname'] = affiliations.get('charname')
 
     else:
         (dn, info), = result.items()
@@ -209,17 +187,7 @@ def fetch_chardetails(charid):
             chardetails['lastKillTime'] = None
 
         corp_id = info['corporation']
-        try:
-            request_url_corp = 'corporations/{0}/?datasource=tranquility'.format(corp_id)
-            code_corp, result_corp = common.request_esi.esi(__name__, request_url_corp, 'get')
-
-            if not code_corp == 200:
-                _logger.log('[' + __name__ + '] /corporations API error {0}: {1}'.format(code_corp, result_corp['error']), _logger.LogLevel.WARNING)
-            else:
-                chardetails['corporation'] = result_corp['corporation_name']
-        except KeyError as error:
-            _logger.log('[' + __name__ + '] corporation id does not exist: {0})'.format(corp_id), _logger.LogLevel.ERROR)
-            charname = None
+        chardetails['corporation'] = info['corporationName']
 
         # does the char have a token?
 
@@ -305,6 +273,7 @@ def fetch_chardetails(charid):
             request_url = 'universe/systems/{0}/'.format(location)
             code, result = common.request_esi.esi(__name__, request_url, 'get')
             if not code == 200:
+                print(location)
                 _logger.log('[' + __name__ + '] /universe/systems API error ' + str(code) + ': ' + str(data['error']), _logger.LogLevel.INFO)
                 chardetails['location'] = 'Unknown'
             else:
@@ -324,7 +293,17 @@ def fetch_chardetails(charid):
         else:
             chardetails['online'] = result['online']
             chardetails['last_online'] = result['last_login']
-            
+        try:
+            request_url_corp = 'corporations/{0}/?datasource=tranquility'.format(corp_id)
+            code_corp, result_corp = common.request_esi.esi(__name__, request_url_corp, 'get')
+
+            if not code_corp == 200:
+                _logger.log('[' + __name__ + '] /corporations API error {0}: {1}'.format(code_corp, result_corp['error']), _logger.LogLevel.WARNING)
+            else:
+                chardetails['corporation'] = result_corp['corporation_name']
+        except KeyError as error:
+            _logger.log('[' + __name__ + '] corporation id does not exist: {0})'.format(corp_id), _logger.LogLevel.ERROR)
+            charname = None
     return chardetails
 
 
