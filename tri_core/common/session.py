@@ -51,7 +51,7 @@ def makesession(charid):
     # first, get the user data.
 
     esi_url = 'characters/' + str(charid) + '/?datasource=tranquility'
-    code, result = common.request_esi.esi(__name__, esi_url, 'get')
+    code, result = common.request_esi.esi(__name__, esi_url, method='get', version='v4')
     _logger.log('[' + __name__ + '] /characters output: {}'.format(result), _logger.LogLevel.DEBUG)
 
     if not code == 200:
