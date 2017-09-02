@@ -8,7 +8,7 @@ def core_group_manage(group, target):
     import common.ldaphelpers as _ldaphelpers
     import common.logger as _logger
 
-    ipaddress = request.headers['X-Real-Ip']
+    ipaddress = request.args.get('log_ip')
     log_charid = request.args.get('log_charid')    # logging purposes
 
     # translate target to a charid
@@ -171,7 +171,7 @@ def core_group_members(group):
 
     dn = 'ou=People,dc=triumvirate,dc=rocks'
     filterstr='(authGroup={})'.format(group)
-    attrlist=['characterName', 'authGroup', 'uid', 'corporation', 'alliance', 'teamspeakdbid', 'esiAccessToken' ]
+    attrlist=['characterName', 'authGroup', 'uid', 'corporation', 'corporationName', 'alliance', 'allianceName', 'teamspeakdbid', 'esiAccessToken', 'discordAccessToken' ]
     code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
 
     if code == False:
@@ -200,33 +200,10 @@ def core_group_members(group):
         info = dict()
         info['uid'] = int( details['uid'] )
         info['charname'] = details['characterName']
-
-        # alliance name
-        allianceid = int( details['alliance'] )
-        info['allianceid'] = allianceid
-
-        request_url = "alliances/" + str(allianceid) + '/?datasource=tranquility'
-
-        code, esi_result = common.request_esi.esi(__name__, request_url, 'get')
-
-        if not code == 200:
-            _logger.log('[' + __name__ + '] /alliances API error {0}: {1}'.format(code, esi_result['error']), _logger.LogLevel.ERROR)
-            info['alliance_name'] = 'Unknown'
-        else:
-            info['alliance_name'] = esi_result['alliance_name']
-
-        # corp name
-
-        corpid = int( details['corporation'] )
-        info['corpid'] = corpid
-        request_url = 'corporations/{0}/?datasource=tranquility'.format(corpid)
-        code, esi_result = common.request_esi.esi(__name__, request_url, 'get')
-
-        if code != 200:
-            _logger.log('[' + __name__ + '] corporations API error {0}: {1}'.format(code, esi_result['error']),_logger.LogLevel.ERROR)
-            info['corp_name'] = 'Unknown'
-        else:
-            info['corp_name'] = esi_result['corporation_name']
+        info['allianceid'] = details.get('alliance')
+        info['alliance_name'] = details.get('allianceName')
+        info['corpid'] = details.get('corporation')
+        info['corp_name'] = details.get('corporationName')
 
         # ESI token status
         token = details['esiAccessToken']
@@ -234,6 +211,13 @@ def core_group_members(group):
             info['esi_token'] = False
         else:
             info['esi_token'] = True
+
+        # discord token status
+        token = details['discordAccessToken']
+        if token == None:
+            info['discord_token'] = False
+        else:
+            info['discord_token'] = True
 
         # comms status
         teamspeak = details['teamspeakdbid']
@@ -256,7 +240,7 @@ def core_chargroups(target):
     from flask import Response, request
 
     # get the list of groups for this charid
-    ipaddress = request.headers['X-Real-Ip']
+    ipaddress = request.args.get('log_ip')
     # translate target to a charid
 
     if target.isdigit():
