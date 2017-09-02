@@ -3,6 +3,7 @@ def makesession(charid):
     import common.logger as _logger
     import common.request_esi
     import common.credentials.core as _core
+    import common.esihelpers as _esihelpers
     import common.database as _database
 
     import base64
@@ -50,26 +51,14 @@ def makesession(charid):
 
     # first, get the user data.
 
-    esi_url = 'characters/' + str(charid) + '/?datasource=tranquility'
-    code, result = common.request_esi.esi(__name__, esi_url, method='get', version='v4')
-    _logger.log('[' + __name__ + '] /characters output: {}'.format(result), _logger.LogLevel.DEBUG)
+    affiliations = _esihelpers.esi_affiliations(charid)
 
-    if not code == 200:
-        # something broke severely
-        _logger.log('[' + __name__ + '] /characters API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.ERROR)
-        return False
-
-    charname = result['name']
+    charname = affiliations.get('charname')
     payload['charName'] = charname
-    payload['corpID'] = int(result['corporation_id'])
-    payload['birthday'] = result['birthday']
-
-    try:
-        payload['allianceID'] = int(result['alliance_id'])
-    except KeyError:
-        # should never happen here!
-        payload['allianceID'] = False
-        payload['allianceName'] = 'Unknown'
+    payload['corpID'] = affiliations.get('corpid')
+    payload['corpName'] = affiliations.get('corpname')
+    payload['allianceID'] = affiliations.get('allianceid')
+    payload['allianceName'] = affiliations.get('alliancename')
 
     # the scope controls whether you are tri or a tri blue
     # this in turn controls various access levels
@@ -81,29 +70,6 @@ def makesession(charid):
         payload['scope'] = 2
     else:
         payload['scope'] = 1
-
-    esi_url = 'corporations/' + str(payload['corpID']) + '/?datasource=tranquility'
-    code, result = common.request_esi.esi(__name__, esi_url, 'get')
-    _logger.log('[' + __name__ + '] /corporations output: {}'.format(result), _logger.LogLevel.DEBUG)
-
-    if not code == 200:
-        # something broke severely
-        _logger.log('[' + __name__ + '] /corporations API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.ERROR)
-        return False
-
-    payload['corpName'] = result['corporation_name']
-
-    if not payload['allianceID'] == False:
-        esi_url = 'alliances/' + str(payload['allianceID']) + '/?datasource=tranquility'
-        code, result = common.request_esi.esi(__name__, esi_url, 'get')
-        _logger.log('[' + __name__ + '] /alliances output: {}'.format(result), _logger.LogLevel.DEBUG)
-
-        if not code == 200:
-            _logger.log('[' + __name__ + '] /alliances API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.ERROR)
-            return False
-        payload['allianceName'] = result['alliance_name']
-    else:
-        payload['allianceName'] = None
 
     payload = phpserialize.dumps(payload)
     payload = base64.b64encode(payload)
