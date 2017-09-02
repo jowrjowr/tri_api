@@ -1,7 +1,7 @@
 from flask import request
 from tri_api import app
 
-@app.route('/core/fleets/<int:char_id>/', methods=['GET'])
+@app.route('/core/fleets/opsboard/<int:char_id>/', methods=['GET'])
 def core_fleets(char_id):
     from flask import Response, request
     from json import dumps
@@ -99,7 +99,7 @@ def core_fleets(char_id):
     else:
         return Response({'error': 'not found'}, status=404, mimetype='application/json')
 
-@app.route('/core/fleetspast/<int:char_id>/', methods=['GET'])
+@app.route('/core/fleets/opsboard/past/<int:char_id>/', methods=['GET'])
 def core_fleets_past(char_id):
     from flask import Response, request
     from json import dumps
