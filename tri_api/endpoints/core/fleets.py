@@ -113,8 +113,7 @@ def fleet_char_vote(fleet_id, char_id):
         return Response(js, status=200, mimetype='application/json')
     elif request.method == 'POST':
 
-        # *barf* i made a paplink
-        _logger.securitylog(__name__, 'voted fleet composition', detail='fleet {0}'.format(fleet_id), ipaddress=ipaddress, charid=char_id)
+        detailstring = 'fleet {0} vote: '.format(fleet_id)
 
         for ship_class in vote_classes:
             new_amount = request.values.get(ship_class)
@@ -123,9 +122,15 @@ def fleet_char_vote(fleet_id, char_id):
 
             new_amount = int(new_amount)
 
+            detailstring += '{0}: {1}, '.format(ship_class, new_amount)
+
             # first set the character vote and overall vote to zero if no keys exist
             r.setnx('{0}:vote:{1}:{2}'.format(fleet_id, char_id, ship_class), 0)
             r.setnx('{0}:vote:{1}'.format(fleet_id, ship_class), 0)
+
+            # expiration
+            r.expire('{0}:vote:{1}:{2}'.format(fleet_id, char_id, ship_class), 86400 * 7)
+            r.expire('{0}:vote:{1}'.format(fleet_id, char_id), 86400 * 7)
 
             if new_amount == 0:
                 continue
@@ -160,6 +165,9 @@ def fleet_char_vote(fleet_id, char_id):
                 # increment
                 r.incr('{0}:vote:{1}'.format(fleet_id, ship_class), new_amount)
                 r.incr('{0}:vote:{1}:{2}'.format(fleet_id, char_id, ship_class), new_amount)
+
+        # barf, paplink
+        _logger.securitylog(__name__, 'voted fleet composition', detail=detailstring, ipaddress=ipaddress, charid=char_id)
 
         js = json.dumps({})
         return Response(js, status=200, mimetype='application/json')
