@@ -74,9 +74,6 @@ def audit_supers():
             if character_name not in problems:
                 problems.append(character_name)
 
-        if 'vgsupers' not in groups:
-            print("WARNING: pilot is not in vgsupers group")
-
         # get corp & alliance names
         request_url = 'corporations/{0}/?datasource=tranquility'.format(corpid)
         code, result = common.request_esi.esi(__name__, request_url, 'get')
