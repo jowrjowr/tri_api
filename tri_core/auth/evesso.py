@@ -163,8 +163,11 @@ def auth_evesso_callback():
     try:
         result.raise_for_status()
     except requests.exceptions.HTTPError as error:
-        _logger.log('[' + __name__ + '] unable to verify eve sso access token: {0}'.format(error),_logger.LogLevel.ERROR)
-        return('ERROR: '.format(error))
+        msg = 'unable to verify eve sso access token: {0}'.format(error)
+        _logger.log('[' + __name__ + '] {0}'.format(msg),_logger.LogLevel.ERROR)
+        message = 'SORRY, internal error. Try again.'
+        response = make_response(message)
+        return response
 
     ## fetch the information for later checking
     
@@ -179,6 +182,14 @@ def auth_evesso_callback():
     # full ESI affiliations
     
     affilliations = _esihelpers.esi_affiliations(charid)
+
+    if affilliations.get('error'):
+        msg = 'error in fetching affiliations for {0}: {1}'.format(charid, affilliations.get('error'))
+        _logger.log('[' + __name__ + '] {0}'.format(msg),_logger.LogLevel.ERROR)
+        message = 'SORRY, internal error. Try again.'
+        response = make_response(message)
+        return response
+
     allianceid = affilliations.get('allianceid')
     alliancename = affilliations.get('alliancename')
     corpid = affilliations.get('corpid')
@@ -188,11 +199,22 @@ def auth_evesso_callback():
     userinfo = _ldaphelpers.ldap_userinfo(charid)
 
     # get alt status, if any, from ldap
-    if userinfo:
+    if userinfo and not isalt:
         altof = userinfo.get('altOf')
 
         if altof is not None:
             isalt = True
+
+    # what the fuck is going on
+    # this is a check that _shouldnt_ trigger anymore
+
+    if isalt:
+        if altof == None or altof == 'None':
+            msg = 'is an alt but altof = None? wtf. charid {0} altof {1} {2}'.format(charid, altof, type(altof))
+            _logger.log('[' + __name__ + '] {0}'.format(msg),_logger.LogLevel.ERROR)
+            msg = 'error in fetching alt information. please poke saeka.'
+            response = make_response(msg)
+            return response
 
     # fix authgroup to an empty array in case nothing
 
