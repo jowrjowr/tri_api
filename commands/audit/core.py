@@ -99,6 +99,10 @@ def user_audit(dn, details):
     # affiliations information
 
     affilliations = _esihelpers.esi_affiliations(charid)
+
+    if affilliations.get('error'):
+        return False
+
     esi_allianceid = affilliations.get('allianceid')
     esi_alliancename = affilliations.get('alliancename')
     esi_corpid = affilliations.get('corpid')
@@ -172,6 +176,14 @@ def user_audit(dn, details):
         if status == 'blue':
 
             triumvirate = 933731581
+
+            if 'vanguard' in eff_groups and esi_allianceid in vg_blues():
+                # a special case for people moving from vanguard to vg blues
+                _ldaphelpers.purge_authgroups(dn, ['vanguard'])
+
+            if 'vanguardBlue' in eff_groups and esi_allianceid in vg_alliances():
+                # a special case for people moving from vanguard blues to vanguard
+                _ldaphelpers.purge_authgroups(dn, ['vanguardBlue'])
 
             if 'triumvirate' not in eff_groups:
                 if esi_allianceid == triumvirate:
