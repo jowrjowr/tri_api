@@ -1,5 +1,5 @@
 #!/bin/bash
 
-source /srv/api/env/bin/activate
+source /srv/pythonenv/bin/activate
 
 "$@"
