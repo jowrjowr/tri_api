@@ -14,6 +14,7 @@ import tri_api.endpoints.core.user
 import tri_api.endpoints.core.fleetops
 import tri_api.endpoints.core.fleets
 
+import tri_api.endpoints.logger
 import tri_api.endpoints.auth
 import tri_api.endpoints.char
 import tri_api.endpoints.fleet
