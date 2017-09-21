@@ -113,6 +113,11 @@ def core_user(char_id):
                 main_access['resources'].append('structures')
                 main_access['utilities'].append('audit_corp')
 
+            # board members
+            if 'board' in main_groups:
+                main_access['resources'].append('blacklist')
+                main_access['resources'].append('structures')
+
             # command
             if 'command' in main_groups or main_char_name=="frsd" or main_char_name=="Saeka Tyr":
                 if 'utilities' not in main_access:
