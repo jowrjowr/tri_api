@@ -26,7 +26,7 @@ def core_srp_requests(char_id):
 
     cursor = sql_conn.cursor()
 
-    query = 'SELECT RequestTime, LossTime, charName, zkbLink, ShipType, estPayout   FROM SRP WHERE RequestedByCharID = {0} srpStatus = 0'.format(char_id)
+    query = 'SELECT RequestTime, LossTime, charName, zkbLink, ShipType, estPayout FROM SRP WHERE RequestedByCharID = {0} AND srpStatus = 0'.format(char_id)
     try:
         rowcount = cursor.execute(query)
         rows = cursor.fetchall()
