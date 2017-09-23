@@ -99,7 +99,7 @@ def core_srp_requests_past(char_id):
             'km_date': row[2].isoformat(),
             'character_name': row[3],
             'zkb': row[4],
-            'reason': row[6],
+            'reason': row[5],
             'ship': row[6],
             'payout': row[7]
         })
