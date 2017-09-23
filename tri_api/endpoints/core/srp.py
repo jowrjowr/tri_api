@@ -42,8 +42,8 @@ def core_srp_requests(char_id):
 
     for row in rows:
         requests.append({
-            'date': row[0],
-            'km_date': row[1],
+            'date': row[0].isoformat(),
+            'km_date': row[1].isoformat(),
             'character_name': row[2],
             'zkb': row[3],
             'ship': row[4],
@@ -95,8 +95,8 @@ def core_srp_requests_past(char_id):
     for row in rows:
         requests.append({
             'status': row[0],
-            'date': row[1],
-            'km_date': row[2],
+            'date': row[1].isoformat(),
+            'km_date': row[2].isoformat(),
             'character_name': row[3],
             'zkb': row[4],
             'reason': row[6],
