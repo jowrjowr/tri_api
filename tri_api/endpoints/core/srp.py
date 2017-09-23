@@ -30,7 +30,6 @@ def core_srp_requests(char_id):
     try:
         rowcount = cursor.execute(query)
         rows = cursor.fetchall()
-        _logger.log('[' + __name__ + '] rowcount: ' + str(rowcount), _logger.LogLevel.ERROR)
     except mysql.Error as err:
         _logger.log('[' + __name__ + '] mysql error: ' + str(err), _logger.LogLevel.ERROR)
         js = json.dumps({'error': str(err)})
@@ -79,7 +78,7 @@ def core_srp_requests_past(char_id):
 
     cursor = sql_conn.cursor()
 
-    query = 'SELECT srpStatus, RequestTime, LossTime, charName, zkbLink, DenyReason, ShipType, estPayout   FROM SRP WHERE RequestedByCharID = {0} srpStatus <> 0'.format(char_id)
+    query = 'SELECT srpStatus, RequestTime, LossTime, charName, zkbLink, DenyReason, ShipType, estPayout   FROM SRP WHERE RequestedByCharID = {0} AND srpStatus <> 0'.format(char_id)
     try:
         rowcount = cursor.execute(query)
         rows = cursor.fetchall()
