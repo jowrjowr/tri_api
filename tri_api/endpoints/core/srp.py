@@ -30,6 +30,7 @@ def core_srp_requests(char_id):
     try:
         rowcount = cursor.execute(query)
         rows = cursor.fetchall()
+        _logger.log('[' + __name__ + '] rowcount: ' + str(rowcount), _logger.LogLevel.ERROR)
     except mysql.Error as err:
         _logger.log('[' + __name__ + '] mysql error: ' + str(err), _logger.LogLevel.ERROR)
         js = json.dumps({'error': str(err)})
