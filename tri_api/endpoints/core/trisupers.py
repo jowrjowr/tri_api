@@ -8,31 +8,6 @@ import common.logger as _logger
 import common.esihelpers as _esihelpers
 import common.check_scope as _check_scope
 
-def get_system_from_location(char_id, location_id):
-    # try citadel
-    # if 404 then try station, if forbidden or error then unkown
-    request_url = '/universe/structures/{}/?datasource=tranquility'.format(location_id)
-    code, result = common.request_esi.esi(__name__, request_url, method='get', version='v1', charid=char_id)
-
-    if code == 200:
-        return result['name']
-    elif code == 403:
-        return 'Forbidden'
-    elif code == 404:
-        # check station
-        request_url = '/universe/stations/{}/?datasource=tranquility'.format(location_id)
-        code, result = common.request_esi.esi(__name__, request_url, method='get', version='v1')
-
-        if code == 404:
-            return 'NOT FOUND'
-        elif code == 202:
-            return result['name']
-        else:
-            return 'ERROR (STAT)'
-    else:
-        return 'ERROR (CIT)'
-
-
 
 @app.route('/core/trisupers/', methods=[ 'GET' ])
 def core_trisupers():
@@ -481,8 +456,29 @@ def audit_pilot_capitals(entry):
             ships[asset_id]['active'] = False
             ships[asset_id]['location_id'] = asset['location_id']
 
-            ships[asset_id]['location_name'] = get_system_from_location(uid, asset['location_id'])
+            if asset['location_type'] == 'station':
+                request_url = '/universe/stations/{}/?datasource=tranquility'.format(asset['location_id'])
+                code, result = common.request_esi.esi(__name__, request_url, method='get', version='latest')
 
+                if code == 404:
+                    ships[asset_id]['location_name'] = "STATION NOT FOUND"
+                elif code == 200:
+                    ships[asset_id]['location_name'] = result['name']
+                else:
+                    ships[asset_id]['location_name'] = "STATION ERROR"
+            elif asset['location_type'] == 'other':
+                request_url = '/universe/structures/{}/?datasource=tranquility'.format(asset['location_id'])
+                code, result = common.request_esi.esi(__name__, request_url, method='get', version='latest',
+                                                      charid=uid)
+
+                if code == 200:
+                    ships[asset_id]['location_name'] = result['name']
+                elif code == 403 or code == 401:
+                    ships[asset_id]['location_name'] = "CITADEL FORBIDDEN"
+                elif code == 404:
+                    ships[asset_id]['location_name'] = "CITADEL NOT FOUND"
+                else:
+                    ships[asset_id]['location_name'] = "CITADEL ERROR"
 
         if asset_typeid in list(carriers):
             ships[asset_id]['type'] = carriers[asset_typeid]
