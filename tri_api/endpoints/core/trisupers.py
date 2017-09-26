@@ -156,7 +156,12 @@ def core_corpsupers():
             except Exception as err:
                 _logger.log('[' + __name__ + '] super audit for failed: {0}'.format(err), _logger.LogLevel.ERROR)
 
-    js = json.dumps(supers)
+    supers_cleaned = {}
+
+    for key in supers:
+        supers_cleaned[supers[key]['item_id']] = supers[key]
+
+    js = json.dumps(supers_cleaned)
     return Response(js, status=200, mimetype='application/json')
 
 
