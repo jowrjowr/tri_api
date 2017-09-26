@@ -458,17 +458,17 @@ def audit_pilot_capitals(entry):
 
             if asset['location_type'] == 'station':
                 request_url = 'universe/stations/{}/?datasource=tranquility'.format(asset['location_id'])
-                code, result = common.request_esi.esi(__name__, request_url, method='get', version='v1')
+                code, result = common.request_esi.esi(__name__, request_url, method='get', version='latest')
 
                 if code == 404:
-                    ships[asset_id]['location_name'] = request_url
+                    ships[asset_id]['location_name'] = 'STATION NOT FOUND'
                 elif code == 200:
-                    ships[asset_id]['location_name'] = result['name']
+                    ships[asset_id]['location_name'] = result['station_name']
                 else:
                     ships[asset_id]['location_name'] = "STATION ERROR"
             elif asset['location_type'] == 'other':
                 request_url = 'universe/structures/{}/?datasource=tranquility'.format(asset['location_id'])
-                code, result = common.request_esi.esi(__name__, request_url, method='get', version='v1',
+                code, result = common.request_esi.esi(__name__, request_url, method='get', version='latest',
                                                       charid=uid)
 
                 if code == 200:
@@ -476,7 +476,7 @@ def audit_pilot_capitals(entry):
                 elif code == 403 or code == 401:
                     ships[asset_id]['location_name'] = "CITADEL FORBIDDEN"
                 elif code == 404:
-                    ships[asset_id]['location_name'] = request_url
+                    ships[asset_id]['location_name'] = 'CITADEL NOT FOUND'
                 else:
                     ships[asset_id]['location_name'] = "CITADEL ERROR"
             else:
