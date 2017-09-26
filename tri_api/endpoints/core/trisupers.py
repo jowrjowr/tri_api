@@ -76,7 +76,12 @@ def core_trisupers():
             except Exception as err:
                 _logger.log('[' + __name__ + '] super audit for failed: {0}'.format(err), _logger.LogLevel.ERROR)
 
-    js = json.dumps(supers)
+    supers_cleaned = {}
+
+    for key in supers:
+        supers_cleaned[supers[key]['item_id']] = supers[key]
+
+    js = json.dumps(supers_cleaned)
     return Response(js, status=200, mimetype='application/json')
 
 
@@ -329,6 +334,7 @@ def audit_pilot(entry):
         if asset_typeid in list(titans) + list(supers):
             ships[asset_id] = basic_pilot
             ships[asset_id]['typeid'] = asset_typeid
+            ships[asset_id]['item_id'] = asset_id
             ships[asset_id]['main_charname'] = main
             ships[asset_id]['active'] = False
             ships[asset_id]['location_id'] = asset['location_id']
@@ -376,6 +382,7 @@ def audit_pilot(entry):
         # setup basics
         ships[active_id] = basic_pilot
         ships[active_id]['typeid'] = active_typeid
+        ships[active_id]['item_id'] = active_id
         ships[active_id]['main_charname'] = main
         ships[active_id]['active'] = True
         ships[active_id]['location_name'] = location['location']
@@ -533,6 +540,7 @@ def audit_pilot_capitals(entry):
         # setup basics
         ships[active_id] = basic_pilot
         ships[active_id]['typeid'] = active_typeid
+        ships[active_id]['item_id'] = active_id
         ships[active_id]['main_charname'] = main
         ships[active_id]['active'] = True
         ships[active_id]['location_name'] = location['location']
