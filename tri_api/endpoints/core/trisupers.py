@@ -474,49 +474,54 @@ def audit_pilot_capitals(entry):
     for asset in char_assets:
         asset_typeid = asset.get('type_id')
         asset_id = asset.get('item_id')
+
+        asset_dict = {}
+
         if asset_typeid in list(carriers) + list(dreads) + list(fax):
-            ships[asset_id] = basic_pilot
-            ships[asset_id]['item_id'] = asset_id
-            ships[asset_id]['typeid'] = asset_typeid
-            ships[asset_id]['main_charname'] = main
-            ships[asset_id]['active'] = False
-            ships[asset_id]['location_id'] = asset['location_id']
+            asset_dict = basic_pilot
+            asset_dict['item_id'] = asset_id
+            asset_dict['typeid'] = asset_typeid
+            asset_dict['main_charname'] = main
+            asset_dict['active'] = False
+            asset_dict['location_id'] = asset['location_id']
 
             if asset['location_type'] == 'station':
                 request_url = 'universe/stations/{}/?datasource=tranquility'.format(asset['location_id'])
                 code, result = common.request_esi.esi(__name__, request_url, method='get', version='latest')
 
                 if code == 404:
-                    ships[asset_id]['location_name'] = 'STATION NOT FOUND'
+                    asset_dict['location_name'] = 'STATION NOT FOUND'
                 elif code == 200:
-                    ships[asset_id]['location_name'] = result['name']
+                    asset_dict['location_name'] = result['name']
                 else:
-                    ships[asset_id]['location_name'] = "STATION ERROR"
+                    asset_dict['location_name'] = "STATION ERROR"
             elif asset['location_type'] == 'other':
                 request_url = 'universe/structures/{}/?datasource=tranquility'.format(asset['location_id'])
                 code, result = common.request_esi.esi(__name__, request_url, method='get', version='latest',
                                                       charid=uid)
 
                 if code == 200:
-                    ships[asset_id]['location_name'] = result['name']
+                    asset_dict['location_name'] = result['name']
                 elif code == 403 or code == 401:
-                    ships[asset_id]['location_name'] = "CITADEL FORBIDDEN"
+                    asset_dict['location_name'] = "CITADEL FORBIDDEN"
                 elif code == 404:
-                    ships[asset_id]['location_name'] = 'CITADEL NOT FOUND'
+                    asset_dict['location_name'] = 'CITADEL NOT FOUND'
                 else:
-                    ships[asset_id]['location_name'] = "CITADEL ERROR"
+                    asset_dict['location_name'] = "CITADEL ERROR"
             else:
-                ships[asset_id]['location_name'] = 'TYPE UNKNOWN'
+                asset_dict['location_name'] = 'TYPE UNKNOWN'
 
         if asset_typeid in list(carriers):
-            ships[asset_id]['type'] = carriers[asset_typeid]
-            ships[asset_id]['class'] = "Carrier"
+            asset_dict['type'] = carriers[asset_typeid]
+            asset_dict['class'] = "Carrier"
         elif asset_typeid in list(dreads):
-            ships[asset_id]['type'] = dreads[asset_typeid]
-            ships[asset_id]['class'] = "Dreadnought"
+            asset_dict['type'] = dreads[asset_typeid]
+            asset_dict['class'] = "Dreadnought"
         elif asset_typeid in list(fax):
-            ships[asset_id]['type'] = fax[asset_typeid]
-            ships[asset_id]['class'] = "FAX"
+            asset_dict['type'] = fax[asset_typeid]
+            asset_dict['class'] = "FAX"
+
+        ships[asset_id] = asset_dict
 
     # is this character flying a titan/super?
     # this is last to override the asset search with the active super (if any)
