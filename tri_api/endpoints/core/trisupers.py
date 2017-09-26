@@ -226,7 +226,12 @@ def core_corpcapitals():
             except Exception as err:
                 _logger.log('[' + __name__ + '] super audit for failed: {0}'.format(err), _logger.LogLevel.ERROR)
 
-    js = json.dumps(supers)
+    supers_cleaned = {}
+
+    for key in supers:
+        supers_cleaned[supers['item_id']] = supers[key]
+
+    js = json.dumps(supers_cleaned)
     return Response(js, status=200, mimetype='application/json')
 
 
@@ -474,54 +479,49 @@ def audit_pilot_capitals(entry):
     for asset in char_assets:
         asset_typeid = asset.get('type_id')
         asset_id = asset.get('item_id')
-
-        asset_dict = {}
-
         if asset_typeid in list(carriers) + list(dreads) + list(fax):
-            asset_dict = basic_pilot
-            asset_dict['item_id'] = asset_id
-            asset_dict['typeid'] = asset_typeid
-            asset_dict['main_charname'] = main
-            asset_dict['active'] = False
-            asset_dict['location_id'] = asset['location_id']
+            ships[asset_id] = basic_pilot
+            ships[asset_id]['item_id'] = asset_id
+            ships[asset_id]['typeid'] = asset_typeid
+            ships[asset_id]['main_charname'] = main
+            ships[asset_id]['active'] = False
+            ships[asset_id]['location_id'] = asset['location_id']
 
             if asset['location_type'] == 'station':
                 request_url = 'universe/stations/{}/?datasource=tranquility'.format(asset['location_id'])
                 code, result = common.request_esi.esi(__name__, request_url, method='get', version='latest')
 
                 if code == 404:
-                    asset_dict['location_name'] = 'STATION NOT FOUND'
+                    ships[asset_id]['location_name'] = 'STATION NOT FOUND'
                 elif code == 200:
-                    asset_dict['location_name'] = result['name']
+                    ships[asset_id]['location_name'] = result['name']
                 else:
-                    asset_dict['location_name'] = "STATION ERROR"
+                    ships[asset_id]['location_name'] = "STATION ERROR"
             elif asset['location_type'] == 'other':
                 request_url = 'universe/structures/{}/?datasource=tranquility'.format(asset['location_id'])
                 code, result = common.request_esi.esi(__name__, request_url, method='get', version='latest',
                                                       charid=uid)
 
                 if code == 200:
-                    asset_dict['location_name'] = result['name']
+                    ships[asset_id]['location_name'] = result['name']
                 elif code == 403 or code == 401:
-                    asset_dict['location_name'] = "CITADEL FORBIDDEN"
+                    ships[asset_id]['location_name'] = "CITADEL FORBIDDEN"
                 elif code == 404:
-                    asset_dict['location_name'] = 'CITADEL NOT FOUND'
+                    ships[asset_id]['location_name'] = 'CITADEL NOT FOUND'
                 else:
-                    asset_dict['location_name'] = "CITADEL ERROR"
+                    ships[asset_id]['location_name'] = "CITADEL ERROR"
             else:
-                asset_dict['location_name'] = 'TYPE UNKNOWN'
+                ships[asset_id]['location_name'] = 'TYPE UNKNOWN'
 
         if asset_typeid in list(carriers):
-            asset_dict['type'] = carriers[asset_typeid]
-            asset_dict['class'] = "Carrier"
+            ships[asset_id]['type'] = carriers[asset_typeid]
+            ships[asset_id]['class'] = "Carrier"
         elif asset_typeid in list(dreads):
-            asset_dict['type'] = dreads[asset_typeid]
-            asset_dict['class'] = "Dreadnought"
+            ships[asset_id]['type'] = dreads[asset_typeid]
+            ships[asset_id]['class'] = "Dreadnought"
         elif asset_typeid in list(fax):
-            asset_dict['type'] = fax[asset_typeid]
-            asset_dict['class'] = "FAX"
-
-        ships[asset_id] = asset_dict
+            ships[asset_id]['type'] = fax[asset_typeid]
+            ships[asset_id]['class'] = "FAX"
 
     # is this character flying a titan/super?
     # this is last to override the asset search with the active super (if any)
