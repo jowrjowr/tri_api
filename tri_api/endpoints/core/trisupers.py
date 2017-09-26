@@ -327,7 +327,32 @@ def audit_pilot(entry):
             ships[asset_id]['main_charname'] = main
             ships[asset_id]['active'] = False
             ships[asset_id]['location_id'] = asset['location_id']
-            ships[asset_id]['location_name'] = 'Unkown'
+
+            if asset['location_type'] == 'station':
+                request_url = 'universe/stations/{}/?datasource=tranquility'.format(asset['location_id'])
+                code, result = common.request_esi.esi(__name__, request_url, method='get', version='latest')
+
+                if code == 404:
+                    ships[asset_id]['location_name'] = 'STATION NOT FOUND'
+                elif code == 200:
+                    ships[asset_id]['location_name'] = result['name']
+                else:
+                    ships[asset_id]['location_name'] = "STATION ERROR"
+            elif asset['location_type'] == 'other':
+                request_url = 'universe/structures/{}/?datasource=tranquility'.format(asset['location_id'])
+                code, result = common.request_esi.esi(__name__, request_url, method='get', version='latest',
+                                                      charid=uid)
+
+                if code == 200:
+                    ships[asset_id]['location_name'] = result['name']
+                elif code == 403 or code == 401:
+                    ships[asset_id]['location_name'] = "CITADEL FORBIDDEN"
+                elif code == 404:
+                    ships[asset_id]['location_name'] = 'CITADEL NOT FOUND'
+                else:
+                    ships[asset_id]['location_name'] = "CITADEL ERROR"
+            else:
+                ships[asset_id]['location_name'] = 'TYPE UNKNOWN'
 
         if asset_typeid in list(supers):
             ships[asset_id]['type'] = supers[asset_typeid]
@@ -451,6 +476,7 @@ def audit_pilot_capitals(entry):
         asset_id = asset.get('item_id')
         if asset_typeid in list(carriers) + list(dreads) + list(fax):
             ships[asset_id] = basic_pilot
+            ships[asset_id]['item_id'] = asset_id
             ships[asset_id]['typeid'] = asset_typeid
             ships[asset_id]['main_charname'] = main
             ships[asset_id]['active'] = False
