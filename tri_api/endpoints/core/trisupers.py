@@ -463,7 +463,7 @@ def audit_pilot_capitals(entry):
                 if code == 404:
                     ships[asset_id]['location_name'] = 'STATION NOT FOUND'
                 elif code == 200:
-                    ships[asset_id]['location_name'] = result
+                    ships[asset_id]['location_name'] = result['name']
                 else:
                     ships[asset_id]['location_name'] = "STATION ERROR"
             elif asset['location_type'] == 'other':
@@ -472,7 +472,7 @@ def audit_pilot_capitals(entry):
                                                       charid=uid)
 
                 if code == 200:
-                    ships[asset_id]['location_name'] = result
+                    ships[asset_id]['location_name'] = result['name']
                 elif code == 403 or code == 401:
                     ships[asset_id]['location_name'] = "CITADEL FORBIDDEN"
                 elif code == 404:
