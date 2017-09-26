@@ -481,10 +481,7 @@ def audit_pilot_capitals(entry):
             ships[asset_id]['active'] = False
             ships[asset_id]['location_id'] = asset['location_id']
 
-            try:
-                ships[asset_id]['location_name'] = get_system_from_location(uid, asset['location_id'])
-            except Exception:
-                ships[asset_id]['location_name'] = 'EXCEPTION'
+            ships[asset_id]['location_name'] = get_system_from_location(uid, asset['location_id'])
 
 
         if asset_typeid in list(carriers):
