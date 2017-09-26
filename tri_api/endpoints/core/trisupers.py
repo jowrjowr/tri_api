@@ -457,7 +457,7 @@ def audit_pilot_capitals(entry):
             ships[asset_id]['location_id'] = asset['location_id']
 
             if asset['location_type'] == 'station':
-                request_url = '/universe/stations/{}/?datasource=tranquility'.format(asset['location_id'])
+                request_url = 'universe/stations/{}/?datasource=tranquility'.format(asset['location_id'])
                 code, result = common.request_esi.esi(__name__, request_url, method='get', version='v1')
 
                 if code == 404:
@@ -467,7 +467,7 @@ def audit_pilot_capitals(entry):
                 else:
                     ships[asset_id]['location_name'] = "STATION ERROR"
             elif asset['location_type'] == 'other':
-                request_url = '/universe/structures/{}/?datasource=tranquility'.format(asset['location_id'])
+                request_url = 'universe/structures/{}/?datasource=tranquility'.format(asset['location_id'])
                 code, result = common.request_esi.esi(__name__, request_url, method='get', version='v1',
                                                       charid=uid)
 
