@@ -461,7 +461,7 @@ def audit_pilot_capitals(entry):
                 code, result = common.request_esi.esi(__name__, request_url, method='get', version='v1')
 
                 if code == 404:
-                    ships[asset_id]['location_name'] = result
+                    ships[asset_id]['location_name'] = json.dumps(result)
                 elif code == 200:
                     ships[asset_id]['location_name'] = result['name']
                 else:
@@ -476,9 +476,11 @@ def audit_pilot_capitals(entry):
                 elif code == 403 or code == 401:
                     ships[asset_id]['location_name'] = "CITADEL FORBIDDEN"
                 elif code == 404:
-                    ships[asset_id]['location_name'] = result
+                    ships[asset_id]['location_name'] = json.dumps(result)
                 else:
                     ships[asset_id]['location_name'] = "CITADEL ERROR"
+            else:
+                ships[asset_id]['location_name'] = 'TYPE UNKNOWN'
 
         if asset_typeid in list(carriers):
             ships[asset_id]['type'] = carriers[asset_typeid]
