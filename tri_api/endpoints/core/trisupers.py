@@ -12,7 +12,7 @@ def get_system_from_location(char_id, location_id):
     # try citadel
     # if 404 then try station, if forbidden or error then unkown
     request_url = '/universe/structures/{}/?datasource=tranquility'.format(location_id)
-    code, result = common.request_esi.esi(__name__, request_url, method='get', version='v1', char_id=char_id)
+    code, result = common.request_esi.esi(__name__, request_url, method='get', version='v1', charid=char_id)
 
     if code == 200:
         return result['name']
