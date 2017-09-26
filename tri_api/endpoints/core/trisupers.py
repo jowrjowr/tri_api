@@ -8,6 +8,32 @@ import common.logger as _logger
 import common.esihelpers as _esihelpers
 import common.check_scope as _check_scope
 
+def get_system_from_location(location_id):
+    # try citadel
+    # if 404 then try station, if forbidden or error then unkown
+    request_url = '/universe/structures/{}/?datasource=tranquility'.format(location_id)
+    code, result = common.request_esi.esi(__name__, request_url, method='get', version='v1')
+
+    if code == 200:
+        return result['name']
+    elif code == 403:
+        return 'Forbidden'
+    elif code == 404:
+        # check station
+        request_url = '/universe/stations/{}/?datasource=tranquility'.format(location_id)
+        code, result = common.request_esi.esi(__name__, request_url, method='get', version='v1')
+
+        if code == 404:
+            return 'Unknown'
+        elif code == 202:
+            return result['name']
+        else:
+            return 'ERROR'
+    else:
+        return 'ERROR'
+
+
+
 @app.route('/core/trisupers/', methods=[ 'GET' ])
 def core_trisupers():
 
@@ -454,15 +480,20 @@ def audit_pilot_capitals(entry):
             ships[asset_id]['main_charname'] = main
             ships[asset_id]['active'] = False
             ships[asset_id]['location_id'] = asset['location_id']
-            ships[asset_id]['location_name'] = 'Unkown'
+
+            try:
+                ships[asset_id]['location_name'] = get_system_from_location(asset['location_id'])
+            except Exception:
+                ships[asset_id]['location_name'] = 'Unkown'
+
 
         if asset_typeid in list(carriers):
             ships[asset_id]['type'] = carriers[asset_typeid]
             ships[asset_id]['class'] = "Carrier"
-        if asset_typeid in list(dreads):
+        elif asset_typeid in list(dreads):
             ships[asset_id]['type'] = dreads[asset_typeid]
             ships[asset_id]['class'] = "Dreadnought"
-        if asset_typeid in list(fax):
+        elif asset_typeid in list(fax):
             ships[asset_id]['type'] = fax[asset_typeid]
             ships[asset_id]['class'] = "FAX"
 
@@ -486,11 +517,11 @@ def audit_pilot_capitals(entry):
         ships[active_id]['type'] = carriers[active_typeid]
         ships[active_id]['class'] = "Carrier"
 
-    if active_typeid in list(dreads):
+    elif active_typeid in list(dreads):
         ships[active_id]['type'] = dreads[active_typeid]
         ships[active_id]['class'] = "Dreadnought"
 
-    if active_typeid in list(fax):
+    elif active_typeid in list(fax):
         ships[active_id]['type'] = fax[active_typeid]
         ships[active_id]['class'] = "FAX"
 
