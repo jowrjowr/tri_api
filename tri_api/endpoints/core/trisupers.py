@@ -8,11 +8,11 @@ import common.logger as _logger
 import common.esihelpers as _esihelpers
 import common.check_scope as _check_scope
 
-def get_system_from_location(location_id):
+def get_system_from_location(char_id, location_id):
     # try citadel
     # if 404 then try station, if forbidden or error then unkown
     request_url = '/universe/structures/{}/?datasource=tranquility'.format(location_id)
-    code, result = common.request_esi.esi(__name__, request_url, method='get', version='v1')
+    code, result = common.request_esi.esi(__name__, request_url, method='get', version='v1', char_id=char_id)
 
     if code == 200:
         return result['name']
@@ -482,7 +482,7 @@ def audit_pilot_capitals(entry):
             ships[asset_id]['location_id'] = asset['location_id']
 
             try:
-                ships[asset_id]['location_name'] = get_system_from_location(asset['location_id'])
+                ships[asset_id]['location_name'] = get_system_from_location(uid, asset['location_id'])
             except Exception:
                 ships[asset_id]['location_name'] = 'EXCEPTION'
 
