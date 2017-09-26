@@ -476,7 +476,7 @@ def audit_pilot_capitals(entry):
                 elif code == 403 or code == 401:
                     ships[asset_id]['location_name'] = "CITADEL FORBIDDEN"
                 elif code == 404:
-                    ships[asset_id]['location_name'] = json.dumps(result)
+                    ships[asset_id]['location_name'] = request_url
                 else:
                     ships[asset_id]['location_name'] = "CITADEL ERROR"
             else:
