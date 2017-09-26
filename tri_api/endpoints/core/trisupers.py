@@ -461,7 +461,7 @@ def audit_pilot_capitals(entry):
                 code, result = common.request_esi.esi(__name__, request_url, method='get', version='v1')
 
                 if code == 404:
-                    ships[asset_id]['location_name'] = json.dumps(result)
+                    ships[asset_id]['location_name'] = request_url
                 elif code == 200:
                     ships[asset_id]['location_name'] = result['name']
                 else:
