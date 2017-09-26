@@ -24,13 +24,13 @@ def get_system_from_location(location_id):
         code, result = common.request_esi.esi(__name__, request_url, method='get', version='v1')
 
         if code == 404:
-            return 'Unknown'
+            return 'NOT FOUND'
         elif code == 202:
             return result['name']
         else:
-            return 'ERROR'
+            return 'ERROR (STAT)'
     else:
-        return 'ERROR'
+        return 'ERROR (CIT)'
 
 
 
@@ -484,7 +484,7 @@ def audit_pilot_capitals(entry):
             try:
                 ships[asset_id]['location_name'] = get_system_from_location(asset['location_id'])
             except Exception:
-                ships[asset_id]['location_name'] = 'Unkown'
+                ships[asset_id]['location_name'] = 'EXCEPTION'
 
 
         if asset_typeid in list(carriers):
