@@ -229,7 +229,7 @@ def core_corpcapitals():
     supers_cleaned = {}
 
     for key in supers:
-        supers_cleaned[supers['item_id']] = supers[key]
+        supers_cleaned[supers[key]['item_id']] = supers[key]
 
     js = json.dumps(supers_cleaned)
     return Response(js, status=200, mimetype='application/json')
