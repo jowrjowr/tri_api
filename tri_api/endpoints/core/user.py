@@ -100,8 +100,7 @@ def core_user(char_id):
 
                 # blacklist
                 if 'Director' in main_roles or 'Personnel_Manager' in main_roles or 'board' in main_groups:
-                    if 'resources' not in main_access:
-                        main_access['resources'] = ['blacklist']
+                    main_access['resources'] = ['blacklist']
 
                 # structures & corp audit
                 if 'Director' in main_roles or 'administration' in main_groups:
