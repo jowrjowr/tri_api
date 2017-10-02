@@ -53,7 +53,9 @@ def maint_tokens():
             discordtokens[dn]['rtoken'] = discord_rtoken
             discordtokens[dn]['expires'] = float( info.get('discordAccessTokenExpires') )
             discordtokens[dn]['uid'] = int( info.get('uid') )
-            discordtokens[dn]['discorduid'] = int( info.get('discorduid') )
+
+            if info.get('discorduid'):
+                discordtokens[dn]['discorduid'] = int( info.get('discorduid') )
 
 
     ldap_conn.unbind()
@@ -262,31 +264,37 @@ def eve_tokenthings(dn, evetokens):
 
     mod_attrs = []
 
-    # fetch all corporation roles for the updated token
+    # fetch all corporation roles for the updated token if the scope allows that
 
-    request_url = 'characters/{0}/roles/?datasource=tranquility'.format(charid)
-    code, result = common.request_esi.esi(__name__, request_url, method='get', charid=charid, version='v1')
+    if 'esi-characters.read_corporation_roles.v1' in ldap_scopes:
 
-    if code == 403:
-        error = 'no perms to read roles for {0}: ({1}) {2}'.format(charid, code, result['error'])
-        _logger.log('[' + function + '] ' + error,_logger.LogLevel.DEBUG)
-    elif not code == 200:
-        error = 'unable to get character roles for {0}: ({1}) {2}'.format(charid, code, result['error'])
-        _logger.log('[' + function + '] ' + error,_logger.LogLevel.ERROR)
+        request_url = 'characters/{0}/roles/?datasource=tranquility'.format(charid)
+        code, result = common.request_esi.esi(__name__, request_url, method='get', charid=charid, version='v1')
+
+        if code == 403:
+            error = 'no perms to read roles for {0}: ({1}) {2}'.format(charid, code, result['error'])
+            _logger.log('[' + function + '] ' + error,_logger.LogLevel.DEBUG)
+        elif not code == 200:
+            error = 'unable to get character roles for {0}: ({1}) {2}'.format(charid, code, result['error'])
+            _logger.log('[' + function + '] ' + error,_logger.LogLevel.ERROR)
+        else:
+
+            # figure out what needs to be added and removed from ldap
+
+            missing_roles = set(result) - set(roles)
+            extra_roles = set(roles) - set(result)
+
+            for missing in list(missing_roles):
+                missing = missing.encode('utf-8')
+                mod_attrs.append((ldap.MOD_ADD, 'corporationRole', [ missing ] ))
+
+            for extra in list(extra_roles):
+                extra = extra.encode('utf-8')
+                mod_attrs.append((ldap.MOD_DELETE, 'corporationRole', [ extra ] ))
+
     else:
-
-        # figure out what needs to be added and removed from ldap
-
-        missing_roles = set(result) - set(roles)
-        extra_roles = set(roles) - set(result)
-
-        for missing in list(missing_roles):
-            missing = missing.encode('utf-8')
-            mod_attrs.append((ldap.MOD_ADD, 'corporationRole', [ missing ] ))
-
-        for extra in list(extra_roles):
-            extra = extra.encode('utf-8')
-            mod_attrs.append((ldap.MOD_DELETE, 'corporationRole', [ extra ] ))
+        # legacy token that doesn't have this scope. probably not getting updates on these lol
+        pass
 
     # determine the scopes the token has access to
     # the verify url is specifically not versioned

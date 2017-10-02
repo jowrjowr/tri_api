@@ -376,6 +376,7 @@ def ts3_validate_users(ts3conn):
             _logger.log('[' + __name__ + '] ts3 orphan dbid: {0}'.format(ts_dbid),_logger.LogLevel.INFO)
             registered_username = None
             orphan = True
+
         elif len(result) == 1:
             # the dbid is matched to an single ldap user
             (dn, info), = result.items()
@@ -438,8 +439,24 @@ def ts3_validate_users(ts3conn):
             clid = client['clid']
             cldbid = int(client['client_database_id'])
             client_username = client['client_nickname']
-            if not client_username or not registered_username:
+
+#            if not client_username or not registered_username:
+#                continue
+
+            if orphan:
+                print(client_username, registered_username, clid, cldbid)
                 continue
+                # a registered TS user needs to have an ESI token on their LDAP
+                reason = 'Please login to CORE. Your token has become invalid.'
+                try:
+                    resp = ts3conn.clientkick(reasonid=5, reasonmsg=reason, clid=clid)
+                    _logger.log('[' + __name__ + '] ts3 user {0} kicked from server: no esi token'.format(user_nick),_logger.LogLevel.WARNING)
+                    _logger.log('[' + __name__ + '] TS db: "{0}", client: "{1}"'.format(registered_username,client_username),_logger.LogLevel.DEBUG)
+                    kicked = True
+                    _logger.securitylog(__name__, 'ts3 without ESI', charname=registered_username, date=user_lastconn, ipaddress=user_lastip)
+                except ts3.query.TS3QueryError as err:
+                    _logger.log('[' + __name__ + '] ts3 error: "{0}"'.format(err),_logger.LogLevel.ERROR)
+
 
             if client_username.lower() == registered_username.lower() and token == None and kicked == False:
                 # a registered TS user needs to have an ESI token on their LDAP
