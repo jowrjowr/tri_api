@@ -107,7 +107,7 @@ def core_user(char_id):
                         main_access['corp_tools'] = []
 
                     main_access['corp_tools'].append('structures')
-                    main_access['corp_tools'].append('corp_audit')
+                    main_access['corp_tools'].append('audit')
 
                 # alliance structures
                 if 'board' in main_groups:
@@ -121,7 +121,7 @@ def core_user(char_id):
                     if 'alliance_tools' not in main_access:
                         main_access['alliance_tools'] = []
 
-                    main_access['alliance_tools'].append('alliance_audit')
+                    main_access['alliance_tools'].append('audit')
 
         js = dumps({
             'character_id': main_char_id,
