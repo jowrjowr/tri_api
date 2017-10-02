@@ -74,70 +74,51 @@ def core_user(char_id):
         main_groups = [entry.decode('utf-8') for entry in udata['authGroup']]
         main_roles = [entry.decode('utf-8') for entry in udata['corporationRole']]
 
-        # define access groups
-        if 'vanguard' in main_groups:
-            # basic stuff
-            main_access['fleets'] = ['opsboard', 'doctrines_sub', 'doctrines_cap', 'srp']
-            main_access['services'] = ['forum', 'jabber', 'teamspeak']
+        # basic access for non banned groups
+        if 'public' in main_groups:
+            main_access['services'] = ['forum']
 
-            if 'triumvirate' in main_groups or 'skyteam' in main_groups or 'skirmishfc' in main_groups:
-                main_access['services'].append('discord')
+            # tri only
+            if 'triumvirate' in main_groups:
+                main_access['services'] = ['forum', 'jabber', 'teamspeak', 'discord']
+                main_access['fleets'] = ['opsboard', 'doctrines', 'srp']
 
-            # fcs
-            if 'skyteam' in main_groups or 'skirmishfc' in main_groups:
+                if 'trisupers' in main_groups:
+                    main_access['fleets'].append('supers')
 
-                if 'utilities' not in main_access:
-                    main_access['utilities'] = []
+                if 'Director' in main_roles or 'Personnel_Manager' in main_roles \
+                        or 'skyteam' in main_groups or 'skirmishfc' in main_groups or 'administration' in main_groups:
+                    main_access['utilities'] = ['broadcast']
 
-                main_access['utilities'].append('broadcast')
+                if 'Director' in main_roles or 'Personnel_Manager' in main_roles:
+                    if 'resources' not in main_access:
+                        main_access['resources'] = ['blacklist']
 
-            # supers
-            if 'trisupers' in main_groups:
-                main_access['fleets'].append('doctrines_sup')
+                # directors
+                if 'Director' in main_roles or 'administration' in main_groups:
+                    if 'corp_tools' not in main_access:
+                        main_access['corp_tools'] = []
 
-            # blacklist
-            if 'Director' in main_roles or 'Personnel_Manager' in main_roles:
-                if 'resources' not in main_access:
-                    main_access['resources'] = []
+                    main_access['corp_tools'].append('structures')
+                    main_access['corp_tools'].append('corp_audit')
 
-                main_access['resources'].append('blacklist')
+                # board members
+                if 'board' in main_groups:
+                    if 'resources' not in main_access:
+                        main_access['resources'] = []
 
-            # directors
-            if 'Director' in main_roles:
-                if 'utilities' not in main_access:
-                    main_access['utilities'] = []
+                    if 'alliance_tools' not in main_access:
+                        main_access['alliance_tools'] = []
 
-                if 'resources' not in main_access:
-                    main_access['resources'] = []
+                    main_access['resources'].append('blacklist')
+                    main_access['alliance_tools'].append('structures')
 
-                main_access['resources'].append('structures')
-                main_access['utilities'].append('audit_corp')
+                # command
+                if 'command' in main_groups or main_char_name == "frsd" or main_char_name == "Saeka Tyr":
+                    if 'alliance_tools' not in main_access:
+                        main_access['alliance_tools'] = []
 
-            # board members
-            if 'board' in main_groups:
-                main_access['resources'].append('blacklist')
-                main_access['resources'].append('structures')
-
-            # command
-            if 'command' in main_groups or main_char_name=="frsd" or main_char_name=="Saeka Tyr":
-                if 'utilities' not in main_access:
-                    main_access['utilities'] = []
-
-                main_access['utilities'].append('audit_triumvirate')
-                main_access['utilities'].append('audit_vanguard')
-        elif 'temp' in main_groups:
-            main_access['fleets'] = ['opsboard', 'doctrines_sub']
-            main_access['services'] = ['teamspeak']
-
-            if 'skyteam' in main_groups or 'skirmishfc' in main_groups:
-                main_access['services'].append('discord')
-
-            # fcs
-            if 'skyteam' in main_groups:
-                if 'utilities' not in main_access:
-                    main_access['utilities'] = []
-
-                main_access['utilities'].append('broadcast')
+                    main_access['alliance_tools'].append('alliance_audit')
 
         js = dumps({
             'character_id': main_char_id,
