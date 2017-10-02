@@ -81,7 +81,9 @@ def core_user(char_id):
             # tri only
             if 'triumvirate' in main_groups:
                 main_access['services'] = ['forum', 'jabber', 'teamspeak', 'discord']
-                main_access['fleets'] = ['opsboard', 'doctrines', 'srp']
+                main_access['fleets'] = ['opsboard', 'doctrines']
+
+                main_access['resources'] = ['srp']
 
                 # supers
                 if 'trisupers' in main_groups:
