@@ -13,6 +13,9 @@ class JabberForwarder(ClientXMPP):
 
     def __init__(self, jid, password, covername, handler, queue):
         # connect to jabber
+
+        jid = jid + '/IM+'
+
         ClientXMPP.__init__(self, jid, password)
 
         self.queue = queue
