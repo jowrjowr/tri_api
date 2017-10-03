@@ -92,17 +92,17 @@ def core_user(char_id):
                 # pinging
                 if 'Director' in main_roles or 'Personnel_Manager' in main_roles \
                         or 'skyteam' in main_groups or 'skirmishfc' in main_groups or 'administration' in main_groups:
-                    if 'utilities' not in main_access:
-                        main_access['utilities'] = []
+                    if 'alliance_tools' not in main_access:
+                        main_access['alliance_tools'] = []
 
-                    main_access['utilities'].append('broadcast')
+                    main_access['alliance_tools'].append('broadcast')
 
                 # timerboard
                 if 'skyteam' in main_groups or 'board' in main_groups:
-                    if 'utilities' not in main_access:
-                        main_access['utilities'] = []
+                    if 'alliance_tools' not in main_access:
+                        main_access['alliance_tools'] = []
 
-                    main_access['utilities'].append('timerboard')
+                    main_access['alliance_tools'].append('timerboard')
 
                 # blacklist
                 if 'Director' in main_roles or 'Personnel_Manager' in main_roles or 'board' in main_groups:
@@ -111,20 +111,19 @@ def core_user(char_id):
 
                     main_access['resources'].append('blacklist')
 
-                # structures & corp audit
+                #  corp audit
                 if 'Director' in main_roles or 'administration' in main_groups:
                     if 'corp_tools' not in main_access:
                         main_access['corp_tools'] = []
 
-                    main_access['corp_tools'].append('structures')
                     main_access['corp_tools'].append('audit')
 
-                # alliance structures
-                if 'board' in main_groups:
-                    if 'alliance_tools' not in main_access:
-                        main_access['alliance_tools'] = []
+                # structures
+                if 'board' in main_groups or 'Director' in main_roles or 'administration' in main_groups:
+                    if 'resources' not in main_access:
+                        main_access['resources'] = []
 
-                    main_access['alliance_tools'].append('structures')
+                    main_access['resources'].append('structures')
 
                 # alliance audit
                 if 'command' in main_groups or main_char_name == "frsd" or main_char_name == "Saeka Tyr":
