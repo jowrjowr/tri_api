@@ -167,71 +167,77 @@ def fetch_chardetails(info):
     # we'll let the token scope status fall where it may and try to get other details
 
     # fetch skill queue
-    request_url = 'characters/' + str(alt_charid) + '/skillqueue/?datasource=tranquility'
-    code, result = esi(__name__, request_url, 'get', charid=alt_charid, version='v2')
-    _logger.log('[' + __name__ + '] /characters output: {}'.format(result), _logger.LogLevel.DEBUG)
+    if check_scope(__name__, alt_charid, ['esi-skills.read_skillqueue.v1'])[0]:
+        request_url = 'characters/' + str(alt_charid) + '/skillqueue/?datasource=tranquility'
+        code, result = esi(__name__, request_url, 'get', charid=alt_charid, version='v2')
+        _logger.log('[' + __name__ + '] /characters output: {}'.format(result), _logger.LogLevel.DEBUG)
 
-    if not code == 200:
-        _logger.log('[' + __name__ + '] /characters skillqueue API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.ERROR)
-        skill_training_id = None
+        if not code == 200:
+            _logger.log('[' + __name__ + '] /characters skillqueue API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.ERROR)
+            skill_training_id = None
 
-    if len(result) == 0:
-        skill_training_id = None
-        current_skill = None
-
-    if len(result) > 0:
-        try:
-            current_skill = result[0]
-        except Exception as e:
+        if len(result) == 0:
             skill_training_id = None
             current_skill = None
 
-    if not current_skill == None:
-        new_entry['skill_training_id'] = current_skill['skill_id']
-        new_entry['skill_training_level'] = current_skill['finished_level']
-        try:
-            new_entry['skill_finish'] = current_skill['finish_date']
-        except Exception as e:
-            new_entry['skill_finish'] = 'N/A'
-        skill_training_id = current_skill['skill_id']
+        if len(result) > 0:
+            try:
+                current_skill = result[0]
+            except Exception as e:
+                skill_training_id = None
+                current_skill = None
 
-    if not skill_training_id == None:
-        # map the skill id to a name
-        request_url = 'universe/names/?datasource=tranquility'
-        data = '[{}]'.format(skill_training_id)
-        code, result = esi(__name__, request_url, data=data, method='post', version='v2')
-        _logger.log('[' + __name__ + '] /universe output: {}'.format(result), _logger.LogLevel.DEBUG)
+        if not current_skill == None:
+            new_entry['skill_training_id'] = current_skill['skill_id']
+            new_entry['skill_training_level'] = current_skill['finished_level']
+            try:
+                new_entry['skill_finish'] = current_skill['finish_date']
+            except Exception as e:
+                new_entry['skill_finish'] = 'N/A'
+            skill_training_id = current_skill['skill_id']
 
-        if not code == 200:
-            _logger.log('[' + __name__ + '] /universe API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.ERROR)
-            new_entry['skill_training'] = 'Unknown'
-        else:
-            new_entry['skill_training'] = result[0]['name']
+        if not skill_training_id == None:
+            # map the skill id to a name
+            request_url = 'universe/names/?datasource=tranquility'
+            data = '[{}]'.format(skill_training_id)
+            code, result = esi(__name__, request_url, data=data, method='post', version='v2')
+            _logger.log('[' + __name__ + '] /universe output: {}'.format(result), _logger.LogLevel.DEBUG)
+
+            if not code == 200:
+                _logger.log('[' + __name__ + '] /universe API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.ERROR)
+                new_entry['skill_training'] = 'Unknown'
+            else:
+                new_entry['skill_training'] = result[0]['name']
+    else:
+        pass
 
     # fetch alt location
-    request_url = 'characters/{0}/location/?datasource=tranquility'.format(alt_charid)
-    code, result = esi(__name__, request_url, method='get', charid=alt_charid, version='v1')
-    _logger.log('[' + __name__ + '] /characters output: {}'.format(result), _logger.LogLevel.DEBUG)
+    if check_scope(__name__, alt_charid, ['esi-location.read_location.v1'])[0]:
+        request_url = 'characters/{0}/location/?datasource=tranquility'.format(alt_charid)
+        code, result = esi(__name__, request_url, method='get', charid=alt_charid, version='v1')
+        _logger.log('[' + __name__ + '] /characters output: {}'.format(result), _logger.LogLevel.DEBUG)
 
-    if not code == 200:
-        _logger.log('[' + __name__ + '] /characters location API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.ERROR)
-        location = None
-    else:
-        location = result['solar_system_id']
-
-    new_entry['location_id'] = location
-
-    # map the location to a name
-    if location == None:
-        new_entry['location'] = 'Unknown'
-    else:
-        request_url = 'universe/systems/{0}/?datasource=tranquility'.format(location)
-        code, result = esi(__name__, request_url, 'get')
         if not code == 200:
-            _logger.log('[' + __name__ + '] /universe/systems API error ' + str(code) + ': ' + str(data['error']), _logger.LogLevel.INFO)
+            _logger.log('[' + __name__ + '] /characters location API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.ERROR)
+            location = None
+        else:
+            location = result['solar_system_id']
+
+        new_entry['location_id'] = location
+
+        # map the location to a name
+        if location == None:
             new_entry['location'] = 'Unknown'
         else:
-            new_entry['location'] = result['name']
+            request_url = 'universe/systems/{0}/?datasource=tranquility'.format(location)
+            code, result = esi(__name__, request_url, 'get')
+            if not code == 200:
+                _logger.log('[' + __name__ + '] /universe/systems API error ' + str(code) + ': ' + str(data['error']), _logger.LogLevel.INFO)
+                new_entry['location'] = 'Unknown'
+            else:
+                new_entry['location'] = result['name']
+    else:
+        new_entry['location'] = 'Unknown'
 
     return new_entry
 
