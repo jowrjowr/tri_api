@@ -28,3 +28,6 @@ app.config.update({
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 import tri_api.views
+import tri_api.endpoints.core2
+
+app.register_blueprint(tri_api.endpoints.core2.blueprint)
