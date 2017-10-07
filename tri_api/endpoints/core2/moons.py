@@ -2,22 +2,8 @@ from ..core2 import blueprint
 from .decorators import verify_user
 
 
-class Moon:
-    moon_id = None
-    moon_name = None
-
-    planet_id = None
-
-    solar_syste_id = None
-
-    composition = dict()
-
-    scanned_by = None
-    scanned_when = None
-
-
 @blueprint.route('/<int:user_id>/moons/', methods=['POST'])
-@verify_user(roles=['board', 'administation', 'triprobers'])
+@verify_user(groups=['board', 'administation', 'triprobers'])
 def moons_post(user_id):
     import common.ldaphelpers as _ldaphelpers
     import flask
