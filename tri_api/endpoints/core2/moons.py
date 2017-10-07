@@ -15,7 +15,7 @@ def moons_post(user_id):
 
     data = str(flask.request.data.strip())
 
-    if re.match("^[A-Za-z0-9_-]*$", data):
+    if re.match("^[A-Za-z0-9_-.\t\r\n]*$", data):
         regex = re.findall("^(M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})|[IDCXMLV])$", data)
 
         return str(regex)
