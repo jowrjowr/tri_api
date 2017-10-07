@@ -17,4 +17,4 @@ def moons_post(user_id):
 
     regex = re.findall("^(M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})|[IDCXMLV])$", data)
 
-    return regex
+    return flask.Response(regex)
