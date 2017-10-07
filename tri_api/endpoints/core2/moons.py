@@ -13,10 +13,10 @@ def moons_post(user_id):
 
     logger = logging.getLogger(__name__)
 
-    data = flask.request.data.strip()
+    data = str(flask.request.data.strip())
 
     if re.match("^[A-Za-z0-9_-]*$", data):
-        regex = re.findall("^(M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})|[IDCXMLV])$", str(data))
+        regex = re.findall("^(M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})|[IDCXMLV])$", data)
 
         return str(regex)
     else:
