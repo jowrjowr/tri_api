@@ -1,9 +1,8 @@
 def verify_user(groups=None, roles=None):
     def decorator(f):
-        from functools import wraps
+        from functools import update_wrapper
 
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
+        def warpped_function(*args, **kwargs):
             import common.ldaphelpers as _ldaphelpers
             import flask
             import logging
@@ -64,5 +63,5 @@ def verify_user(groups=None, roles=None):
                     logger.error("verify_user failed as roles are not a list of strings or a list of string lists")
                     return flask.Response(json.dumps({'error': 'verify_user failed'}),
                                           status=500, mimetype='application/json')
-        return decorated_function
+        return update_wrapper(warpped_function, f)
     return decorator
