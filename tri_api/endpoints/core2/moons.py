@@ -20,4 +20,4 @@ def moons_post(user_id):
 
 
 
-    return flask.Response(regex_header.match(lines[1]))
+    return flask.Response(json.dumps(lines))
