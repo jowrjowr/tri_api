@@ -1,5 +1,5 @@
 def verify_user(groups=None, roles=None):
-    def decorator(f)
+    def decorator(f):
         from functools import wraps
 
         @wraps(f)
