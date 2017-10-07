@@ -13,6 +13,6 @@ def moons_post(user_id):
 
     logger = logging.getLogger(__name__)
 
-    data = str(flask.request.data.strip())
+    data = str(flask.request.get_data())
 
     return flask.Response(data)
