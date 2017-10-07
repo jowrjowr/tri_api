@@ -15,8 +15,6 @@ def moons_post(user_id):
 
     data = str(flask.request.get_data())
 
-    regex = re.compile("(.+) - Moon ^\d+$")
+    p = re.compile("(.+) - Moon ^\d+$")
 
-    result = regex.search(data)
-
-    return flask.Response(result.group(1))
+    return flask.Response(p.match(data).groups())
