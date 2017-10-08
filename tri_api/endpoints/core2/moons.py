@@ -22,7 +22,6 @@ def moons_post(user_id):
     print(lines)
 
     regex_moon = re.compile("(.*) (XC|XL|L?X{0,3})(IX|IV|V?I{0,3}) - Moon ([0-9]{1,3})")
-    regex_lin = re.compile("\s*(.*)\s+([0-9]\.[0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)")
     regex_win = re.compile("\\t(.*)\\t([0-9]\.[0-9]+)\\t([0-9]+)\\t([0-9]+)\\t([0-9]+)\\t([0-9]+)")
 
     moons = []
@@ -43,11 +42,8 @@ def moons_post(user_id):
                 match_mineral = regex_win.match(lines[i + 1])
 
                 if not match_mineral:
-                    match_mineral = regex_lin.match(lines[i + 1])
-
-                    if not match_mineral:
-                        logger.error('no regex match for line: {0}'.format(lines[i + 1]))
-                        break
+                    logger.error('no regex match for line: {0}'.format(lines[i + 1]))
+                    break
 
                 moon['valid'] = True
 
