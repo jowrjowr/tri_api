@@ -26,8 +26,8 @@ def moons_post(user_id):
         if match:
             moon = {
                 'system_name': match.group(1),
-                'planet_name': match.group(2),
-                'moon_name': match.group(3),
+                'planet_name': match.group(3),
+                'moon_name': match.group(4),
                 'minerals': []
             }
 
