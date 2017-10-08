@@ -12,7 +12,8 @@ def moons_post(user_id):
     import MySQLdb as mysql
     import json
     import re
-    import roman
+
+    from .roman import fromRoman
 
     logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ def moons_post(user_id):
         if match:
             moon = {
                 'system': int(match.group(1)),
-                'planet': int(roman.fromRoman(match.group(3))),
+                'planet': int(fromRoman(match.group(3))),
                 'moon': int(match.group(4)),
                 'minerals': []
             }
