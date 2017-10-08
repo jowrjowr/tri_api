@@ -17,7 +17,10 @@ def moons_post(user_id):
 
     logger = logging.getLogger(__name__)
 
-    lines = str(flask.request.get_data()).split('\\n')
+    lines = str(flask.request.get_data()).splitlines()
+
+    print(lines)
+
 
     regex_moon = re.compile("(.*) (XC|XL|L?X{0,3})(IX|IV|V?I{0,3}) - Moon ([0-9]{1,3})")
     regex_mineral = re.compile("\s*(.*)\s+([0-9]\.[0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)")
@@ -29,7 +32,7 @@ def moons_post(user_id):
 
         if match:
             moon = {
-                'system': match.group(1),
+                'system': match.group(1).strip(),
                 'planet': int(fromRoman(match.group(3))),
                 'moon': int(match.group(4)),
                 'minerals': []
@@ -46,7 +49,7 @@ def moons_post(user_id):
                 moon['moon_id'] = int(match_mineral.group(6))
 
                 moon['minerals'].append({
-                    'product': match_mineral.group(1),
+                    'product': match_mineral.group(1).strip(),
                     'quantity': float(match_mineral.group(2)),
                     'ore_type': int(match_mineral.group(3)),
                 })
@@ -85,4 +88,4 @@ def moons_post(user_id):
         sql_conn.commit()
         sql_conn.close()
 
-    return flask.Response(json.dumps(moons), status=200, mimetype='application/json')
+    return flask.Response(json.dumps({}), status=200, mimetype='application/json')
