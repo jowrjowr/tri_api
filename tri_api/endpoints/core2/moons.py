@@ -31,7 +31,7 @@ def moons_post(user_id):
                 'minerals': []
             }
 
-            for j in range(0, 4):
+            for j in range(1, 5):
                 match_mineral = regex_mineral.match(lines[i+j])
 
                 if not match_mineral:
