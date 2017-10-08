@@ -57,7 +57,7 @@ def moons_get(user_id):
 
         moons.append(moon)
 
-    return flask.Response(json.dumps({moons}), status=200, mimetype='application/json')
+    return flask.Response(json.dumps(moons), status=200, mimetype='application/json')
 
 
 @blueprint.route('/<int:user_id>/moons/', methods=['POST'])
