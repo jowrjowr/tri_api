@@ -35,17 +35,20 @@ def moons_post(user_id):
                 'system': match.group(1).strip(),
                 'planet': int(fromRoman(match.group(3))),
                 'moon': int(match.group(4)),
-                'minerals': []
+                'minerals': [],
+                'valid': False
             }
 
             for j in range(1, 5):
-                match_mineral = regex_win.match(lines[i+1])
+                match_mineral = regex_win.match(lines[i + 1])
 
                 if not match_mineral:
                     match_mineral = regex_lin.match(lines[i + 1])
 
                     if not match_mineral:
                         break
+
+                moon['valid'] = True;
 
                 moon['system_id'] = int(match_mineral.group(4))
                 moon['planet_id'] = int(match_mineral.group(5))
@@ -75,13 +78,16 @@ def moons_post(user_id):
 
     try:
         for moon in moons:
-            cursor.execute("INSERT INTO MoonScans "
-                           "(moonId, moonNr, planetId, planetNr, solarSystemId, "
-                           "solarSystemName, oreComposition, scannedBy, scannedDate) VALUES "
-                           "(%s, %s, %s, %s, %s,"
-                           "%s, %s, %s, NOW())",
-                           (moon['moon_id'], moon['moon'], moon['planet_id'], moon['planet'], moon['system_id'],
-                            moon['system'], json.dumps(moon['minerals']), int(user_id)))
+            if moon['valid']:
+                cursor.execute("INSERT INTO MoonScans "
+                               "(moonId, moonNr, planetId, planetNr, solarSystemId, "
+                               "solarSystemName, oreComposition, scannedBy, scannedDate) VALUES "
+                               "(%s, %s, %s, %s, %s,"
+                               "%s, %s, %s, NOW())",
+                               (moon['moon_id'], moon['moon'], moon['planet_id'], moon['planet'], moon['system_id'],
+                                moon['system'], json.dumps(moon['minerals']), int(user_id)))
+            else:
+                print(json.dumps(moon))
     except mysql.Error as error:
         sql_conn.rollback()
         logger.error('mysql error: {0}'.format(error))
