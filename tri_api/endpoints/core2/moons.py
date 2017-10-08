@@ -2,6 +2,64 @@ from ..core2 import blueprint
 from .decorators import verify_user
 
 
+@blueprint.route('/<int:user_id>/moons/', methods=['GET'])
+@verify_user(groups=['board'])
+def moons_get(user_id):
+    import common.database as _database
+    import common.ldaphelpers as _ldaphelpers
+    import flask
+    import logging
+    import MySQLdb as mysql
+    import json
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        sql_conn = mysql.connect(
+            database=_database.DB_DATABASE,
+            user=_database.DB_USERNAME,
+            password=_database.DB_PASSWORD,
+            host=_database.DB_HOST)
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+
+    cursor = sql_conn.cursor()
+
+    query = 'SELECT id,moonNr,planetNr,solarSystemId, solarSystemName,oreComposition,scannedBy,scannedDate ' \
+            'FROM MoonScans'
+    try:
+        rowcount = cursor.execute(query)
+        rows = cursor.fetchall()
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+    finally:
+        cursor.close()
+
+    moons = []
+
+    user_ref = {}
+    region_ref = {}
+
+    for row in rows:
+        moon = {
+            'entry_id': row[0],
+            'region': 'N/A',
+            'system': row[4],
+            'system_id': row[3],
+            'planet': row[2],
+            'moon': row[1],
+            'minerals': row[5],
+            'scanned_by': row[6],
+            'scanned_date': row[7].isoformat()
+        }
+
+        moons.append(moon)
+
+    return flask.Response(json.dumps({moons}), status=200, mimetype='application/json')
+
+
 @blueprint.route('/<int:user_id>/moons/', methods=['POST'])
 @verify_user(groups=['board', 'administation', 'triprobers'])
 def moons_post(user_id):
@@ -42,7 +100,7 @@ def moons_post(user_id):
                 match_mineral = regex_win.match(lines[i + 1])
 
                 if not match_mineral:
-                    logger.error('no regex match for line: {0}'.format(lines[i + 1]))
+                    logger.warning('no regex match for line: {0} (if this is a new moon ignore)'.format(lines[i + 1]))
                     break
 
                 moon['valid'] = True
