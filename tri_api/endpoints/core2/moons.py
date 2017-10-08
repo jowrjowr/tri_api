@@ -74,12 +74,13 @@ def moons_post(user_id):
                            "%s, %s, %i, NOW())",
                            (moon['moon_id'], moon['moon'], moon['planet_id'], moon['planet'], moon['system_id'],
                             moon['system'], json.dumps(moon['minerals']), user_id))
-            cursor.execute()
     except mysql.Error as error:
         sql_conn.rollback()
         logger.error('mysql error: {0}'.format(error))
         return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
     finally:
+        cursor.close()
+        sql_conn.commit()
         sql_conn.close()
 
     return flask.Response(json.dumps(moons), status=200, mimetype='application/json')
