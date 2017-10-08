@@ -25,14 +25,14 @@ def moons_post(user_id):
 
         if match:
             moon = {
-                'system_name': match.group(1),
-                'planet_name': match.group(3),
-                'moon_name': match.group(4),
+                'system': match.group(1),
+                'planet': match.group(3),
+                'moon': match.group(4),
                 'minerals': []
             }
 
             for j in range(1, 5):
-                match_mineral = regex_mineral.match(lines[i+j])
+                match_mineral = regex_mineral.match(lines[i+1])
 
                 if not match_mineral:
                     break
