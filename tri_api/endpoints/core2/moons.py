@@ -19,6 +19,10 @@ def moons_post(user_id):
 
     lines = str(flask.request.get_data()).replace('\\r\\n', '\\n').split('\\n')
 
+    print(lines[0])
+    print(lines[1])
+    print(lines[2])
+
     regex_moon = re.compile("(.*) (XC|XL|L?X{0,3})(IX|IV|V?I{0,3}) - Moon ([0-9]{1,3})")
     regex_mineral = re.compile("\s*(.*)\s+([0-9]\.[0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)")
 
