@@ -47,7 +47,7 @@ def moons_post(user_id):
 
                 moon['minerals'].append({
                     'product': match_mineral.group(1),
-                    'quantity': int(match_mineral.group(2)),
+                    'quantity': float(match_mineral.group(2)),
                     'ore_type': int(match_mineral.group(3)),
                 })
 
