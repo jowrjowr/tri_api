@@ -19,7 +19,7 @@ def moons_post(user_id):
 
     lines = str(flask.request.get_data().decode("utf-8")).splitlines()
 
-    print(lines)
+    print(json.dumps(lines))
 
     regex_moon = re.compile("(.*) (XC|XL|L?X{0,3})(IX|IV|V?I{0,3}) - Moon ([0-9]{1,3})")
     regex_win = re.compile("\\t(.*)\\t([0-9]\.[0-9]+)\\t([0-9]+)\\t([0-9]+)\\t([0-9]+)\\t([0-9]+)")
