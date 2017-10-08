@@ -43,13 +43,13 @@ def moons_post(user_id):
                 match_mineral = regex_win.match(lines[i + 1])
 
                 if not match_mineral:
-                    print("REGEX NOT MATCHED: {0}".format(lines[i + 1]))
                     match_mineral = regex_lin.match(lines[i + 1])
 
                     if not match_mineral:
+                        logger.error('no regex match for line: {0}'.format(lines[i + 1]))
                         break
 
-                moon['valid'] = True;
+                moon['valid'] = True
 
                 moon['system_id'] = int(match_mineral.group(4))
                 moon['planet_id'] = int(match_mineral.group(5))
