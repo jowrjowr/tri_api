@@ -29,7 +29,7 @@ def moons_post(user_id):
 
         if match:
             moon = {
-                'system': int(match.group(1)),
+                'system': match.group(1),
                 'planet': int(fromRoman(match.group(3))),
                 'moon': int(match.group(4)),
                 'minerals': []
