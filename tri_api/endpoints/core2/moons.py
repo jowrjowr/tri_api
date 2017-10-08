@@ -23,8 +23,6 @@ def moons_post(user_id):
     regex_lin = re.compile("\s*(.*)\s+([0-9]\.[0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)")
     regex_win = re.compile("\\t(.*)\\t([0-9]\.[0-9]+)\\t([0-9]+)\\t([0-9]+)\\t([0-9]+)\\t([0-9]+)")
 
-    print(lines[1])
-
     moons = []
 
     for i in range(0, len(lines)):
@@ -43,6 +41,7 @@ def moons_post(user_id):
                 match_mineral = regex_win.match(lines[i + 1])
 
                 if not match_mineral:
+                    print("REGEX NOT MATCHED: {0}".format(lines[i + 1]))
                     match_mineral = regex_lin.match(lines[i + 1])
 
                     if not match_mineral:
