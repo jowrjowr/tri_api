@@ -5,9 +5,11 @@ from .decorators import verify_user
 @blueprint.route('/<int:user_id>/moons/', methods=['POST'])
 @verify_user(groups=['board', 'administation', 'triprobers'])
 def moons_post(user_id):
+    import common.database as _database
     import common.ldaphelpers as _ldaphelpers
     import flask
     import logging
+    import MySQLdb as mysql
     import json
     import re
 
@@ -50,5 +52,34 @@ def moons_post(user_id):
                 i += 1
 
             moons.append(moon)
+
+    try:
+        sql_conn = mysql.connect(
+            database=_database.DB_DATABASE,
+            user=_database.DB_USERNAME,
+            password=_database.DB_PASSWORD,
+            host=_database.DB_HOST)
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+
+    cursor = sql_conn.cursor()
+
+    try:
+        for moon in moons:
+            cursor.execute("INSERT INTO MoonScans "
+                           "(moonId, moonNr, planetId, planetNr, solarSystemId, "
+                           "solarSystemName, oreComposition, scannedBy, scannedDate) VALUES "
+                           "(%i, %i, %i, %i, %i,"
+                           "%s, %s, %i, NOW())",
+                           (moon['moon_id'], moon['moon'], moon['planet_id'], moon['planet'], moon['system_id'],
+                            moon['system'], json.dumps(moon['minerals']), user_id))
+            cursor.execute()
+    except mysql.Error as error:
+        sql_conn.rollback()
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+    finally:
+        sql_conn.close()
 
     return flask.Response(json.dumps(moons), status=200, mimetype='application/json')
