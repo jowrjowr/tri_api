@@ -12,6 +12,7 @@ def moons_post(user_id):
     import MySQLdb as mysql
     import json
     import re
+    import roman
 
     logger = logging.getLogger(__name__)
 
@@ -27,9 +28,9 @@ def moons_post(user_id):
 
         if match:
             moon = {
-                'system': match.group(1),
-                'planet': match.group(3),
-                'moon': match.group(4),
+                'system': int(match.group(1)),
+                'planet': int(roman.fromRoman(match.group(3))),
+                'moon': int(match.group(4)),
                 'minerals': []
             }
 
@@ -39,9 +40,9 @@ def moons_post(user_id):
                 if not match_mineral:
                     break
 
-                moon['system_id'] = match_mineral.group(4)
-                moon['planet_id'] = match_mineral.group(5)
-                moon['moon_id'] = match_mineral.group(6)
+                moon['system_id'] = int(match_mineral.group(4))
+                moon['planet_id'] = int(match_mineral.group(5))
+                moon['moon_id'] = int(match_mineral.group(6))
 
                 moon['minerals'].append({
                     'product': match_mineral.group(1),
