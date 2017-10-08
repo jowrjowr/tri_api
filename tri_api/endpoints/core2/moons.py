@@ -47,8 +47,8 @@ def moons_post(user_id):
 
                 moon['minerals'].append({
                     'product': match_mineral.group(1),
-                    'quantity': match_mineral.group(2),
-                    'ore_type': match_mineral.group(3),
+                    'quantity': int(match_mineral.group(2)),
+                    'ore_type': int(match_mineral.group(3)),
                 })
 
                 i += 1
@@ -69,13 +69,8 @@ def moons_post(user_id):
 
     try:
         for moon in moons:
-            cursor.execute("INSERT INTO MoonScans "
-                           "(moonId, moonNr, planetId, planetNr, solarSystemId, "
-                           "solarSystemName, oreComposition, scannedBy, scannedDate) VALUES "
-                           "(%i, %i, %i, %i, %i,"
-                           "%s, %s, %i, NOW())",
-                           (moon['moon_id'], moon['moon'], moon['planet_id'], moon['planet'], moon['system_id'],
-                            moon['system'], json.dumps(moon['minerals']), user_id))
+            pass
+
     except mysql.Error as error:
         sql_conn.rollback()
         logger.error('mysql error: {0}'.format(error))
