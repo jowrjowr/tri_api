@@ -264,7 +264,7 @@ def moons_post(user_id):
         sql_conn.close()
 
     return flask.Response(json.dumps({
-        'moons_added': new_moons,
-        'moons_not_added': old_moons,
-        'moons_conflicted': conflicts
+        'added': new_moons,
+        'duplicates': old_moons,
+        'conflicts': conflicts
     }), status=200, mimetype='application/json')
