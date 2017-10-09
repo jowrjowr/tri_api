@@ -186,17 +186,19 @@ def moons_post(user_id):
     try:
         for moon in moons:
             if moon['valid']:
-                print(_ldaphelpers.ldap_uid2name(__name__, int(user_id))['characterName'])
+                scanned_by_name = _ldaphelpers.ldap_uid2name(__name__, int(user_id))['characterName']
+
                 cursor.execute("INSERT INTO MoonScans "
                                "(moonId, moonNr, planetId, planetNr, regionId, "
                                "regionName, constellationId, constellationName, solarSystemId, solarSystemName,"
                                "oreComposition, scannedBy, scannedByName, scannedDate) VALUES "
                                "(%s, %s, %s, %s, %s,"
+                               "%s, %s, %s, %s, %s,"
                                "%s, %s, %s, NOW())",
                                (moon['moon_id'], moon['moon'], moon['region_id'], moon['region'],
                                 moon['const_id'], moon['const'], moon['planet_id'], moon['planet'], moon['system_id'],
                                 moon['system'],
-                                json.dumps(moon['minerals']), int(user_id), "N/A"))
+                                json.dumps(moon['minerals']), int(user_id), scanned_by_name))
             else:
                 print(json.dumps(moon))
     except mysql.Error as error:
