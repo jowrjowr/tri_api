@@ -181,21 +181,59 @@ def moons_post(user_id):
 
     cursor = sql_conn.cursor()
 
+    new_moons = 0
+    old_moons = 0
+    conflicts = 0
+
     try:
         for moon in moons:
             if moon['valid']:
                 scanned_by_name = _ldaphelpers.ldap_uid2name(__name__, int(user_id))['characterName']
 
-                cursor.execute("INSERT INTO MoonScans "
-                               "(moonId, moonNr, planetId, planetNr, regionId, "
-                               "regionName, constellationId, constellationName, solarSystemId, solarSystemName,"
-                               "oreComposition, scannedBy, scannedByName, scannedDate) VALUES "
-                               "(%s, %s, %s, %s, %s,"
-                               "%s, %s, %s, %s, %s,"
-                               "%s, %s, %s, NOW())",
-                               (moon['moon_id'], moon['moon'], moon['planet_id'], moon['planet'], moon['region_id'],
-                                moon['region'], moon['const_id'], moon['const'], moon['system_id'], moon['system'],
-                                json.dumps(moon['minerals']), int(user_id), scanned_by_name))
+                # check if entry already exists
+                rowc = cursor.execute("SELECT oreComposition FROM MoonScans WHERE moonId=%s", (moon['moon_id']))
+                rows = cursor.fetchall()
+
+                if rowc == 0:
+                    new_moons += 1
+
+                    cursor.execute("INSERT INTO MoonScans "
+                                   "(moonId, moonNr, planetId, planetNr, regionId, "
+                                   "regionName, constellationId, constellationName, solarSystemId, solarSystemName,"
+                                   "oreComposition, scannedBy, scannedByName, scannedDate) VALUES "
+                                   "(%s, %s, %s, %s, %s,"
+                                   "%s, %s, %s, %s, %s,"
+                                   "%s, %s, %s, NOW())",
+                                   (moon['moon_id'], moon['moon'], moon['planet_id'], moon['planet'], moon['region_id'],
+                                    moon['region'], moon['const_id'], moon['const'], moon['system_id'], moon['system'],
+                                    json.dumps(moon['minerals']), int(user_id), scanned_by_name))
+                elif rowc == 1:
+                    import hashlib
+
+                    hash_saved = hashlib.sha256(json.dumps(rows[0][0], sort_keys=True)).hexdigest()
+                    hash_new = hashlib.sha256(json.dumps(moon['minerals'], sort_keys=True)).hexdigest()
+
+                    if hash_new == hash_saved:
+                        old_moons += 1
+                    else:
+                        conflicts += 1
+
+                        logger.warning("moon conflict detected (id={0})".format(moon['moon_id']))
+
+                        cursor.execute("INSERT INTO MoonScans "
+                                       "(moonId, moonNr, planetId, planetNr, regionId, "
+                                       "regionName, constellationId, constellationName, solarSystemId, solarSystemName,"
+                                       "oreComposition, scannedBy, scannedByName, scannedDate) VALUES "
+                                       "(%s, %s, %s, %s, %s,"
+                                       "%s, %s, %s, %s, %s,"
+                                       "%s, %s, %s, NOW())",
+                                       (moon['moon_id'], moon['moon'], moon['planet_id'], moon['planet'],
+                                        moon['region_id'],
+                                        moon['region'], moon['const_id'], moon['const'], moon['system_id'],
+                                        moon['system'],
+                                        json.dumps(moon['minerals']), int(user_id), scanned_by_name))
+                else:
+                    raise mysql.Error("database error (identical moons detected)")
             else:
                 print(json.dumps(moon))
     except mysql.Error as error:
@@ -207,4 +245,8 @@ def moons_post(user_id):
         sql_conn.commit()
         sql_conn.close()
 
-    return flask.Response(json.dumps({}), status=200, mimetype='application/json')
+    return flask.Response(json.dumps({
+        'moons_added': new_moons,
+        'moons_not_added': old_moons,
+        'moons_conflicted': conflicts
+    }), status=200, mimetype='application/json')
