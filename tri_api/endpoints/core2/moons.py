@@ -226,7 +226,7 @@ def moons_post(user_id):
                     import hashlib
 
                     hash_saved = hashlib.sha256(json.dumps(json.loads(rows[0][0]), sort_keys=True).encode('utf-8')).hexdigest()
-                    hash_new = hashlib.sha256(json.dumps(moon['minerals'], sort_keys=True).encode('utf-8')).hexdigest()
+                    hash_new = hashlib.sha256(json.dumps(moon['ore_composition'], sort_keys=True).encode('utf-8')).hexdigest()
 
                     print(hash_saved)
                     print(hash_new)
