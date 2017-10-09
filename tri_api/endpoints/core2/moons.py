@@ -208,15 +208,11 @@ def moons_post(user_id):
                                     moon['region'], moon['const_id'], moon['const'], moon['system_id'], moon['system'],
                                     json.dumps(moon['minerals']), int(user_id), scanned_by_name))
                 elif rowc == 1:
-                    import hashlib
+                    dict_old = rows[0][0]
+                    dict_new = moon['minerals']
 
-                    hash_saved = hashlib.sha256(json.dumps(rows[0][0], sort_keys=True).encode('utf-8')).hexdigest()
-                    hash_new = hashlib.sha256(json.dumps(moon['minerals'], sort_keys=True).encode('utf-8')).hexdigest()
-
-                    print(hash_saved)
-                    print(hash_new)
-
-                    if hash_new == hash_saved:
+                    if all([dict_new[key] == dict_old[key] for key in dict_new.keys()]) is True \
+                            and all([dict_new[key] == dict_old[key] for key in dict_old.keys()]) is True:
                         old_moons += 1
                     else:
                         conflicts += 1
