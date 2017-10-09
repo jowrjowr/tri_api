@@ -155,7 +155,7 @@ def moons_post(user_id):
                 'system': match.group(1).strip(),
                 'planet': int(fromRoman(match.group(3))),
                 'moon': int(match.group(4)),
-                'minerals': {},
+                'ore_composition': {},
                 'valid': False
             }
 
