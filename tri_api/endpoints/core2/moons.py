@@ -210,6 +210,8 @@ def moons_post(user_id):
                 elif rowc == 1:
                     import hashlib
 
+                    print(rows[0][0])
+
                     hash_saved = hashlib.sha256(json.dumps(rows[0][0], sort_keys=True)).hexdigest()
                     hash_new = hashlib.sha256(json.dumps(moon['minerals'], sort_keys=True)).hexdigest()
 
