@@ -115,7 +115,7 @@ def moons_get(user_id):
             'system': row[5],
             'planet': row[2],
             'moon': row[1],
-            'ore_composition': get_mineral_table(json.loads(row[6])),
+            'ore_composition': json.loads(row[6]),
             'scanned_by': row[7],
             'scanned_date': row[8].isoformat()
         }
