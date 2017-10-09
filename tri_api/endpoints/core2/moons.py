@@ -57,9 +57,9 @@ def get_mineral_table(ore_composition):
             "Extracted Hedbergite", "Extracted Hemorphite", "Extracted Jaspet", "Extracted Kernite", "Extracted Omber",
             "Extracted Plagioclase", "Extracted Pyroxeres", "Extracted Scordite", "Extracted Spodumain",
             "Extracted Veldspar",
+            "Bitumens", "Coesite", "Sylvite", "Zeolites",
             "Cobaltite", "Euxenite", "Scheelite", "Titanite",
             "Chromite", "Otavite", "Sperrylite", "Vanadinite",
-            "Bitumens", "Coesite", "Sylvite", "Zeolites",
             "Carnotite","Cinnabar", "Pollucite", "Zircon",
             "Loparite", "Monazite", "Xenotime", "Ytterbite"]
 
@@ -115,7 +115,7 @@ def moons_get(user_id):
             'system': row[5],
             'planet': row[2],
             'moon': row[1],
-            'ore_composition': json.loads(row[6]),
+            'ore_composition': get_mineral_table(json.loads(row[6])),
             'scanned_by': row[7],
             'scanned_date': row[8].isoformat()
         }
