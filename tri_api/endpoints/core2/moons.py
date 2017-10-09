@@ -213,6 +213,9 @@ def moons_post(user_id):
                     hash_saved = hashlib.sha256(json.dumps(rows[0][0], sort_keys=True).encode('utf-8')).hexdigest()
                     hash_new = hashlib.sha256(json.dumps(moon['minerals'], sort_keys=True).encode('utf-8')).hexdigest()
 
+                    print(hash_saved)
+                    print(hash_new)
+
                     if hash_new == hash_saved:
                         old_moons += 1
                     else:
