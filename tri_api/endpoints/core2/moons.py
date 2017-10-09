@@ -51,6 +51,25 @@ def get_system_details(system_id, logger=None):
     }
 
 
+def get_mineral_table(ore_composition):
+
+    ores = ["Extracted Arkonor", "Extracted Bistot", "Extracted Crokite", "Extracted Dark Ochre", "Extracted Gneiss",
+            "Extracted Hedbergite", "Extracted Hemorphite", "Extracted Jaspet", "Extracted Kernite", "Extracted Omber",
+            "Extracted Plagioclase", "Extracted Pyroxeres", "Extracted Scordite", "Extracted Spodumain",
+            "Extracted Veldspar",
+            "Cobaltite", "Euxenite", "Scheelite", "Titanite",
+            "Chromite", "Otavite", "Sperrylite", "Vanadinite",
+            "Bitumens", "Coesite", "Sylvite", "Zeolites",
+            "Carnotite","Cinnabar", "Pollucite", "Zircon",
+            "Loparite", "Monazite", "Xenotime", "Ytterbite"]
+
+    for ore in ores:
+        if ore not in ore_composition:
+            ore_composition[ore] = float(0)
+
+    return ore_composition
+
+
 @blueprint.route('/<int:user_id>/moons/', methods=['GET'])
 @verify_user(groups=['board'])
 def moons_get(user_id):
@@ -96,7 +115,7 @@ def moons_get(user_id):
             'system': row[5],
             'planet': row[2],
             'moon': row[1],
-            'minerals': row[6],
+            'ore_composition': get_mineral_table(row[6]),
             'scanned_by': row[7],
             'scanned_date': row[8].isoformat()
         }
@@ -136,7 +155,7 @@ def moons_post(user_id):
                 'system': match.group(1).strip(),
                 'planet': int(fromRoman(match.group(3))),
                 'moon': int(match.group(4)),
-                'minerals': [],
+                'minerals': {},
                 'valid': False
             }
 
@@ -153,11 +172,7 @@ def moons_post(user_id):
                 moon['planet_id'] = int(match_mineral.group(5))
                 moon['moon_id'] = int(match_mineral.group(6))
 
-                moon['minerals'].append({
-                    'product': match_mineral.group(1).strip(),
-                    'quantity': float(match_mineral.group(2)),
-                    'ore_type': int(match_mineral.group(3)),
-                })
+                moon['ore_composition'][match_mineral.group(1).strip()] = float(match_mineral.group(2))
 
                 i += 1
 
@@ -206,7 +221,7 @@ def moons_post(user_id):
                                    "%s, %s, %s, NOW())",
                                    (moon['moon_id'], moon['moon'], moon['planet_id'], moon['planet'], moon['region_id'],
                                     moon['region'], moon['const_id'], moon['const'], moon['system_id'], moon['system'],
-                                    json.dumps(moon['minerals']), int(user_id), scanned_by_name))
+                                    json.dumps(moon['ore_composition']), int(user_id), scanned_by_name))
                 elif rowc == 1:
                     import hashlib
 
@@ -234,7 +249,7 @@ def moons_post(user_id):
                                         moon['region_id'],
                                         moon['region'], moon['const_id'], moon['const'], moon['system_id'],
                                         moon['system'],
-                                        json.dumps(moon['minerals']), int(user_id), scanned_by_name))
+                                        json.dumps(moon['ore_composition']), int(user_id), scanned_by_name))
                 else:
                     raise mysql.Error("database error (identical moons detected)")
             else:
