@@ -191,7 +191,7 @@ def moons_post(user_id):
                 scanned_by_name = _ldaphelpers.ldap_uid2name(__name__, int(user_id))['characterName']
 
                 # check if entry already exists
-                rowc = cursor.execute("SELECT oreComposition FROM MoonScans WHERE moonId=%s", (moon['moon_id']))
+                rowc = cursor.execute("SELECT oreComposition FROM MoonScans WHERE moonId = %s", (moon['moon_id'],))
                 rows = cursor.fetchall()
 
                 if rowc == 0:
