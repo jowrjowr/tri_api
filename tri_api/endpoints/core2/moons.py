@@ -2,6 +2,56 @@ from ..core2 import blueprint
 from .decorators import verify_user
 
 
+def get_system_details(system_id, logger=None):
+    import common.request_esi
+    import logging
+    import json
+
+    if logger is None:
+        logger = logging.getLogger(__name__)
+
+    # get system details
+    request_system_url = 'universe/systems/{}/'.format(system_id)
+    esi_system_code, esi_system_result = common.request_esi.esi(__name__, request_system_url, method='get')
+
+    if not esi_system_code == 200:
+        logger.error("/universe/systems/ API error {0}: {1}"
+                     .format(esi_system_code, esi_system_result.get('error', 'N/A')))
+        return None
+
+    constellation_id = esi_system_result['constellation_id']
+
+    # get constellation details
+    request_const_url = 'universe/constellations/{}/'.format(constellation_id)
+    esi_const_code, esi_const_result = common.request_esi.esi(__name__, request_const_url, method='get')
+
+    if not esi_const_code == 200:
+        logger.error("/universe/constellations/ API error {0}: {1}"
+                     .format(esi_const_code, esi_const_result.get('error', 'N/A')))
+        return None
+
+    constellation_name = esi_const_result['name']
+    region_id = esi_const_result['region_id']
+
+    # get region details
+    request_region_url = 'universe/regions/{}/'.format(region_id)
+    esi_region_code, esi_region_result = common.request_esi.esi(__name__, request_region_url, method='get')
+
+    if not esi_region_code == 200:
+        logger.error("/universe/regions/ API error {0}: {1}"
+                     .format(esi_region_code, esi_region_result.get('error', 'N/A')))
+        return None
+
+    region_name = esi_region_result['name']
+
+    return {
+        'const_id': constellation_id,
+        'const': constellation_name,
+        'region_id': region_id,
+        'region': region_name
+    }
+
+
 @blueprint.route('/<int:user_id>/moons/', methods=['GET'])
 @verify_user(groups=['board'])
 def moons_get(user_id):
@@ -39,19 +89,17 @@ def moons_get(user_id):
 
     moons = []
 
-    user_ref = {}
-    region_ref = {}
-
     for row in rows:
         moon = {
             'entry_id': row[0],
-            'region': 'N/A',
+            'region': "N/A",
+            'constellation': "N/A",
             'system': row[4],
-            'system_id': row[3],
             'planet': row[2],
             'moon': row[1],
             'minerals': row[5],
             'scanned_by': row[6],
+            'scanned_by_name': "N/A",
             'scanned_date': row[7].isoformat()
         }
 
@@ -115,6 +163,12 @@ def moons_post(user_id):
 
                 i += 1
 
+            if 'system_id' in moon:
+                location_info = get_system_details(moon['system_id'], logger=logger)
+
+                if location_info is not None:
+                    moon.update(location_info)
+
             moons.append(moon)
 
     try:
@@ -133,12 +187,16 @@ def moons_post(user_id):
         for moon in moons:
             if moon['valid']:
                 cursor.execute("INSERT INTO MoonScans "
-                               "(moonId, moonNr, planetId, planetNr, solarSystemId, "
-                               "solarSystemName, oreComposition, scannedBy, scannedDate) VALUES "
+                               "(moonId, moonNr, planetId, planetNr, regionId, "
+                               "regionName, constellationId, constellationName, solarSystemId, solarSystemName,"
+                               "oreComposition, scannedBy, scannedByName, scannedDate) VALUES "
                                "(%s, %s, %s, %s, %s,"
                                "%s, %s, %s, NOW())",
-                               (moon['moon_id'], moon['moon'], moon['planet_id'], moon['planet'], moon['system_id'],
-                                moon['system'], json.dumps(moon['minerals']), int(user_id)))
+                               (moon['moon_id'], moon['moon'], moon['region_id'], moon['region'],
+                                moon['const_id'], moon['const'], moon['planet_id'], moon['planet'], moon['system_id'],
+                                moon['system'],
+                                json.dumps(moon['minerals']), int(user_id),
+                                _ldaphelpers.ldap_uid2name(__name__, int(user_id))['characterName']))
             else:
                 print(json.dumps(moon))
     except mysql.Error as error:
