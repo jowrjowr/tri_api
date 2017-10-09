@@ -172,7 +172,7 @@ def moons_post(user_id):
                 moon['planet_id'] = int(match_mineral.group(5))
                 moon['moon_id'] = int(match_mineral.group(6))
 
-                moon['ore_composition'][match_mineral.group(1).strip()] = float(match_mineral.group(2))
+                moon['ore_composition'][str(match_mineral.group(1).strip())] = float(match_mineral.group(2))
 
                 i += 1
 
