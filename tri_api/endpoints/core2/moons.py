@@ -5,7 +5,6 @@ from .decorators import verify_user
 def get_system_details(system_id, logger=None):
     import common.request_esi
     import logging
-    import json
 
     if logger is None:
         logger = logging.getLogger(__name__)
@@ -76,10 +75,10 @@ def moons_get(user_id):
 
     cursor = sql_conn.cursor()
 
-    query = 'SELECT id,moonNr,planetNr,solarSystemId, solarSystemName,oreComposition,scannedBy,scannedDate ' \
-            'FROM MoonScans'
+    query = 'SELECT id,moonNr,planetNr,regionName,constellationName,solarSystemName,oreComposition,scannedByName,' \
+            'scannedDate FROM MoonScans'
     try:
-        rowcount = cursor.execute(query)
+        _ = cursor.execute(query)
         rows = cursor.fetchall()
     except mysql.Error as error:
         logger.error('mysql error: {0}'.format(error))
@@ -92,15 +91,14 @@ def moons_get(user_id):
     for row in rows:
         moon = {
             'entry_id': row[0],
-            'region': "N/A",
-            'constellation': "N/A",
-            'system': row[4],
+            'region': row[3],
+            'const': row[4],
+            'system': row[5],
             'planet': row[2],
             'moon': row[1],
-            'minerals': row[5],
-            'scanned_by': row[6],
-            'scanned_by_name': "N/A",
-            'scanned_date': row[7].isoformat()
+            'minerals': row[6],
+            'scanned_by': row[7],
+            'scanned_date': row[8].isoformat()
         }
 
         moons.append(moon)
