@@ -195,9 +195,8 @@ def moons_post(user_id):
                                "(%s, %s, %s, %s, %s,"
                                "%s, %s, %s, %s, %s,"
                                "%s, %s, %s, NOW())",
-                               (moon['moon_id'], moon['moon'], moon['region_id'], moon['region'],
-                                moon['const_id'], moon['const'], moon['planet_id'], moon['planet'], moon['system_id'],
-                                moon['system'],
+                               (moon['moon_id'], moon['moon'], moon['planet_id'], moon['planet'], moon['region_id'],
+                                moon['region'], moon['const_id'], moon['const'], moon['system_id'], moon['system'],
                                 json.dumps(moon['minerals']), int(user_id), scanned_by_name))
             else:
                 print(json.dumps(moon))
