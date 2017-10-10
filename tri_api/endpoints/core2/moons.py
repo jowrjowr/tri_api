@@ -268,3 +268,51 @@ def moons_post(user_id):
         'duplicates': old_moons,
         'conflicts': conflicts
     }), status=200, mimetype='application/json')
+
+
+@blueprint.route('/<int:user_id>/moons/scanners/', methods=['GET'])
+@verify_user(groups=['board'])
+def moons_statistics_get(user_id):
+    import common.database as _database
+    import common.ldaphelpers as _ldaphelpers
+    import flask
+    import logging
+    import MySQLdb as mysql
+    import json
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        sql_conn = mysql.connect(
+            database=_database.DB_DATABASE,
+            user=_database.DB_USERNAME,
+            password=_database.DB_PASSWORD,
+            host=_database.DB_HOST)
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+
+    cursor = sql_conn.cursor()
+
+    query = 'SELECT moonId, scannedByName FROM MoonScans'
+    try:
+        _ = cursor.execute(query)
+        rows = cursor.fetchall()
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+    finally:
+        cursor.close()
+
+    moons = {}
+    scanners = {}
+
+    for row in rows:
+        moons[str(row[0])] = row[1]
+
+    for moon_id in moons:
+        scanner = moons[moon_id]
+
+        scanners[scanner] = scanners.get(scanner, 0) + 1
+
+    return flask.Response(json.dumps(scanners), status=200, mimetype='application/json')
