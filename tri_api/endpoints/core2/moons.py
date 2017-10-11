@@ -405,6 +405,7 @@ def moons_coverage_get(user_id):
                                           status=500, mimetype='application/json')
 
                 for planet in esi_system_result['planets']:
+                    print(json.dumps(planet))
                     count += len(planet['moons'])
         return count
 
