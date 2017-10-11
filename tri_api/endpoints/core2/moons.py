@@ -411,4 +411,4 @@ def moons_coverage_get(user_id):
     for region_id in regions:
         regions[region_id]['moons'] = get_moon_count(region_id)
 
-    return flask.Response(json.dumps({regions}), status=200, mimetype='application/json')
+    return flask.Response(json.dumps(regions), status=200, mimetype='application/json')
