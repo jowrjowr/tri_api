@@ -39,27 +39,25 @@ def moons_get(user_id):
 
     moons = []
 
-    def update_mineral_table(ore_composition):
-
-        ores = ["Extracted Arkonor", "Extracted Bistot", "Extracted Crokite", "Extracted Dark Ochre",
-                "Extracted Gneiss",
-                "Extracted Hedbergite", "Extracted Hemorphite", "Extracted Jaspet", "Extracted Kernite",
-                "Extracted Omber",
-                "Extracted Plagioclase", "Extracted Pyroxeres", "Extracted Scordite", "Extracted Spodumain",
-                "Extracted Veldspar",
-                "Bitumens", "Coesite", "Sylvite", "Zeolites",
-                "Cobaltite", "Euxenite", "Scheelite", "Titanite",
-                "Chromite", "Otavite", "Sperrylite", "Vanadinite",
-                "Carnotite", "Cinnabar", "Pollucite", "Zircon",
-                "Loparite", "Monazite", "Xenotime", "Ytterbite"]
-
-        for ore in ores:
-            if ore not in ore_composition:
-                ore_composition[ore] = float(0)
-
-        return ore_composition
+    ores = ["Extracted Arkonor", "Extracted Bistot", "Extracted Crokite", "Extracted Dark Ochre",
+            "Extracted Gneiss",
+            "Extracted Hedbergite", "Extracted Hemorphite", "Extracted Jaspet", "Extracted Kernite",
+            "Extracted Omber",
+            "Extracted Plagioclase", "Extracted Pyroxeres", "Extracted Scordite", "Extracted Spodumain",
+            "Extracted Veldspar",
+            "Bitumens", "Coesite", "Sylvite", "Zeolites",
+            "Cobaltite", "Euxenite", "Scheelite", "Titanite",
+            "Chromite", "Otavite", "Sperrylite", "Vanadinite",
+            "Carnotite", "Cinnabar", "Pollucite", "Zircon",
+            "Loparite", "Monazite", "Xenotime", "Ytterbite"]
 
     for row in rows:
+        ore_table = json.loads(row[6])
+
+        for ore in ores:
+            if ore not in ore_table:
+                ore_table[ore] = float(0)
+
         moon = {
             'entry_id': row[0],
             'region': row[3],
@@ -67,7 +65,7 @@ def moons_get(user_id):
             'system': row[5],
             'planet': row[2],
             'moon': row[1],
-            'ore_composition': update_mineral_table(json.loads(row[6])),
+            'ore_composition': ore_table,
             'scanned_by': row[7],
             'scanned_date': row[8].isoformat()
         }
