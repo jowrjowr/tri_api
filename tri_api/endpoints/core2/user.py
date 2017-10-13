@@ -37,6 +37,13 @@ def user_access_roles(groups, roles):
     if 'Director' in roles or 'Personnel_Manager' in roles:
         access['tools'].append('blacklist')
 
+    # moon scanning
+    if 'triprobers' in groups or 'command' in groups or 'board' in groups:
+        access['tools'].append('moon_scans_add')
+
+        if 'command' in groups or 'board' in groups:
+            access['tools'].append('moon_scans_show')
+
     #  corp tools
     if 'command' in groups or 'administration' in roles:
         access['tools'].append('corp_audit')

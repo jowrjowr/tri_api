@@ -39,27 +39,25 @@ def moons_get(user_id):
 
     moons = []
 
-    def update_mineral_table(ore_composition):
-
-        ores = ["Extracted Arkonor", "Extracted Bistot", "Extracted Crokite", "Extracted Dark Ochre",
-                "Extracted Gneiss",
-                "Extracted Hedbergite", "Extracted Hemorphite", "Extracted Jaspet", "Extracted Kernite",
-                "Extracted Omber",
-                "Extracted Plagioclase", "Extracted Pyroxeres", "Extracted Scordite", "Extracted Spodumain",
-                "Extracted Veldspar",
-                "Bitumens", "Coesite", "Sylvite", "Zeolites",
-                "Cobaltite", "Euxenite", "Scheelite", "Titanite",
-                "Chromite", "Otavite", "Sperrylite", "Vanadinite",
-                "Carnotite", "Cinnabar", "Pollucite", "Zircon",
-                "Loparite", "Monazite", "Xenotime", "Ytterbite"]
-
-        for ore in ores:
-            if ore not in ore_composition:
-                ore_composition[ore] = float(0)
-
-        return ore_composition
+    ores = ["Extracted Arkonor", "Extracted Bistot", "Extracted Crokite", "Extracted Dark Ochre",
+            "Extracted Gneiss",
+            "Extracted Hedbergite", "Extracted Hemorphite", "Extracted Jaspet", "Extracted Kernite",
+            "Extracted Omber",
+            "Extracted Plagioclase", "Extracted Pyroxeres", "Extracted Scordite", "Extracted Spodumain",
+            "Extracted Veldspar",
+            "Bitumens", "Coesite", "Sylvite", "Zeolites",
+            "Cobaltite", "Euxenite", "Scheelite", "Titanite",
+            "Chromite", "Otavite", "Sperrylite", "Vanadinite",
+            "Carnotite", "Cinnabar", "Pollucite", "Zircon",
+            "Loparite", "Monazite", "Xenotime", "Ytterbite"]
 
     for row in rows:
+        ore_table = json.loads(row[6])
+
+        for ore in ores:
+            if ore not in ore_table:
+                ore_table[ore] = float(0)
+
         moon = {
             'entry_id': row[0],
             'region': row[3],
@@ -67,7 +65,7 @@ def moons_get(user_id):
             'system': row[5],
             'planet': row[2],
             'moon': row[1],
-            'ore_composition': update_mineral_table(json.loads(row[6])),
+            'ore_composition': ore_table,
             'scanned_by': row[7],
             'scanned_date': row[8].isoformat()
         }
@@ -99,54 +97,6 @@ def moons_post(user_id):
 
     moons = []
 
-    def get_system_details(system_id, logger=None):
-        import common.request_esi
-        import logging
-
-        if logger is None:
-            logger = logging.getLogger(__name__)
-
-        # get system details
-        request_system_url = 'universe/systems/{}/'.format(system_id)
-        esi_system_code, esi_system_result = common.request_esi.esi(__name__, request_system_url, method='get')
-
-        if not esi_system_code == 200:
-            logger.error("/universe/systems/ API error {0}: {1}"
-                         .format(esi_system_code, esi_system_result.get('error', 'N/A')))
-            return None
-
-        constellation_id = esi_system_result['constellation_id']
-
-        # get constellation details
-        request_const_url = 'universe/constellations/{}/'.format(constellation_id)
-        esi_const_code, esi_const_result = common.request_esi.esi(__name__, request_const_url, method='get')
-
-        if not esi_const_code == 200:
-            logger.error("/universe/constellations/ API error {0}: {1}"
-                         .format(esi_const_code, esi_const_result.get('error', 'N/A')))
-            return None
-
-        constellation_name = esi_const_result['name']
-        region_id = esi_const_result['region_id']
-
-        # get region details
-        request_region_url = 'universe/regions/{}/'.format(region_id)
-        esi_region_code, esi_region_result = common.request_esi.esi(__name__, request_region_url, method='get')
-
-        if not esi_region_code == 200:
-            logger.error("/universe/regions/ API error {0}: {1}"
-                         .format(esi_region_code, esi_region_result.get('error', 'N/A')))
-            return None
-
-        region_name = esi_region_result['name']
-
-        return {
-            'const_id': constellation_id,
-            'const': constellation_name,
-            'region_id': region_id,
-            'region': region_name
-        }
-
     for i in range(0, len(lines)):
         match = regex_moon.match(lines[i])
 
@@ -177,10 +127,49 @@ def moons_post(user_id):
                 i += 1
 
             if 'system_id' in moon:
-                location_info = get_system_details(moon['system_id'], logger=logger)
+                import common.request_esi
 
-                if location_info is not None:
-                    moon.update(location_info)
+                # get system details
+                request_system_url = 'universe/systems/{}/'.format(system_id)
+                esi_system_code, esi_system_result = common.request_esi.esi(__name__, request_system_url, method='get')
+
+                if not esi_system_code == 200:
+                    logger.error("/universe/systems/ API error {0}: {1}"
+                                 .format(esi_system_code, esi_system_result.get('error', 'N/A')))
+                    return flask.Response(json.dumps({'error': esi_system_result.get('error', 'esi error')}),
+                                          status=500, mimetype='application/json')
+
+                constellation_id = esi_system_result['constellation_id']
+
+                # get constellation details
+                request_const_url = 'universe/constellations/{}/'.format(constellation_id)
+                esi_const_code, esi_const_result = common.request_esi.esi(__name__, request_const_url, method='get')
+
+                if not esi_const_code == 200:
+                    logger.error("/universe/constellations/ API error {0}: {1}"
+                                 .format(esi_const_code, esi_const_result.get('error', 'N/A')))
+                    return flask.Response(json.dumps({'error': esi_const_result.get('error', 'esi error')}),
+                                          status=500, mimetype='application/json')
+
+                constellation_name = esi_const_result['name']
+                region_id = esi_const_result['region_id']
+
+                # get region details
+                request_region_url = 'universe/regions/{}/'.format(region_id)
+                esi_region_code, esi_region_result = common.request_esi.esi(__name__, request_region_url, method='get')
+
+                if not esi_region_code == 200:
+                    logger.error("/universe/regions/ API error {0}: {1}"
+                                 .format(esi_region_code, esi_region_result.get('error', 'N/A')))
+                    return flask.Response(json.dumps({'error': esi_region_result.get('error', 'esi error')}),
+                                          status=500, mimetype='application/json')
+
+                region_name = esi_region_result['name']
+
+                moon['const_id'] = constellation_id
+                moon['const'] = constellation_name
+                moon['region_id'] = region_id
+                moon['region'] = region_name
 
             moons.append(moon)
 
