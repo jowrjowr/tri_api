@@ -1,64 +1,8 @@
 from ..core2 import blueprint
 
 
-def user_access_roles(groups, roles):
-    access = {
-        'routes': [],
-        'services': ['forum'],
-        'tools': []
-    }
-
-    if 'banned' in groups:
-        return dict()
-
-    # teamspeak
-    if 'triumvirate' in groups or 'vanguardBlue' in groups:
-        access['services'].append('teamspeak')
-
-    # discord & jabber
-    if 'triumvirate' in groups:
-        access['services'].append('discord')
-        access['services'].append('jabber')
-
-    # fleet stuff
-    if 'triumvirate' in groups or 'vanguardBlue' in groups:
-        access['routes'].append('opsboard')
-
-    # tri only
-    if 'triumvirate' in groups:
-        access['routes'].append('srp')
-
-    # broadcast
-    if 'Director' in roles or 'Personnel_Manager' in roles \
-        or 'skyteam' in groups or 'skirmishfc' in groups or 'administration' in groups:
-        access['tools'].append('broadcast')
-
-    # blacklist
-    if 'Director' in roles or 'Personnel_Manager' in roles:
-        access['tools'].append('blacklist')
-
-    # moon scanning
-    if 'triprobers' in groups or 'command' in groups or 'board' in groups:
-        access['tools'].append('moon_scans_add')
-
-        if 'command' in groups or 'board' in groups:
-            access['tools'].append('moon_scans_show')
-
-    #  corp tools
-    if 'command' in groups or 'administration' in roles:
-        access['tools'].append('corp_audit')
-        access['tools'].append('corp_structures')
-
-    #  alliance tools
-    if 'command' in groups or 'board' in groups:
-        access['tools'].append('alliance_audit')
-        access['tools'].append('alliance_structures')
-
-    return access
-
-
 @blueprint.route('/<int:user_id>/', methods=['GET'])
-def user_endpoint(user_id):
+def user_get(user_id):
     import common.ldaphelpers as _ldaphelpers
     import flask
     import logging
@@ -83,8 +27,6 @@ def user_endpoint(user_id):
 
     (_, user), = result.items()
 
-    access_roles = user_access_roles(user['authGroup'], user['corporationRole'])
-
     return flask.Response(json.dumps(
         {
             'character_id': user['uid'],
@@ -94,6 +36,6 @@ def user_endpoint(user_id):
             'alliance_id': user['alliance'],
             'alliance_name': user['allianceName'],
             'groups': user['authGroup'],
-            'access': access_roles
+            'roles': user['corporationRole']
         }
     ), status=200, mimetype='application/json')
