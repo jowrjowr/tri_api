@@ -261,7 +261,7 @@ def moons_post(user_id):
 
 @blueprint.route('/<int:user_id>/moons/scanners/', methods=['GET'])
 @verify_user(groups=['board'])
-def moons_scanners_get(user_id):
+def moons_get_scanners(user_id):
     import common.database as _database
     import common.ldaphelpers as _ldaphelpers
     import flask
@@ -309,7 +309,7 @@ def moons_scanners_get(user_id):
 
 @blueprint.route('/<int:user_id>/moons/coverage/', methods=['GET'])
 @verify_user(groups=['board'])
-def moons_coverage_get(user_id):
+def moons_get_coverage(user_id):
     import common.database as _database
     import common.ldaphelpers as _ldaphelpers
     import flask
