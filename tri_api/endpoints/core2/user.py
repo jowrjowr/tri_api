@@ -12,7 +12,7 @@ def user_get(user_id):
 
     code, result = _ldaphelpers.ldap_search(__name__, 'ou=People,dc=triumvirate,dc=rocks',
                                             '(uid={})'.format(user_id),
-                                            ['uid', 'characterName', 'altOf'
+                                            ['uid', 'characterName',
                                              'corporation', 'corporationName',
                                              'alliance', 'allianceName',
                                              'authGroup', 'corporationRole'])
