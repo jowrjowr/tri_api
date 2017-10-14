@@ -27,24 +27,6 @@ def user_get(user_id):
 
     (_, user), = result.items()
 
-    if 'altOf' in user and user['altOf'] is not None:
-        code, result = _ldaphelpers.ldap_search(__name__, 'ou=People,dc=triumvirate,dc=rocks',
-                                                '(uid={})'.format(user['altOf']),
-                                                ['uid', 'characterName',
-                                                 'corporation', 'corporationName',
-                                                 'alliance', 'allianceName',
-                                                 'authGroup', 'corporationRole'])
-
-        if not code:
-            logger.error("unable to fetch ldap information for uid {}".format(user_id))
-            return flask.Response(json.dumps({'error': 'ldap error'}), status=500, mimetype='application/json')
-
-        if result is None:
-            logger.error("user with uid {} missing".format(user_id))
-            return flask.Response(json.dumps({'error': 'user not found'}), status=404, mimetype='application/json')
-
-        (_, user), = result.items()
-
     return flask.Response(json.dumps(
         {
             'character_id': user['uid'],
