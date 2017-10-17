@@ -47,7 +47,7 @@ def user_get(user_id):
         access['alliance_tools'].extend(['timerboard_submit'])
 
         if 'bannedBroadcast' not in user['authGroup']:
-            access['alliance_tools'].append('broadcast')
+            access['services'].append('broadcast')
 
         # supers stuff
         if 'trisupers' in user['authGroup']:
