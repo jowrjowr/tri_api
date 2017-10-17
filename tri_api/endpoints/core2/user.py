@@ -55,17 +55,17 @@ def user_get(user_id):
 
         # timer board
         if 'skyteam' in user['authGroup']:
-            access['alliance_tools'].append('timerboard_view')
+            access['resources'].append('timerboard_view')
 
         # blacklist
         if 'Director' in user['corporationRole'] or 'Personnel_Manager' in user['corporationRole']\
                 or 'board' in 'skyteam' in user['authGroup']:
-            access['alliance_tools'].append('blacklist')
+            access['resources'].append('blacklist')
 
         # moon probing
         if 'Director' in user['corporationRole'] or 'administration' in user['authGroup']\
                 or 'triprobers' in user['authGroup']:
-            access['alliance_tools'].append('moons_submit')
+            access['resources'].append('moons_submit')
 
         # corp leadership
         if 'Director' in user['corporationRole'] or 'administration' in user['authGroup']:
@@ -76,7 +76,7 @@ def user_get(user_id):
         if 'Director' in user['corporationRole'] or 'administration' in user['authGroup']:
             access['alliance_tools'].append('audit')
             access['alliance_tools'].append('structures')
-            access['alliance_tools'].append('moons_view')
+            access['resources'].append('moons_view')
 
     return flask.Response(json.dumps(
         {
