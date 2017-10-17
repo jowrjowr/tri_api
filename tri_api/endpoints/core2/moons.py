@@ -130,7 +130,7 @@ def moons_post(user_id):
                 import common.request_esi
 
                 # get system details
-                request_system_url = 'universe/systems/{}/'.format(system_id)
+                request_system_url = 'universe/systems/{}/'.format(moon['system_id'])
                 esi_system_code, esi_system_result = common.request_esi.esi(__name__, request_system_url, method='get')
 
                 if not esi_system_code == 200:
