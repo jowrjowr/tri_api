@@ -33,7 +33,6 @@ def user_get(user_id):
     access = {
         'resources': [],
         'services': ['forums'],
-        'tools': [],
         'corp_tools': [],
         'alliance_tools': []
     }
@@ -45,10 +44,10 @@ def user_get(user_id):
         # basic resources
         access['resources'].extend(['ops', 'doctrines', 'srp', 'jb_map'])
 
-        access['tools'].extend(['timerboard_submit'])
+        access['alliance_tools'].extend(['timerboard_submit'])
 
         if 'bannedBroadcast' not in user['authGroup']:
-            access['tools'].append('broadcast')
+            access['alliance_tools'].append('broadcast')
 
         # supers stuff
         if 'trisupers' in user['authGroup']:
@@ -56,13 +55,12 @@ def user_get(user_id):
 
         # timer board
         if 'skyteam' in user['authGroup']:
-            access['tools'].append('timerboard_view')
+            access['alliance_tools'].append('timerboard_view')
 
         # blacklist
         if 'Director' in user['corporationRole'] or 'Personnel_Manager' in user['corporationRole']\
                 or 'board' in 'skyteam' in user['authGroup']:
-            access['tools'].append('blacklist_submit')
-            access['tools'].append('blacklist_view')
+            access['alliance_tools'].append('blacklist')
 
         # moon probing
         if 'Director' in user['corporationRole'] or 'administration' in user['authGroup']\
