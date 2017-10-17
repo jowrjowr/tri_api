@@ -33,7 +33,9 @@ def user_get(user_id):
     access = {
         'resources': [],
         'services': ['forums'],
-        'tools': []
+        'tools': [],
+        'corp_tools': [],
+        'alliance_tools': []
     }
 
     if 'triumvirate' in user['authGroup']:
@@ -65,18 +67,18 @@ def user_get(user_id):
         # moon probing
         if 'Director' in user['corporationRole'] or 'administration' in user['authGroup']\
                 or 'triprobers' in user['authGroup']:
-            access['tools'].append('moons_submit')
+            access['alliance_tools'].append('moons_submit')
 
         # corp leadership
         if 'Director' in user['corporationRole'] or 'administration' in user['authGroup']:
-            access['tools'].append('corp_audit')
-            access['tools'].append('corp_structures')
+            access['corp_tools'].append('audit')
+            access['corp_tools'].append('structures')
 
         # alliance leadership
         if 'Director' in user['corporationRole'] or 'administration' in user['authGroup']:
-            access['tools'].append('alliance_audit')
-            access['tools'].append('alliance_structures')
-            access['tools'].append('moons_view')
+            access['alliance_tools'].append('audit')
+            access['alliance_tools'].append('structures')
+            access['alliance_tools'].append('moons_view')
 
     return flask.Response(json.dumps(
         {
