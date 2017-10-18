@@ -90,7 +90,7 @@ def moons_post(user_id):
 
     logger = logging.getLogger(__name__)
 
-    lines = str(flask.request.get_json().get('text', "").decode("utf-8")).splitlines()
+    lines = str(flask.request.get_json().get('text', "")).splitlines()
 
     print(flask.request.get_json().get('text', ""))
 
