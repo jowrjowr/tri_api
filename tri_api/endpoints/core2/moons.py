@@ -92,8 +92,6 @@ def moons_post(user_id):
 
     lines = str(flask.request.get_json().get('text', "")).splitlines()
 
-    print(flask.request.get_json().get('text', ""))
-
     regex_moon = re.compile("(.*) (XC|XL|L?X{0,3})(IX|IV|V?I{0,3}) - Moon ([0-9]{1,3})")
     regex_win = re.compile("\\t(.*)\\t([0-9]\.[0-9]+)\\t([0-9]+)\\t([0-9]+)\\t([0-9]+)\\t([0-9]+)")
 
@@ -218,9 +216,6 @@ def moons_post(user_id):
 
                     hash_saved = hashlib.sha256(json.dumps(json.loads(rows[0][0]), sort_keys=True).encode('utf-8')).hexdigest()
                     hash_new = hashlib.sha256(json.dumps(moon['ore_composition'], sort_keys=True).encode('utf-8')).hexdigest()
-
-                    print(hash_saved)
-                    print(hash_new)
 
                     if hash_new == hash_saved:
                         old_moons += 1
