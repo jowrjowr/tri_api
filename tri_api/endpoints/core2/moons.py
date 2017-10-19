@@ -97,7 +97,7 @@ def moons_get(user_id):
                 ore_table[ore] = float(0)
 
         for ore in ores:
-            ore_table[short[ore]] = ore_table.pop(ore)
+            ore_table[short[ore]] = int(ore_table.pop(ore) * 100)
 
         moon = {
             'entry_id': row[0],
