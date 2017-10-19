@@ -437,6 +437,6 @@ def moons_get_coverage(user_id):
     region_list = []
 
     for region_id in regions:
-        region_list.append(regions[regions[region_id]])
+        region_list.append(regions[region_id])
 
     return flask.Response(json.dumps(region_list), status=200, mimetype='application/json')
