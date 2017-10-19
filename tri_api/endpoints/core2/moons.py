@@ -382,21 +382,21 @@ def moons_get_coverage(user_id):
     for row in rows:
         moons[str(row[0])] = {
             'region_id': row[1],
-            'region': row[2],
+            'region': row[2]
         }
 
     for moon_id in moons:
         regions[moons[moon_id]['region_id']] = {
             'region': moons[moon_id]['region'],
-            'scanned': regions.get(moons[moon_id]['region_id'], {'scanned': 0})['scanned'] + 1,
+            'scanned': regions.get(moons[moon_id]['region_id'], {'scanned': 0})['scanned'] + 1
         }
 
-    def get_moon_count(region_id):
+    def get_moon_count(id):
         import common.request_esi
 
         count = 0
 
-        request_region_url = 'universe/regions/{}/'.format(region_id)
+        request_region_url = 'universe/regions/{}/'.format(id)
         esi_region_code, esi_region_result = common.request_esi.esi(__name__, request_region_url, method='get')
 
         if not esi_region_code == 200:
@@ -431,7 +431,7 @@ def moons_get_coverage(user_id):
 
     for region_id in regions:
         regions[region_id]['total'] = get_moon_count(region_id)
-        regions[region_id]['coverage'] = int((regions[region_id]['scanned'] / regions[region_id]['moons']) * 100)
+        regions[region_id]['coverage'] = int((regions[region_id]['scanned'] / regions[region_id]['total']) * 100)
 
     region_list = []
 
