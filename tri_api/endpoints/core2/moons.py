@@ -321,7 +321,7 @@ def moons_get_scanners(user_id):
 
     cursor = sql_conn.cursor()
 
-    query = 'SELECT moonId, scannedByName FROM MoonScans'
+    query = 'SELECT scannedByName FROM MoonScans'
     try:
         _ = cursor.execute(query)
         rows = cursor.fetchall()
@@ -331,15 +331,10 @@ def moons_get_scanners(user_id):
     finally:
         cursor.close()
 
-    moons = {}
     scanners = {}
 
     for row in rows:
-        moons[str(row[0])] = row[1]
-
-    for moon_id in moons:
-        scanner = moons[moon_id]
-
+        scanner = row[1]
         scanners[scanner] = scanners.get(scanner, 0) + 1
 
     return flask.Response(json.dumps(scanners), status=200, mimetype='application/json')
@@ -394,7 +389,7 @@ def moons_get_coverage(user_id):
         regions[moons[moon_id]['region_id']] = {
             'region': moons[moon_id]['region'],
             'scanned': regions.get(moons[moon_id]['region_id'], {'scanned': 0})['scanned'] + 1,
-            'moons': 0
+            'total': 0
         }
 
     def get_moon_count(region_id):
@@ -437,5 +432,6 @@ def moons_get_coverage(user_id):
 
     for region_id in regions:
         regions[region_id]['moons'] = get_moon_count(region_id)
+        regions[region_id]['coverage'] = int((regions[region_id]['scanned'] / regions[region_id]['moons']) * 100)
 
     return flask.Response(json.dumps(regions), status=200, mimetype='application/json')
