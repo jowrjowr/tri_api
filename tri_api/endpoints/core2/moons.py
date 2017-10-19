@@ -51,12 +51,53 @@ def moons_get(user_id):
             "Carnotite", "Cinnabar", "Pollucite", "Zircon",
             "Loparite", "Monazite", "Xenotime", "Ytterbite"]
 
+    short = {
+        "Extracted Arkonor": "ea",
+        "Extracted Bistot": "eb",
+        "Extracted Crokite": "ec",
+        "Extracted Dark Ochre": "edo",
+        "Extracted Gneiss": "eg",
+        "Extracted Hedbergite": "ehg",
+        "Extracted Hemorphite": "ehp",
+        "Extracted Jaspet": "ej",
+        "Extracted Kernite": "ek",
+        "Extracted Omber": "eo",
+        "Extracted Plagioclase": "epl",
+        "Extracted Pyroxeres": "epg",
+        "Extracted Scordite": "esc",
+        "Extracted Spodumain": "esp",
+        "Extracted Veldspar": "ev",
+        "Bitumens": "bi",
+        "Coesite": "cs",
+        "Sylvite": "sy",
+        "Zeolites": "ze",
+        "Cobaltite": "cb",
+        "Euxenite": "eu",
+        "Scheelite": "sc",
+        "Titanite": "ti",
+        "Chromite": "cr",
+        "Otavite": "ot",
+        "Sperrylite": "sp",
+        "Vanadinite": "va",
+        "Carnotite": "ca",
+        "Cinnabar": "ci",
+        "Pollucite": "po",
+        "Zircon": "zi",
+        "Loparite": "lo",
+        "Monazite": "mo",
+        "Xenotime": "xe",
+        "Ytterbite": "yt"
+    }
+
     for row in rows:
         ore_table = json.loads(row[6])
 
         for ore in ores:
             if ore not in ore_table:
                 ore_table[ore] = float(0)
+
+        for ore in ore_table:
+            ore_table[short[ore]] = ore_table.pop(ore)
 
         moon = {
             'entry_id': row[0],
