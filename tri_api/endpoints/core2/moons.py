@@ -96,7 +96,7 @@ def moons_get(user_id):
             if ore not in ore_table:
                 ore_table[ore] = float(0)
 
-        for ore in ore_table:
+        for ore in ores:
             ore_table[short[ore]] = ore_table.pop(ore)
 
         moon = {
