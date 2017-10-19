@@ -389,7 +389,6 @@ def moons_get_coverage(user_id):
         regions[moons[moon_id]['region_id']] = {
             'region': moons[moon_id]['region'],
             'scanned': regions.get(moons[moon_id]['region_id'], {'scanned': 0})['scanned'] + 1,
-            'total': 0
         }
 
     def get_moon_count(region_id):
@@ -431,7 +430,7 @@ def moons_get_coverage(user_id):
         return count
 
     for region_id in regions:
-        regions[region_id]['moons'] = get_moon_count(region_id)
+        regions[region_id]['total'] = get_moon_count(region_id)
         regions[region_id]['coverage'] = int((regions[region_id]['scanned'] / regions[region_id]['moons']) * 100)
 
     region_list = []
