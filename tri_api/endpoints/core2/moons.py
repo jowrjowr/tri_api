@@ -336,7 +336,7 @@ def moons_get_conflicts(user_id):
 
     cursor = sql_conn.cursor()
 
-    query = 'SELECT entryId,moonId,moonNr,planetNr,solarSystemName,oreComposition,scannedByName,scannedDate' \
+    query = 'SELECT id,moonId,moonNr,planetNr,solarSystemName,oreComposition,scannedByName,scannedDate' \
             ' FROM MoonScans'
     try:
         _ = cursor.execute(query)
@@ -356,7 +356,7 @@ def moons_get_conflicts(user_id):
                 conflicts[moons[str(row[1])]['entry_id']] = moons[str(row[1])]
 
             conflicts[str(row[0])] = {
-                'entry_id': row[0],
+                'id': row[0],
                 'moon_id': row[1],
                 'moon': row[2],
                 'planet': row[3],
@@ -367,7 +367,7 @@ def moons_get_conflicts(user_id):
             }
         else:
             moons[str(row[1])] = {
-                'entry_id': row[0],
+                'id': row[0],
                 'moon_id': row[1],
                 'moon': row[2],
                 'planet': row[3],
