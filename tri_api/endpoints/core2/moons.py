@@ -561,6 +561,14 @@ def moons_get_scanners(user_id):
         scanner = row[1]
         scanners[scanner] = scanners.get(scanner, 0) + 1
 
+    scanner_list = []
+
+    for scanner in scanners:
+        scanner_list.append({
+            'scanner': scanner,
+            'count': scanners[scanner]
+        })
+
     return flask.Response(json.dumps(scanners), status=200, mimetype='application/json')
 
 
