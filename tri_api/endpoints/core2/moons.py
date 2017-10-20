@@ -558,7 +558,7 @@ def moons_get_scanners(user_id):
     scanners = {}
 
     for row in rows:
-        scanner = row[1]
+        scanner = row[0]
         scanners[scanner] = scanners.get(scanner, 0) + 1
 
     scanner_list = []
