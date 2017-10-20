@@ -26,7 +26,7 @@ def moons_get(user_id):
 
     cursor = sql_conn.cursor()
 
-    query = 'SELECT id,moonNr,planetNr,regionName,constellationName,solarSystemName,oreComposition,scannedByName,' \
+    query = 'SELECT id,moonId,moonNr,planetNr,regionName,constellationName,solarSystemName,oreComposition,scannedByName,' \
             'scannedDate FROM MoonScans'
     try:
         _ = cursor.execute(query)
@@ -37,7 +37,8 @@ def moons_get(user_id):
     finally:
         cursor.close()
 
-    moons = []
+    moons = {}
+    conflicts = {}
 
     ores = ["Flawless Arkonor", "Cubic Bistot", "Pellucid Crokite", "Jet Ochre",
             "Brilliant Gneiss",
@@ -99,21 +100,46 @@ def moons_get(user_id):
         for ore in ores:
             ore_table[short[ore]] = int(ore_table.pop(ore) * 100)
 
-        moon = {
-            'entry_id': row[0],
-            'region': row[3],
-            'const': row[4],
-            'system': row[5],
-            'planet': row[2],
-            'moon': row[1],
-            'ore_composition': ore_table,
-            'scanned_by': row[7],
-            'scanned_date': row[8].isoformat()
-        }
+        if row[1] not in moons:
+            moons[row[1]] = {
+                'entry_id': row[0],
+                'moon_id': row[1],
+                'region': row[4],
+                'const': row[5],
+                'system': row[6],
+                'planet': row[3],
+                'moon': row[2],
+                'ore_composition': ore_table,
+                'scanned_by': row[8],
+                'scanned_date': row[9].isoformat(),
+                'conflicted': False
+            }
+        else:
+            moons[row[1]]['conflicted'] = True
 
-        moons.append(moon)
+            conflicts[row[0]] = {
+                'entry_id': row[0],
+                'moon_id': row[1],
+                'region': row[4],
+                'const': row[5],
+                'system': row[6],
+                'planet': row[3],
+                'moon': row[2],
+                'ore_composition': ore_table,
+                'scanned_by': row[8],
+                'scanned_date': row[9].isoformat(),
+                'conflicted': True
+            }
 
-    return flask.Response(json.dumps(moons), status=200, mimetype='application/json')
+    moon_list = []
+
+    for moon_id in moons:
+        moon_list.append(moons[moon_id])
+
+    for entry_id in conflicts:
+        moon_list.append(conflicts[entry_id])
+
+    return flask.Response(json.dumps(moon_list), status=200, mimetype='application/json')
 
 
 @blueprint.route('/<int:user_id>/moons/', methods=['POST'])
