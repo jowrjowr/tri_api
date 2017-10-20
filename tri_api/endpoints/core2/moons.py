@@ -2,6 +2,57 @@ from ..core2 import blueprint
 from .decorators import verify_user
 
 
+ores = ["Flawless Arkonor", "Cubic Bistot", "Pellucid Crokite", "Jet Ochre",
+        "Brilliant Gneiss",
+        "Glazed Hedbergite", "Scintillating Hemorphite", "Pure Jaspet", "Resplendant Kernite",
+        "Platinoid Omber",
+        "Sparkling Plagioclase", "Opulent Pyroxeres", "Glossy Scordite", "Dazzling Spodumain",
+        "Stable Veldspar",
+        "Bitumens", "Coesite", "Sylvite", "Zeolites",
+        "Cobaltite", "Euxenite", "Scheelite", "Titanite",
+        "Chromite", "Otavite", "Sperrylite", "Vanadinite",
+        "Carnotite", "Cinnabar", "Pollucite", "Zircon",
+        "Loparite", "Monazite", "Xenotime", "Ytterbite"]
+
+short = {
+    "Flawless Arkonor": "ea",
+    "Cubic Bistot": "eb",
+    "Pellucid Crokite": "ec",
+    "Jet Ochre": "edo",
+    "Brilliant Gneiss": "eg",
+    "Glazed Hedbergite": "ehg",
+    "Scintillating Hemorphite": "ehp",
+    "Pure Jaspet": "ej",
+    "Resplendant Kernite": "ek",
+    "Platinoid Omber": "eo",
+    "Sparkling Plagioclase": "epl",
+    "Opulent Pyroxeres": "epg",
+    "Glossy Scordite": "esc",
+    "Dazzling Spodumain": "esp",
+    "Stable Veldspar": "ev",
+    "Bitumens": "bi",
+    "Coesite": "cs",
+    "Sylvite": "sy",
+    "Zeolites": "ze",
+    "Cobaltite": "cb",
+    "Euxenite": "eu",
+    "Scheelite": "sc",
+    "Titanite": "ti",
+    "Chromite": "cr",
+    "Otavite": "ot",
+    "Sperrylite": "sp",
+    "Vanadinite": "va",
+    "Carnotite": "ca",
+    "Cinnabar": "ci",
+    "Pollucite": "po",
+    "Zircon": "zi",
+    "Loparite": "lo",
+    "Monazite": "mo",
+    "Xenotime": "xe",
+    "Ytterbite": "yt"
+}
+
+
 @blueprint.route('/<int:user_id>/moons/', methods=['GET'])
 @verify_user(groups=['board'])
 def moons_get(user_id):
@@ -40,55 +91,7 @@ def moons_get(user_id):
     moons = {}
     conflicts = {}
 
-    ores = ["Flawless Arkonor", "Cubic Bistot", "Pellucid Crokite", "Jet Ochre",
-            "Brilliant Gneiss",
-            "Glazed Hedbergite", "Scintillating Hemorphite", "Pure Jaspet", "Resplendant Kernite",
-            "Platinoid Omber",
-            "Sparkling Plagioclase", "Opulent Pyroxeres", "Glossy Scordite", "Dazzling Spodumain",
-            "Stable Veldspar",
-            "Bitumens", "Coesite", "Sylvite", "Zeolites",
-            "Cobaltite", "Euxenite", "Scheelite", "Titanite",
-            "Chromite", "Otavite", "Sperrylite", "Vanadinite",
-            "Carnotite", "Cinnabar", "Pollucite", "Zircon",
-            "Loparite", "Monazite", "Xenotime", "Ytterbite"]
 
-    short = {
-        "Flawless Arkonor": "ea",
-        "Cubic Bistot": "eb",
-        "Pellucid Crokite": "ec",
-        "Jet Ochre": "edo",
-        "Brilliant Gneiss": "eg",
-        "Glazed Hedbergite": "ehg",
-        "Scintillating Hemorphite": "ehp",
-        "Pure Jaspet": "ej",
-        "Resplendant Kernite": "ek",
-        "Platinoid Omber": "eo",
-        "Sparkling Plagioclase": "epl",
-        "Opulent Pyroxeres": "epg",
-        "Glossy Scordite": "esc",
-        "Dazzling Spodumain": "esp",
-        "Stable Veldspar": "ev",
-        "Bitumens": "bi",
-        "Coesite": "cs",
-        "Sylvite": "sy",
-        "Zeolites": "ze",
-        "Cobaltite": "cb",
-        "Euxenite": "eu",
-        "Scheelite": "sc",
-        "Titanite": "ti",
-        "Chromite": "cr",
-        "Otavite": "ot",
-        "Sperrylite": "sp",
-        "Vanadinite": "va",
-        "Carnotite": "ca",
-        "Cinnabar": "ci",
-        "Pollucite": "po",
-        "Zircon": "zi",
-        "Loparite": "lo",
-        "Monazite": "mo",
-        "Xenotime": "xe",
-        "Ytterbite": "yt"
-    }
 
     for row in rows:
         ore_table = json.loads(row[7])
@@ -377,6 +380,12 @@ def moons_get_conflicts(user_id):
     conflicts = {}
 
     for row in rows:
+        ore_dict = row[5]
+        ore_list = []
+
+        for key in ore_dict:
+            ore_list.append("{0} {1}%".format(key, int(ore_dict[key]*100)))
+
         if str(row[1]) in moons:
             if str(row[1]) not in conflicts:
                 conflicts[moons[str(row[1])]['id']] = moons[str(row[1])]
@@ -387,7 +396,7 @@ def moons_get_conflicts(user_id):
                 'moon': row[2],
                 'planet': row[3],
                 'system': row[4],
-                'ore_composition': row[5],
+                'ore_composition': ore_list,
                 'scanned_by': row[6],
                 'scanned_date': row[7].isoformat()
             }
@@ -398,7 +407,7 @@ def moons_get_conflicts(user_id):
                 'moon': row[2],
                 'planet': row[3],
                 'system': row[4],
-                'ore_composition': row[5],
+                'ore_composition': ore_list,
                 'scanned_by': row[6],
                 'scanned_date': row[7].isoformat()
             }
