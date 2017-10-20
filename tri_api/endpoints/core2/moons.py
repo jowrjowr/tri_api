@@ -353,7 +353,7 @@ def moons_get_conflicts(user_id):
     for row in rows:
         if str(row[1]) in moons:
             if str(row[1]) not in conflicts:
-                conflicts[moons[str(row[1])]['entry_id']] = moons[str(row[1])]
+                conflicts[moons[str(row[1])]['id']] = moons[str(row[1])]
 
             conflicts[str(row[0])] = {
                 'id': row[0],
