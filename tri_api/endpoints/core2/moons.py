@@ -569,7 +569,4 @@ def moons_get_scanners(user_id):
             'count': scanners[scanner]
         })
 
-    return flask.Response(json.dumps(scanners), status=200, mimetype='application/json')
-
-
-
+    return flask.Response(json.dumps(scanner_list), status=200, mimetype='application/json')
