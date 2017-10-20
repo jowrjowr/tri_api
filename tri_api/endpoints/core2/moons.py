@@ -91,7 +91,7 @@ def moons_get(user_id):
     }
 
     for row in rows:
-        ore_table = json.loads(row[6])
+        ore_table = json.loads(row[7])
 
         for ore in ores:
             if ore not in ore_table:
