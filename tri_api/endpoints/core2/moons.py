@@ -363,7 +363,7 @@ def moons_get_conflicts(user_id):
                 'system': row[4],
                 'ore_composition': row[5],
                 'scanned_by': row[6],
-                'scanned_date': row[7]
+                'scanned_date': row[7].isoformat()
             }
         else:
             moons[str(row[1])] = {
