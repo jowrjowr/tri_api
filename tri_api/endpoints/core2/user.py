@@ -73,7 +73,7 @@ def user_get(user_id):
             access['corp_tools'].append('structures')
 
         # alliance leadership
-        if 'Director' in user['corporationRole'] or 'administration' in user['authGroup']:
+        if 'board' in user['authGroup']:
             access['alliance_tools'].append('audit')
             access['alliance_tools'].append('structures')
             access['resources'].append('moons_view')

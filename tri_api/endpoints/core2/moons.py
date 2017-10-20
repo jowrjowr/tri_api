@@ -278,7 +278,22 @@ def moons_post(user_id):
                                         moon['system'],
                                         json.dumps(moon['ore_composition']), int(user_id), scanned_by_name))
                 else:
-                    raise mysql.Error("database error (identical moons detected)")
+                    conflicts += 1
+
+                    logger.warning("moon conflict detected (id={0})".format(moon['moon_id']))
+
+                    cursor.execute("INSERT INTO MoonScans "
+                                   "(moonId, moonNr, planetId, planetNr, regionId, "
+                                   "regionName, constellationId, constellationName, solarSystemId, solarSystemName,"
+                                   "oreComposition, scannedBy, scannedByName, scannedDate) VALUES "
+                                   "(%s, %s, %s, %s, %s,"
+                                   "%s, %s, %s, %s, %s,"
+                                   "%s, %s, %s, NOW())",
+                                   (moon['moon_id'], moon['moon'], moon['planet_id'], moon['planet'],
+                                    moon['region_id'],
+                                    moon['region'], moon['const_id'], moon['const'], moon['system_id'],
+                                    moon['system'],
+                                    json.dumps(moon['ore_composition']), int(user_id), scanned_by_name))
             else:
                 print(json.dumps(moon))
     except mysql.Error as error:
@@ -297,9 +312,9 @@ def moons_post(user_id):
     }), status=200, mimetype='application/json')
 
 
-@blueprint.route('/<int:user_id>/moons/scanners/', methods=['GET'])
+@blueprint.route('/<int:user_id>/moons/conflicts/', methods=['GET'])
 @verify_user(groups=['board'])
-def moons_get_scanners(user_id):
+def moons_get_conflicts(user_id):
     import common.database as _database
     import common.ldaphelpers as _ldaphelpers
     import flask
@@ -321,7 +336,8 @@ def moons_get_scanners(user_id):
 
     cursor = sql_conn.cursor()
 
-    query = 'SELECT scannedByName FROM MoonScans'
+    query = 'SELECT entryId,moonId,moonNr,planetNr,solarSystemName,oreComposition,scannedByName,scannedDate' \
+            ' FROM MoonScans'
     try:
         _ = cursor.execute(query)
         rows = cursor.fetchall()
@@ -331,13 +347,42 @@ def moons_get_scanners(user_id):
     finally:
         cursor.close()
 
-    scanners = {}
+    moons = {}
+    conflicts = {}
 
     for row in rows:
-        scanner = row[1]
-        scanners[scanner] = scanners.get(scanner, 0) + 1
+        if str(row[1]) in moons:
+            if str(row[1]) not in conflicts:
+                conflicts[moons[str(row[1])]['entry_id']] = moons[str(row[1])]
 
-    return flask.Response(json.dumps(scanners), status=200, mimetype='application/json')
+            conflicts[str(row[0])] = {
+                'entry_id': row[0],
+                'moon_id': row[1],
+                'moon': row[2],
+                'planet': row[3],
+                'system': row[4],
+                'ore_composition': row[5],
+                'scanned_by': row[6],
+                'scanned_date': row[7]
+            }
+        else:
+            moons[str(row[1])] = {
+                'entry_id': row[0],
+                'moon_id': row[1],
+                'moon': row[2],
+                'planet': row[3],
+                'system': row[4],
+                'ore_composition': row[5],
+                'scanned_by': row[6],
+                'scanned_date': row[7]
+            }
+
+    conflict_list = []
+
+    for entry_id in conflicts:
+        conflict_list.append(conflicts[entry_id])
+
+    return flask.Response(json.dumps(conflict_list), status=200, mimetype='application/json')
 
 
 @blueprint.route('/<int:user_id>/moons/coverage/', methods=['GET'])
@@ -439,3 +484,49 @@ def moons_get_coverage(user_id):
         region_list.append(regions[region_id])
 
     return flask.Response(json.dumps(region_list), status=200, mimetype='application/json')
+
+
+@blueprint.route('/<int:user_id>/moons/scanners/', methods=['GET'])
+@verify_user(groups=['board'])
+def moons_get_scanners(user_id):
+    import common.database as _database
+    import common.ldaphelpers as _ldaphelpers
+    import flask
+    import logging
+    import MySQLdb as mysql
+    import json
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        sql_conn = mysql.connect(
+            database=_database.DB_DATABASE,
+            user=_database.DB_USERNAME,
+            password=_database.DB_PASSWORD,
+            host=_database.DB_HOST)
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+
+    cursor = sql_conn.cursor()
+
+    query = 'SELECT scannedByName FROM MoonScans'
+    try:
+        _ = cursor.execute(query)
+        rows = cursor.fetchall()
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+    finally:
+        cursor.close()
+
+    scanners = {}
+
+    for row in rows:
+        scanner = row[1]
+        scanners[scanner] = scanners.get(scanner, 0) + 1
+
+    return flask.Response(json.dumps(scanners), status=200, mimetype='application/json')
+
+
+
