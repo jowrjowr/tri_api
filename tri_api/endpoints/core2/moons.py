@@ -380,7 +380,7 @@ def moons_get_conflicts(user_id):
     conflicts = {}
 
     for row in rows:
-        ore_dict = row[5]
+        ore_dict = json.loads(row[5])
         ore_list = []
 
         for key in ore_dict:
