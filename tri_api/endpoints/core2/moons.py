@@ -388,6 +388,9 @@ def moons_get_conflicts(user_id):
 
         ore_list.sort()
 
+        while len(ore_list) < 4:
+            ore_list.append("-")
+
         if str(row[1]) in moons:
             if str(row[1]) not in conflicts:
                 conflicts[moons[str(row[1])]['id']] = moons[str(row[1])]
