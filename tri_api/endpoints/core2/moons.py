@@ -386,6 +386,8 @@ def moons_get_conflicts(user_id):
         for key in ore_dict:
             ore_list.append("{0} {1}%".format(key, str(int(ore_dict[key]*100))))
 
+        ore_list = ore_list.sort()
+
         if str(row[1]) in moons:
             if str(row[1]) not in conflicts:
                 conflicts[moons[str(row[1])]['id']] = moons[str(row[1])]
@@ -471,12 +473,12 @@ def moons_get_coverage(user_id):
             'scanned': regions.get(moons[moon_id]['region_id'], {'scanned': 0})['scanned'] + 1
         }
 
-    def get_moon_count(id):
+    def get_moon_count(rid):
         import common.request_esi
 
         count = 0
 
-        request_region_url = 'universe/regions/{}/'.format(id)
+        request_region_url = 'universe/regions/{}/'.format(rid)
         esi_region_code, esi_region_result = common.request_esi.esi(__name__, request_region_url, method='get')
 
         if not esi_region_code == 200:
