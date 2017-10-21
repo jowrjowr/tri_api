@@ -610,9 +610,21 @@ def moons_post_conflicts_resolve(user_id, entry_id):
 
     moon_id = rows[0][0]
 
+    query = 'SELECT id FROM MoonScans WHERE moonId=%s AND id<>%s'
+    try:
+        _ = cursor.execute(query, (moon_id, entry_id))
+        rows = cursor.fetchall()
+    except mysql.Error as error:
+        cursor.close()
+
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+
+    affected = [row[0] for row in rows]
+
     query = 'DELETE FROM MoonScans WHERE moonId=%s AND id<>%s'
     try:
-        rowc = cursor.execute(query, (moon_id, entry_id,))
+        rowc = cursor.execute(query, (moon_id, entry_id))
     except mysql.Error as error:
         logger.error('mysql error: {0}'.format(error))
         return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
@@ -622,7 +634,7 @@ def moons_post_conflicts_resolve(user_id, entry_id):
         sql_conn.close()
 
     result = {
-        'affected': rowc
+        'affected': affected
     }
 
     return flask.Response(json.dumps(result), status=200, mimetype='application/json')
