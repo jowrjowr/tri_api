@@ -615,7 +615,7 @@ def moons_post_conflicts_resolve(user_id, entry_id):
 
     query = 'SELECT id FROM MoonScans WHERE moonId=%s'
     try:
-        _ = cursor.execute(query, (moon_id, entry_id))
+        _ = cursor.execute(query, (moon_id,))
         rows = cursor.fetchall()
     except mysql.Error as error:
         cursor.close()
