@@ -281,13 +281,13 @@ def moons_post(user_id):
                                    (moon['moon_id'], moon['moon'], moon['planet_id'], moon['planet'], moon['region_id'],
                                     moon['region'], moon['const_id'], moon['const'], moon['system_id'], moon['system'],
                                     json.dumps(moon['ore_composition']), int(user_id), scanned_by_name))
-                elif rowc == 1:
+                else:
                     import hashlib
 
-                    hash_saved = hashlib.sha256(json.dumps(json.loads(rows[0][0]), sort_keys=True).encode('utf-8')).hexdigest()
+                    hashes_saved = [hashlib.sha256(json.dumps(json.loads(row[0]), sort_keys=True).encode('utf-8')).hexdigest() for row in rows]
                     hash_new = hashlib.sha256(json.dumps(moon['ore_composition'], sort_keys=True).encode('utf-8')).hexdigest()
 
-                    if hash_new == hash_saved:
+                    if hash_new in hashes_saved:
                         old_moons += 1
                     else:
                         conflicts += 1
@@ -306,23 +306,6 @@ def moons_post(user_id):
                                         moon['region'], moon['const_id'], moon['const'], moon['system_id'],
                                         moon['system'],
                                         json.dumps(moon['ore_composition']), int(user_id), scanned_by_name))
-                else:
-                    conflicts += 1
-
-                    logger.warning("moon conflict detected (id={0})".format(moon['moon_id']))
-
-                    cursor.execute("INSERT INTO MoonScans "
-                                   "(moonId, moonNr, planetId, planetNr, regionId, "
-                                   "regionName, constellationId, constellationName, solarSystemId, solarSystemName,"
-                                   "oreComposition, scannedBy, scannedByName, scannedDate) VALUES "
-                                   "(%s, %s, %s, %s, %s,"
-                                   "%s, %s, %s, %s, %s,"
-                                   "%s, %s, %s, NOW())",
-                                   (moon['moon_id'], moon['moon'], moon['planet_id'], moon['planet'],
-                                    moon['region_id'],
-                                    moon['region'], moon['const_id'], moon['const'], moon['system_id'],
-                                    moon['system'],
-                                    json.dumps(moon['ore_composition']), int(user_id), scanned_by_name))
             else:
                 print(json.dumps(moon))
     except mysql.Error as error:
