@@ -386,7 +386,7 @@ def moons_get_conflicts(user_id):
         for key in ore_dict:
             ore_list.append("{0} {1}%".format(key, str(int(ore_dict[key]*100))))
 
-        ore_list = ore_list.sort()
+        ore_list.sort()
 
         if str(row[1]) in moons:
             if str(row[1]) not in conflicts:
