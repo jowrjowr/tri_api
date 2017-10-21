@@ -572,3 +572,55 @@ def moons_get_scanners(user_id):
         })
 
     return flask.Response(json.dumps(scanner_list), status=200, mimetype='application/json')
+
+
+@blueprint.route('/<int:user_id>/moons/conflicts/resolve/<int:entry_id>', methods=['POST'])
+@verify_user(groups=['board'])
+def moons_post_conflicts_resolve(user_id, entry_id):
+    import common.database as _database
+    import common.ldaphelpers as _ldaphelpers
+    import flask
+    import logging
+    import MySQLdb as mysql
+    import json
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        sql_conn = mysql.connect(
+            database=_database.DB_DATABASE,
+            user=_database.DB_USERNAME,
+            password=_database.DB_PASSWORD,
+            host=_database.DB_HOST)
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+
+    cursor = sql_conn.cursor()
+
+    query = 'SELECT moonId FROM MoonScans WHERE id=%s'
+    try:
+        _ = cursor.execute(query, (entry_id,))
+        rows = cursor.fetchall()
+    except mysql.Error as error:
+        cursor.close()
+
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+
+    moon_id = rows[0][0]
+
+    query = 'DELETE FROM MoonScans WHERE moonId=%s AND id<>%s'
+    try:
+        rowc = cursor.execute(query, (moon_id, entry_id,))
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+    finally:
+        cursor.close()
+
+    result = {
+        'affected': rowc
+    }
+
+    return flask.Response(json.dumps(result), status=200, mimetype='application/json')
