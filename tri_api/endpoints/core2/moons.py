@@ -613,7 +613,7 @@ def moons_post_conflicts_resolve(user_id, entry_id):
 
     moon_id = rows[0][0]
 
-    query = 'SELECT id FROM MoonScans WHERE moonId=%s AND id<>%s'
+    query = 'SELECT id FROM MoonScans WHERE moonId=%s'
     try:
         _ = cursor.execute(query, (moon_id, entry_id))
         rows = cursor.fetchall()
