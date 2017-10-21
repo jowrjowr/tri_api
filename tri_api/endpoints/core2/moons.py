@@ -105,7 +105,7 @@ def moons_get(user_id):
 
         if row[1] not in moons:
             moons[row[1]] = {
-                'entry_id': row[0],
+                'id': row[0],
                 'moon_id': row[1],
                 'region': row[4],
                 'const': row[5],
@@ -121,7 +121,7 @@ def moons_get(user_id):
             moons[row[1]]['conflicted'] = True
 
             conflicts[row[0]] = {
-                'entry_id': row[0],
+                'id': row[0],
                 'moon_id': row[1],
                 'region': row[4],
                 'const': row[5],
