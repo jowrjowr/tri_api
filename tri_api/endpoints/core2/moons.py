@@ -574,7 +574,7 @@ def moons_get_scanners(user_id):
     return flask.Response(json.dumps(scanner_list), status=200, mimetype='application/json')
 
 
-@blueprint.route('/<int:user_id>/moons/conflicts/resolve/<int:entry_id>', methods=['POST'])
+@blueprint.route('/<int:user_id>/moons/conflicts/resolve/<int:entry_id>/', methods=['POST'])
 @verify_user(groups=['board'])
 def moons_post_conflicts_resolve(user_id, entry_id):
     import common.database as _database
@@ -618,6 +618,8 @@ def moons_post_conflicts_resolve(user_id, entry_id):
         return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
     finally:
         cursor.close()
+        sql_conn.commit()
+        sql_conn.close()
 
     result = {
         'affected': rowc
