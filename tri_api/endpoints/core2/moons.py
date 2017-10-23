@@ -418,7 +418,7 @@ def moons_post(user_id):
         sql_conn.close()
 
     securitylog(__name__, 'submitted moon scan',
-                detail='success ({0},{1},{2}'.format(new_moons, old_moons, conflicts),
+                detail='success ({0},{1},{2})'.format(new_moons, old_moons, conflicts),
                 ipaddress=flask.request.headers['X-Real-Ip'],
                 charid=user_id)
 
