@@ -237,7 +237,7 @@ def moons_get_systems(user_id):
 
 
 @blueprint.route('/<int:user_id>/moons/', methods=['POST'])
-@verify_user(groups=['board', 'administation', 'triprobers'])
+@verify_user(groups=['triumvirate'])
 def moons_post(user_id):
     import common.database as _database
     import common.ldaphelpers as _ldaphelpers
