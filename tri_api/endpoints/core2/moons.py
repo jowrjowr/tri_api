@@ -230,6 +230,7 @@ def moons_get_systems(user_id):
     system_list = []
 
     for system_id in systems:
+        systems[system_id]['coverage'] = systems[system_id]['scanned']/systems[system_id]['moons']
         system_list.append(systems[system_id])
 
     return flask.Response(json.dumps(system_list), status=200, mimetype='application/json')
