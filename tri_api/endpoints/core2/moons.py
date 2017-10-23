@@ -209,7 +209,8 @@ def moons_get_systems(user_id):
                 'region': row[4],
                 'const': row[5],
                 'system': row[7],
-                'ore_count': ore_table
+                'ore_count': ore_table,
+                'moons': 0
             }
 
             request_system_url = 'universe/systems/{}/'.format(row[6])
