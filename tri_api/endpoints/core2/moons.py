@@ -91,8 +91,6 @@ def moons_get(user_id):
     moons = {}
     conflicts = {}
 
-
-
     for row in rows:
         ore_table = json.loads(row[7])
 
@@ -143,6 +141,94 @@ def moons_get(user_id):
         moon_list.append(conflicts[entry_id])
 
     return flask.Response(json.dumps(moon_list), status=200, mimetype='application/json')
+
+
+@blueprint.route('/<int:user_id>/moons/systems/', methods=['GET'])
+@verify_user(groups=['board'])
+def moons_get_systems(user_id):
+    import common.database as _database
+    import common.ldaphelpers as _ldaphelpers
+    import flask
+    import logging
+    import MySQLdb as mysql
+    import numpy
+    import json
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        sql_conn = mysql.connect(
+            database=_database.DB_DATABASE,
+            user=_database.DB_USERNAME,
+            password=_database.DB_PASSWORD,
+            host=_database.DB_HOST)
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+
+    cursor = sql_conn.cursor()
+
+    query = 'SELECT id,moonId,moonNr,planetNr,regionName,constellationName,solarSystemId,solarSystemName,oreComposition,scannedByName,' \
+            'scannedDate FROM MoonScans'
+    try:
+        _ = cursor.execute(query)
+        rows = cursor.fetchall()
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+    finally:
+        cursor.close()
+
+    systems = {}
+
+    for row in rows:
+        if row[6] in systems:
+            ore_table = json.loads(row[7])
+
+            for ore in ores:
+                if ore not in ore_table:
+                    ore_table[ore] = float(0)
+
+            for ore in ores:
+                ore_table[short[ore]] = numpy.ceil(ore_table.pop(ore) / 100) + systems[row[6]]['ore_count'][short[ore]]
+
+            systems[row[6]]['ore_count'] = ore_table
+        else:
+            ore_table = json.loads(row[7])
+
+            for ore in ores:
+                if ore not in ore_table:
+                    ore_table[ore] = float(0)
+
+            for ore in ores:
+                ore_table[short[ore]] = numpy.ceil(ore_table.pop(ore)/100)
+
+            systems[row[6]] = {
+                'id': row[6],
+                'region': row[4],
+                'const': row[5],
+                'system': row[7],
+                'ore_count': ore_table
+            }
+
+            request_system_url = 'universe/systems/{}/'.format(row[6])
+            esi_system_code, esi_system_result = common.request_esi.esi(__name__, request_system_url, method='get')
+
+            if not esi_system_code == 200:
+                logger.error("/universe/systems/ API error {0}: {1}"
+                             .format(esi_system_code, esi_system_result.get('error', 'N/A')))
+                return flask.Response(json.dumps({'error': esi_system_result.get('error', 'esi error')}),
+                                      status=500, mimetype='application/json')
+
+            for planet in esi_system_result['planets']:
+                systems[row[6]]['moons'] += len(planet.get('moons', []))
+
+    system_list = []
+
+    for system_id in systems:
+        system_list.append(systems[system_id])
+
+    return flask.Response(json.dumps(system_list), status=200, mimetype='application/json')
 
 
 @blueprint.route('/<int:user_id>/moons/', methods=['POST'])
