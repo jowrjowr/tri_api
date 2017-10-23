@@ -194,6 +194,7 @@ def moons_get_systems(user_id):
                 ore_table[short[ore]] = numpy.ceil(ore_table.pop(ore) / 100) + systems[row[6]]['ore_count'][short[ore]]
 
             systems[row[6]]['ore_count'] = ore_table
+            systems[row[6]]['scanned'] += 1
         else:
             ore_table = json.loads(row[8])
 
@@ -210,7 +211,8 @@ def moons_get_systems(user_id):
                 'const': row[5],
                 'system': row[7],
                 'ore_count': ore_table,
-                'moons': 0
+                'moons': 0,
+                'scanned': 1
             }
 
             request_system_url = 'universe/systems/{}/'.format(row[6])
