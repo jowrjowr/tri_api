@@ -271,10 +271,10 @@ def moons_post(user_id):
             }
 
             for j in range(1, 5):
-                if i - 1 >= len(lines):
+                try:
+                    match_mineral = regex_win.match(lines[i + 1])
+                except IndexError:
                     break
-
-                match_mineral = regex_win.match(lines[i + 1])
 
                 if not match_mineral:
                     logger.warning('no regex match for line: {0} (if this is a new moon ignore)'.format(lines[i + 1]))
