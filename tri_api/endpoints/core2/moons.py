@@ -63,6 +63,12 @@ def moons_get(user_id):
     import MySQLdb as mysql
     import json
 
+    from common.logger import securitylog
+
+    securitylog(__name__, 'viewed moon scan',
+                ipaddress=flask.request.headers['X-Real-Ip'],
+                charid=user_id)
+
     logger = logging.getLogger(__name__)
 
     try:
