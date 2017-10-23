@@ -247,11 +247,17 @@ def moons_post(user_id):
     import json
     import re
 
+    from common.logger import securitylog
     from ._roman import fromRoman
 
     logger = logging.getLogger(__name__)
 
     lines = str(flask.request.get_json().get('text', "")).splitlines()
+
+    securitylog(__name__, 'submitted moon scan',
+                detail='attempt (lines={})'.format(len(lines)),
+                ipaddress=flask.request.headers['X-Real-Ip'],
+                charid=user_id)
 
     regex_moon = re.compile("(.*) (XC|XL|L?X{0,3})(IX|IV|V?I{0,3}) - Moon ([0-9]{1,3})")
     regex_win = re.compile("\\t(.*)\\t([0-9]\.[0-9]+)\\t([0-9]+)\\t([0-9]+)\\t([0-9]+)\\t([0-9]+)")
@@ -410,6 +416,11 @@ def moons_post(user_id):
         cursor.close()
         sql_conn.commit()
         sql_conn.close()
+
+    securitylog(__name__, 'submitted moon scan',
+                detail='success ({0},{1},{2}'.format(new_moons, old_moons, conflicts),
+                ipaddress=flask.request.headers['X-Real-Ip'],
+                charid=user_id)
 
     return flask.Response(json.dumps({
         'added': new_moons,
