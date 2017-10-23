@@ -590,7 +590,7 @@ def moons_get_coverage(user_id):
 
     for region_id in regions:
         regions[region_id]['total'] = get_moon_count(region_id)
-        regions[region_id]['coverage'] = int((regions[region_id]['scanned'] / regions[region_id]['total']) * 100)
+        regions[region_id]['coverage'] = regions[region_id]['scanned'] / regions[region_id]['total']
 
     region_list = []
 
