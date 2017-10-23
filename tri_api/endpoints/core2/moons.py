@@ -148,6 +148,7 @@ def moons_get(user_id):
 def moons_get_systems(user_id):
     import common.database as _database
     import common.ldaphelpers as _ldaphelpers
+    import common.request_esi
     import flask
     import logging
     import MySQLdb as mysql
