@@ -183,7 +183,7 @@ def moons_get_systems(user_id):
 
     for row in rows:
         if row[6] in systems:
-            ore_table = json.loads(row[7])
+            ore_table = json.loads(row[8])
 
             for ore in ores:
                 if ore not in ore_table:
@@ -194,7 +194,7 @@ def moons_get_systems(user_id):
 
             systems[row[6]]['ore_count'] = ore_table
         else:
-            ore_table = json.loads(row[7])
+            ore_table = json.loads(row[8])
 
             for ore in ores:
                 if ore not in ore_table:
