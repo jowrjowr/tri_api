@@ -409,7 +409,6 @@ def moons_get_regions(user_id):
             regions[row[4]] = {
                 'id': row[4],
                 'region': row[5],
-                'const': row[6],
                 'ore_count': ore_table,
                 'moons': 0,
                 'scanned': 1
@@ -734,158 +733,6 @@ def moons_get_conflicts(user_id):
     return flask.Response(json.dumps(conflict_list), status=200, mimetype='application/json')
 
 
-@blueprint.route('/<int:user_id>/moons/coverage/', methods=['GET'])
-@verify_user(groups=['board'])
-def moons_get_coverage(user_id):
-    import common.database as _database
-    import common.ldaphelpers as _ldaphelpers
-    import flask
-    import logging
-    import MySQLdb as mysql
-    import json
-
-    logger = logging.getLogger(__name__)
-
-    try:
-        sql_conn = mysql.connect(
-            database=_database.DB_DATABASE,
-            user=_database.DB_USERNAME,
-            password=_database.DB_PASSWORD,
-            host=_database.DB_HOST)
-    except mysql.Error as error:
-        logger.error('mysql error: {0}'.format(error))
-        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
-
-    cursor = sql_conn.cursor()
-
-    query = 'SELECT moonId,regionId,regionName' \
-            ' FROM MoonScans'
-    try:
-        _ = cursor.execute(query)
-        rows = cursor.fetchall()
-    except mysql.Error as error:
-        logger.error('mysql error: {0}'.format(error))
-        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
-    finally:
-        cursor.close()
-
-    moons = {}
-
-    regions = {}
-
-    for row in rows:
-        moons[str(row[0])] = {
-            'region_id': row[1],
-            'region': row[2]
-        }
-
-    for moon_id in moons:
-        regions[moons[moon_id]['region_id']] = {
-            'region': moons[moon_id]['region'],
-            'scanned': regions.get(moons[moon_id]['region_id'], {'scanned': 0})['scanned'] + 1
-        }
-
-    def get_moon_count(rid):
-        import common.request_esi
-
-        count = 0
-
-        request_region_url = 'universe/regions/{}/'.format(rid)
-        esi_region_code, esi_region_result = common.request_esi.esi(__name__, request_region_url, method='get')
-
-        if not esi_region_code == 200:
-            logger.error("/universe/regions/ API error {0}: {1}"
-                         .format(esi_region_code, esi_region_result.get('error', 'N/A')))
-            return flask.Response(json.dumps({'error': esi_region_result.get('error', 'esi error')}),
-                                  status=500, mimetype='application/json')
-
-        for constellation_id in esi_region_result['constellations']:
-            request_const_url = 'universe/constellations/{}/'.format(constellation_id)
-            esi_const_code, esi_const_result = common.request_esi.esi(__name__, request_const_url, method='get')
-
-            if not esi_const_code == 200:
-                logger.error("/universe/constellations/ API error {0}: {1}"
-                             .format(esi_const_code, esi_const_result.get('error', 'N/A')))
-                return flask.Response(json.dumps({'error': esi_const_result.get('error', 'esi error')}),
-                                      status=500, mimetype='application/json')
-
-            for system_id in esi_const_result['systems']:
-                request_system_url = 'universe/systems/{}/'.format(system_id)
-                esi_system_code, esi_system_result = common.request_esi.esi(__name__, request_system_url, method='get')
-
-                if not esi_system_code == 200:
-                    logger.error("/universe/systems/ API error {0}: {1}"
-                                 .format(esi_system_code, esi_system_result.get('error', 'N/A')))
-                    return flask.Response(json.dumps({'error': esi_system_result.get('error', 'esi error')}),
-                                          status=500, mimetype='application/json')
-
-                for planet in esi_system_result['planets']:
-                    count += len(planet.get('moons', []))
-        return count
-
-    for region_id in regions:
-        regions[region_id]['total'] = get_moon_count(region_id)
-        regions[region_id]['coverage'] = regions[region_id]['scanned'] / regions[region_id]['total']
-
-    region_list = []
-
-    for region_id in regions:
-        region_list.append(regions[region_id])
-
-    return flask.Response(json.dumps(region_list), status=200, mimetype='application/json')
-
-
-@blueprint.route('/<int:user_id>/moons/scanners/', methods=['GET'])
-@verify_user(groups=['board'])
-def moons_get_scanners(user_id):
-    import common.database as _database
-    import common.ldaphelpers as _ldaphelpers
-    import flask
-    import logging
-    import MySQLdb as mysql
-    import json
-
-    logger = logging.getLogger(__name__)
-
-    try:
-        sql_conn = mysql.connect(
-            database=_database.DB_DATABASE,
-            user=_database.DB_USERNAME,
-            password=_database.DB_PASSWORD,
-            host=_database.DB_HOST)
-    except mysql.Error as error:
-        logger.error('mysql error: {0}'.format(error))
-        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
-
-    cursor = sql_conn.cursor()
-
-    query = 'SELECT scannedByName FROM MoonScans'
-    try:
-        _ = cursor.execute(query)
-        rows = cursor.fetchall()
-    except mysql.Error as error:
-        logger.error('mysql error: {0}'.format(error))
-        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
-    finally:
-        cursor.close()
-
-    scanners = {}
-
-    for row in rows:
-        scanner = row[0]
-        scanners[scanner] = scanners.get(scanner, 0) + 1
-
-    scanner_list = []
-
-    for scanner in scanners:
-        scanner_list.append({
-            'scanner': scanner,
-            'count': scanners[scanner]
-        })
-
-    return flask.Response(json.dumps(scanner_list), status=200, mimetype='application/json')
-
-
 @blueprint.route('/<int:user_id>/moons/conflicts/resolve/<int:entry_id>/', methods=['POST'])
 @verify_user(groups=['board'])
 def moons_post_conflicts_resolve(user_id, entry_id):
@@ -950,3 +797,54 @@ def moons_post_conflicts_resolve(user_id, entry_id):
     }
 
     return flask.Response(json.dumps(result), status=200, mimetype='application/json')
+
+
+@blueprint.route('/<int:user_id>/moons/scanners/', methods=['GET'])
+@verify_user(groups=['board'])
+def moons_get_scanners(user_id):
+    import common.database as _database
+    import common.ldaphelpers as _ldaphelpers
+    import flask
+    import logging
+    import MySQLdb as mysql
+    import json
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        sql_conn = mysql.connect(
+            database=_database.DB_DATABASE,
+            user=_database.DB_USERNAME,
+            password=_database.DB_PASSWORD,
+            host=_database.DB_HOST)
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+
+    cursor = sql_conn.cursor()
+
+    query = 'SELECT scannedByName FROM MoonScans'
+    try:
+        _ = cursor.execute(query)
+        rows = cursor.fetchall()
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+    finally:
+        cursor.close()
+
+    scanners = {}
+
+    for row in rows:
+        scanner = row[0]
+        scanners[scanner] = scanners.get(scanner, 0) + 1
+
+    scanner_list = []
+
+    for scanner in scanners:
+        scanner_list.append({
+            'scanner': scanner,
+            'count': scanners[scanner]
+        })
+
+    return flask.Response(json.dumps(scanner_list), status=200, mimetype='application/json')
