@@ -490,7 +490,7 @@ def moons_post(user_id):
         if match:
             moon = {
                 'system': match.group(1).strip(),
-                'planet': int(fromRoman(match.group(3))),
+                'planet': int(fromRoman(match.group(2)+match.group(3))),
                 'moon': int(match.group(4)),
                 'ore_composition': {},
                 'valid': False
