@@ -394,7 +394,7 @@ def moons_get_regions(user_id):
             for ore in ores:
                 ore_table[short[ore]] = numpy.ceil(ore_table.pop(ore) / 100) + regions[row[4]]['ore_count'][short[ore]]
 
-                regions[row[4]]['ore_count'] = ore_table
+            regions[row[4]]['ore_count'] = ore_table
             regions[row[4]]['scanned'] += 1
         else:
             ore_table = json.loads(row[8])
