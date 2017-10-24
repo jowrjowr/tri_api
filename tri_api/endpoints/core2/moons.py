@@ -847,4 +847,6 @@ def moons_get_scanners(user_id):
             'count': scanners[scanner]
         })
 
+    scanner_list = sorted(scanner_list, key=lambda d: d['count'], reverse=True)
+
     return flask.Response(json.dumps(scanner_list), status=200, mimetype='application/json')
