@@ -792,7 +792,7 @@ def moons_get_missing(user_id):
                                       status=500, mimetype='application/json')
 
             for planet in esi_system_result['planets']:
-                systems[row[6]]['moons'].append(planet.get('moons', []))
+                systems[row[6]]['moons'].extend(planet.get('moons', []))
         else:
             systems[row[6]]['scanned'].append(row[1])
 
