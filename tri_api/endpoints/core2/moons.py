@@ -778,6 +778,9 @@ def moons_get_missing(user_id):
     for row in rows:
         if row[6] not in systems:
             systems[row[6]] = {
+                'region': row[4],
+                'const': row[5],
+                'system': row[7],
                 'scanned': [row[1]],
                 'moons': []
             }
@@ -804,7 +807,10 @@ def moons_get_missing(user_id):
         for moon_id in systems[system_id]['moons']:
             if moon_id not in systems[system_id]['scanned']:
                 moons[moon_id] = {
-                    'id': moon_id
+                    'id': moon_id,
+                    'region': systems[system_id]['region'],
+                    'const': systems[system_id]['const'],
+                    'system': systems[system_id]['system']
                 }
 
                 request_moon_url = 'universe/moons/{}/'.format(moon_id)
