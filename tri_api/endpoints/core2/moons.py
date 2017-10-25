@@ -733,6 +733,109 @@ def moons_get_conflicts(user_id):
     return flask.Response(json.dumps(conflict_list), status=200, mimetype='application/json')
 
 
+@blueprint.route('/<int:user_id>/moons/missing/', methods=['GET'])
+@verify_user(groups=['board'])
+def moons_get_missing(user_id):
+    import common.database as _database
+    import common.ldaphelpers as _ldaphelpers
+    import common.request_esi
+    import flask
+    import logging
+    import MySQLdb as mysql
+    import numpy
+    import json
+    import re
+
+    from ._roman import fromRoman
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        sql_conn = mysql.connect(
+            database=_database.DB_DATABASE,
+            user=_database.DB_USERNAME,
+            password=_database.DB_PASSWORD,
+            host=_database.DB_HOST)
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+
+    cursor = sql_conn.cursor()
+
+    query = 'SELECT id,moonId,moonNr,planetNr,regionName,constellationName,solarSystemId,solarSystemName,oreComposition,scannedByName,' \
+            'scannedDate FROM MoonScans'
+    try:
+        _ = cursor.execute(query)
+        rows = cursor.fetchall()
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+    finally:
+        cursor.close()
+
+    systems = {}
+
+    for row in rows:
+        if row[6] not in systems:
+            systems[row[6]] = {
+                'scanned': [row[1]],
+                'moons': []
+            }
+
+            request_system_url = 'universe/systems/{}/'.format(row[6])
+            esi_system_code, esi_system_result = common.request_esi.esi(__name__, request_system_url, method='get')
+
+            if not esi_system_code == 200:
+                logger.error("/universe/systems/ API error {0}: {1}"
+                             .format(esi_system_code, esi_system_result.get('error', 'N/A')))
+                return flask.Response(json.dumps({'error': esi_system_result.get('error', 'esi error')}),
+                                      status=500, mimetype='application/json')
+
+            for planet in esi_system_result['planets']:
+                systems[row[6]]['moons'].append(planet.get('moons', []))
+        else:
+            systems[row[6]]['scanned'].append(row[1])
+
+    moons = {}
+
+    regex_moon = re.compile("(.*) (XC|XL|L?X{0,3})(IX|IV|V?I{0,3}) - Moon ([0-9]{1,3})")
+
+    for system_id in systems:
+        for moon_id in systems[system_id]['moons']:
+            if moon_id not in systems[system_id]['scanned']:
+                moons[moon_id] = {
+                    'id': moon_id
+                }
+
+                request_moon_url = 'universe/moons/{}/'.format(moon_id)
+                esi_moon_code, esi_moon_result = common.request_esi.esi(__name__, request_moon_url, method='get')
+
+                if not esi_moon_code == 200:
+                    logger.error("/universe/moons/ API error {0}: {1}"
+                                 .format(esi_moon_code, esi_moon_result.get('error', 'N/A')))
+                    return flask.Response(json.dumps({'error': esi_moon_result.get('error', 'esi error')}),
+                                          status=500, mimetype='application/json')
+
+                match = regex_moon.match(esi_moon_result['name'])
+
+                if match:
+                    moons[moon_id]['system'] = match.group(1).strip()
+                    moons[moon_id]['planet'] = int(fromRoman(match.group(2)+match.group(3)))
+                    moons[moon_id]['moon'] = int(match.group(4))
+                else:
+                    logger.error("/universe/moons/ API bad result (no regex match) {0}: {1}"
+                                 .format(esi_moon_code, esi_moon_result.get('error', 'N/A')))
+                    return flask.Response(json.dumps({'error': esi_moon_result.get('error', 'esi error')}),
+                                          status=500, mimetype='application/json')
+
+    moon_list = []
+
+    for moon_id in moons:
+        moon_list.append(moons[moon_id])
+
+    return flask.Response(json.dumps(moon_list), status=200, mimetype='application/json')
+
+
 @blueprint.route('/<int:user_id>/moons/conflicts/resolve/<int:entry_id>/', methods=['POST'])
 @verify_user(groups=['board'])
 def moons_post_conflicts_resolve(user_id, entry_id):
