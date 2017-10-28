@@ -20,7 +20,7 @@ short = {
     "Pellucid Crokite": "ec",
     "Jet Ochre": "edo",
     "Brilliant Gneiss": "eg",
-    "Glazed Hedbergite": "ehg",
+    "Lustrous Hedbergite": "ehg",
     "Scintillating Hemorphite": "ehp",
     "Pure Jaspet": "ej",
     "Resplendant Kernite": "ek",
@@ -83,8 +83,8 @@ def moons_get(user_id):
 
     cursor = sql_conn.cursor()
 
-    query = 'SELECT id,moonId,moonNr,planetNr,regionName,constellationName,solarSystemName,oreComposition,scannedByName,' \
-            'scannedDate FROM MoonScans'
+    query = 'SELECT id,moonId,moonNr,planetId,planetNr,regionId,regionName,constellationId,constellationName,' \
+            'solarSystemId,solarSystemName,oreComposition,scannedByName,scannedDate FROM MoonScans'
     try:
         _ = cursor.execute(query)
         rows = cursor.fetchall()
@@ -98,27 +98,31 @@ def moons_get(user_id):
     conflicts = {}
 
     for row in rows:
-        ore_table = json.loads(row[7])
+        ore_table = json.loads(row[11])
 
         for ore in ores:
             if ore not in ore_table:
                 ore_table[ore] = float(0)
 
         for ore in ores:
-            ore_table[short[ore]] = int(ore_table.pop(ore) * 100)
+            ore_table[short[ore]] = ore_table.pop(ore)
 
         if row[1] not in moons:
             moons[row[1]] = {
                 'id': row[0],
                 'moon_id': row[1],
-                'region': row[4],
-                'const': row[5],
-                'system': row[6],
-                'planet': row[3],
                 'moon': row[2],
+                'planet_id': row[3],
+                'planet': row[4],
+                'region_id': row[5],
+                'region': row[6],
+                'const_id': row[7],
+                'const': row[8],
+                'system_id': row[9],
+                'system': row[10],
                 'ore_composition': ore_table,
-                'scanned_by': row[8],
-                'scanned_date': row[9].isoformat(),
+                'scanned_by': row[12],
+                'scanned_date': row[13].isoformat(),
                 'conflicted': False
             }
         else:
@@ -127,15 +131,19 @@ def moons_get(user_id):
             conflicts[row[0]] = {
                 'id': row[0],
                 'moon_id': row[1],
-                'region': row[4],
-                'const': row[5],
-                'system': row[6],
-                'planet': row[3],
                 'moon': row[2],
+                'planet_id': row[3],
+                'planet': row[4],
+                'region_id': row[5],
+                'region': row[6],
+                'const_id': row[7],
+                'const': row[8],
+                'system_id': row[9],
+                'system': row[10],
                 'ore_composition': ore_table,
-                'scanned_by': row[8],
-                'scanned_date': row[9].isoformat(),
-                'conflicted': True
+                'scanned_by': row[12],
+                'scanned_date': row[13].isoformat(),
+                'conflicted': False
             }
 
     moon_list = []
