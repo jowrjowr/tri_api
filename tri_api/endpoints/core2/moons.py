@@ -4,7 +4,7 @@ from .decorators import verify_user
 
 ores = ["Flawless Arkonor", "Cubic Bistot", "Pellucid Crokite", "Jet Ochre",
         "Brilliant Gneiss",
-        "Lustrous Hedbergite", "Scintillating Hemorphite", "Pure Jaspet", "Resplendant Kernite",
+        "Lustrous Hedbergite", "Scintillating Hemorphite", "Immaculate Jaspet", "Resplendant Kernite",
         "Platinoid Omber",
         "Sparkling Plagioclase", "Opulent Pyroxeres", "Glossy Scordite", "Dazzling Spodumain",
         "Stable Veldspar",
@@ -22,7 +22,7 @@ short = {
     "Brilliant Gneiss": "eg",
     "Lustrous Hedbergite": "ehg",
     "Scintillating Hemorphite": "ehp",
-    "Pure Jaspet": "ej",
+    "Immaculate Jaspet": "ej",
     "Resplendant Kernite": "ek",
     "Platinoid Omber": "eo",
     "Sparkling Plagioclase": "epl",
