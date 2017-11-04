@@ -825,26 +825,36 @@ def moons_get_missing(user_id):
                     'const': constellations[const_id]['const'],
                 }
 
-                request_moon_url = 'universe/moons/{}/'.format(moon_id)
-                esi_moon_code, esi_moon_result = common.request_esi.esi(__name__, request_moon_url, method='get')
+    def get_moonname(moon_id_internal):
+        moon = {}
 
-                if not esi_moon_code == 200:
-                    logger.error("/universe/moons/ API error {0}: {1}"
-                                 .format(esi_moon_code, esi_moon_result.get('error', 'N/A')))
-                    return flask.Response(json.dumps({'error': esi_moon_result.get('error', 'esi error')}),
-                                          status=500, mimetype='application/json')
+        request_moon_url = 'universe/moons/{}/'.format(moon_id_internal)
+        esi_moon_code, esi_moon_result = common.request_esi.esi(__name__, request_moon_url, method='get')
 
-                match = regex_moon.match(esi_moon_result['name'])
+        if not esi_moon_code == 200:
+            logger.error("/universe/moons/ API error {0}: {1}"
+                         .format(esi_moon_code, esi_moon_result.get('error', 'N/A')))
+            return None
 
-                if match:
-                    moons[moon_id]['system'] = match.group(1).strip()
-                    moons[moon_id]['planet'] = int(fromRoman(match.group(2)+match.group(3)))
-                    moons[moon_id]['moon'] = int(match.group(4))
-                else:
-                    logger.error("/universe/moons/ API bad result (no regex match) {0}: {1}"
-                                 .format(esi_moon_code, esi_moon_result.get('error', 'N/A')))
-                    return flask.Response(json.dumps({'error': esi_moon_result.get('error', 'esi error')}),
-                                          status=500, mimetype='application/json')
+        match = regex_moon.match(esi_moon_result['name'])
+
+        if match:
+            moon['system'] = match.group(1).strip()
+            moon['planet'] = int(fromRoman(match.group(2) + match.group(3)))
+            moon['moon'] = int(match.group(4))
+        else:
+            logger.error("/universe/moons/ API bad result (no regex match) {0}: {1}"
+                         .format(esi_moon_code, esi_moon_result.get('error', 'N/A')))
+            return None
+
+        return moon
+
+    with ThreadPoolExecutor(10) as executor:
+        futures = {executor.submit(get_moonname, moon_id): moon_id for moon_id in moons}
+
+        for future in as_completed(futures):
+            moon_id = futures[future]
+            moons[moon_id].update(future.result())
 
     moon_list = []
 
