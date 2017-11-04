@@ -809,7 +809,10 @@ def moons_get_missing(user_id):
         futures = {executor.submit(get_moonlist, const_id): const_id for const_id in constellations}
 
         for future in as_completed(futures):
-            constellations.update(future.result())
+            data = future.result()
+
+            print(data)
+            constellations.update(data)
 
     moons = {}
 
