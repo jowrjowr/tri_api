@@ -264,6 +264,17 @@ def moons_get_region_moons(user_id, region_id):
         for ore in ores:
             ore_table[short[ore]] = float(ore_table.pop(ore))
 
+        ore_summary = {
+            "hso": ore_table["ev"] + ore_table["esc"] + ore_table["epg"] + ore_table["epl"] + ore_table["eo"] + ore_table["ek"],
+            "lso": ore_table["ej"] + ore_table["ehp"] + ore_table["ehg"],
+            "nso": ore_table["ea"] + ore_table["eb"] + ore_table["ec"] + ore_table["edo"] + ore_table["eg"] + ore_table["esp"],
+            "r0": ore_table["bi"] + ore_table["cs"] + ore_table["sy"] + ore_table["ze"],
+            "r8": ore_table["cb"] + ore_table["eu"] + ore_table["sc"] + ore_table["ti"],
+            "r16": ore_table["cr"] + ore_table["ot"] + ore_table["sp"] + ore_table["va"],
+            "r32": ore_table["ca"] + ore_table["ci"] + ore_table["po"] + ore_table["zi"],
+            "r64": ore_table["lo"] + ore_table["mo"] + ore_table["xe"] + ore_table["yt"]
+        }
+
         if row[1] not in moons:
             moons[row[1]] = {
                 'id': row[0],
@@ -278,6 +289,7 @@ def moons_get_region_moons(user_id, region_id):
                 'system_id': row[9],
                 'system': row[10],
                 'ore_composition': ore_table,
+                'ore_summary': ore_summary,
                 'scanned_by': row[12],
                 'scanned_date': row[13].isoformat(),
                 'conflicted': False
@@ -298,6 +310,7 @@ def moons_get_region_moons(user_id, region_id):
                 'system_id': row[9],
                 'system': row[10],
                 'ore_composition': ore_table,
+                'ore_summary': ore_summary,
                 'scanned_by': row[12],
                 'scanned_date': row[13].isoformat(),
                 'conflicted': False
