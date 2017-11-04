@@ -810,7 +810,6 @@ def moons_get_missing(user_id):
                     'id': moon_id,
                     'region': constellations[const_id]['region'],
                     'const': constellations[const_id]['const'],
-                    'system': constellations[const_id]['system']
                 }
 
                 request_moon_url = 'universe/moons/{}/'.format(moon_id)
