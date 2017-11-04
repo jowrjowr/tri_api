@@ -157,176 +157,6 @@ def moons_get(user_id):
     return flask.Response(json.dumps(moon_list), status=200, mimetype='application/json')
 
 
-@blueprint.route('/<int:user_id>/moons/regions/', methods=['GET'])
-@verify_user(groups=['board'])
-def moons_get_regions(user_id):
-    import common.database as _database
-    import common.ldaphelpers as _ldaphelpers
-    import flask
-    import logging
-    import MySQLdb as mysql
-    import json
-
-    logger = logging.getLogger(__name__)
-
-    try:
-        sql_conn = mysql.connect(
-            database=_database.DB_DATABASE,
-            user=_database.DB_USERNAME,
-            password=_database.DB_PASSWORD,
-            host=_database.DB_HOST)
-    except mysql.Error as error:
-        logger.error('mysql error: {0}'.format(error))
-        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
-
-    cursor = sql_conn.cursor()
-
-    query = 'SELECT regionId,regionName FROM MoonScans'
-    try:
-        _ = cursor.execute(query)
-        rows = cursor.fetchall()
-    except mysql.Error as error:
-        logger.error('mysql error: {0}'.format(error))
-        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
-    finally:
-        cursor.close()
-
-    regions = {}
-    conflicts = {}
-
-    for row in rows:
-        regions[row[0]] = {
-            "region_id": row[0],
-            "region": row[1]
-        }
-
-    region_list = []
-
-    for region_id in regions:
-        region_list.append(regions[region_id])
-
-    return flask.Response(json.dumps(region_list), status=200, mimetype='application/json')
-
-
-@blueprint.route('/<int:user_id>/moons/regions/<int:region_id>/', methods=['GET'])
-@verify_user(groups=['board'])
-def moons_get_region_moons(user_id, region_id):
-    import common.database as _database
-    import common.ldaphelpers as _ldaphelpers
-    import flask
-    import logging
-    import MySQLdb as mysql
-    import json
-
-    from common.logger import securitylog
-
-    securitylog(__name__, 'viewed region {0} moon scan'.format(region_id),
-                ipaddress=flask.request.headers['X-Real-Ip'],
-                charid=user_id)
-
-    logger = logging.getLogger(__name__)
-
-    try:
-        sql_conn = mysql.connect(
-            database=_database.DB_DATABASE,
-            user=_database.DB_USERNAME,
-            password=_database.DB_PASSWORD,
-            host=_database.DB_HOST)
-    except mysql.Error as error:
-        logger.error('mysql error: {0}'.format(error))
-        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
-
-    cursor = sql_conn.cursor()
-
-    query = 'SELECT id,moonId,moonNr,planetId,planetNr,regionId,regionName,constellationId,constellationName,' \
-            'solarSystemId,solarSystemName,oreComposition,scannedByName,scannedDate FROM MoonScans WHERE ' \
-            'regionId=%s'
-
-    try:
-        _ = cursor.execute(query, (region_id,))
-        rows = cursor.fetchall()
-    except mysql.Error as error:
-        logger.error('mysql error: {0}'.format(error))
-        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
-    finally:
-        cursor.close()
-
-    moons = {}
-    conflicts = {}
-
-    for row in rows:
-        ore_table = json.loads(row[11])
-
-        for ore in ores:
-            if ore not in ore_table:
-                ore_table[ore] = float(0)
-
-        for ore in ores:
-            ore_table[short[ore]] = float(ore_table.pop(ore))
-
-        ore_summary = {
-            "hso": ore_table["ev"] + ore_table["esc"] + ore_table["epg"] + ore_table["epl"] + ore_table["eo"] + ore_table["ek"],
-            "lso": ore_table["ej"] + ore_table["ehp"] + ore_table["ehg"],
-            "nso": ore_table["ea"] + ore_table["eb"] + ore_table["ec"] + ore_table["edo"] + ore_table["eg"] + ore_table["esp"],
-            "r0": ore_table["bi"] + ore_table["cs"] + ore_table["sy"] + ore_table["ze"],
-            "r8": ore_table["cb"] + ore_table["eu"] + ore_table["sc"] + ore_table["ti"],
-            "r16": ore_table["cr"] + ore_table["ot"] + ore_table["sp"] + ore_table["va"],
-            "r32": ore_table["ca"] + ore_table["ci"] + ore_table["po"] + ore_table["zi"],
-            "r64": ore_table["lo"] + ore_table["mo"] + ore_table["xe"] + ore_table["yt"]
-        }
-
-        if row[1] not in moons:
-            moons[row[1]] = {
-                'id': row[0],
-                'moon_id': row[1],
-                'moon': row[2],
-                'planet_id': row[3],
-                'planet': row[4],
-                'region_id': row[5],
-                'region': row[6],
-                'const_id': row[7],
-                'const': row[8],
-                'system_id': row[9],
-                'system': row[10],
-                'ore_composition': ore_table,
-                'ore_summary': ore_summary,
-                'scanned_by': row[12],
-                'scanned_date': row[13].isoformat(),
-                'conflicted': False
-            }
-        else:
-            moons[row[1]]['conflicted'] = True
-
-            conflicts[row[0]] = {
-                'id': row[0],
-                'moon_id': row[1],
-                'moon': row[2],
-                'planet_id': row[3],
-                'planet': row[4],
-                'region_id': row[5],
-                'region': row[6],
-                'const_id': row[7],
-                'const': row[8],
-                'system_id': row[9],
-                'system': row[10],
-                'ore_composition': ore_table,
-                'ore_summary': ore_summary,
-                'scanned_by': row[12],
-                'scanned_date': row[13].isoformat(),
-                'conflicted': False
-            }
-
-    moon_list = []
-
-    for moon_id in moons:
-        moon_list.append(moons[moon_id])
-
-    for entry_id in conflicts:
-        moon_list.append(conflicts[entry_id])
-
-    return flask.Response(json.dumps(moon_list), status=200, mimetype='application/json')
-
-
 @blueprint.route('/<int:user_id>/moons/', methods=['POST'])
 @verify_user(groups=['triumvirate'])
 def moons_post(user_id):
@@ -520,6 +350,230 @@ def moons_post(user_id):
     }), status=200, mimetype='application/json')
 
 
+@blueprint.route('/<int:user_id>/moons/regions/', methods=['GET'])
+@verify_user(groups=['board'])
+def moons_get_regions(user_id):
+    import common.database as _database
+    import common.ldaphelpers as _ldaphelpers
+    import flask
+    import logging
+    import MySQLdb as mysql
+    import json
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        sql_conn = mysql.connect(
+            database=_database.DB_DATABASE,
+            user=_database.DB_USERNAME,
+            password=_database.DB_PASSWORD,
+            host=_database.DB_HOST)
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+
+    cursor = sql_conn.cursor()
+
+    query = 'SELECT regionId,regionName FROM MoonScans'
+    try:
+        _ = cursor.execute(query)
+        rows = cursor.fetchall()
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+    finally:
+        cursor.close()
+
+    regions = {}
+    conflicts = {}
+
+    for row in rows:
+        regions[row[0]] = {
+            "region_id": row[0],
+            "region": row[1]
+        }
+
+    region_list = []
+
+    for region_id in regions:
+        region_list.append(regions[region_id])
+
+    return flask.Response(json.dumps(region_list), status=200, mimetype='application/json')
+
+
+@blueprint.route('/<int:user_id>/moons/regions/summary/', methods=['GET'])
+@verify_user(groups=['board'])
+def moons_get_region_summary(user_id):
+    import common.database as _database
+    import common.ldaphelpers as _ldaphelpers
+    import flask
+    import logging
+    import MySQLdb as mysql
+    import json
+
+    from common.logger import securitylog
+
+    securitylog(__name__, 'viewed moon scan',
+                ipaddress=flask.request.headers['X-Real-Ip'],
+                charid=user_id)
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        sql_conn = mysql.connect(
+            database=_database.DB_DATABASE,
+            user=_database.DB_USERNAME,
+            password=_database.DB_PASSWORD,
+            host=_database.DB_HOST)
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+
+    cursor = sql_conn.cursor()
+
+    query = 'SELECT id,moonId,moonNr,planetId,planetNr,regionId,regionName,constellationId,constellationName,' \
+            'solarSystemId,solarSystemName,oreComposition,scannedByName,scannedDate FROM MoonScans'
+    try:
+        _ = cursor.execute(query)
+        rows = cursor.fetchall()
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+    finally:
+        cursor.close()
+
+    regions = {}
+
+    for row in rows:
+        pass
+
+    region_list = []
+
+    for region_id in regions:
+        region_list.append(regions[region_id])
+
+    return flask.Response(json.dumps(region_list), status=200, mimetype='application/json')
+
+
+@blueprint.route('/<int:user_id>/moons/regions/<int:region_id>/', methods=['GET'])
+@verify_user(groups=['board'])
+def moons_get_region_moons(user_id, region_id):
+    import common.database as _database
+    import common.ldaphelpers as _ldaphelpers
+    import flask
+    import logging
+    import MySQLdb as mysql
+    import json
+
+    from common.logger import securitylog
+
+    securitylog(__name__, 'viewed region {0} moon scan'.format(region_id),
+                ipaddress=flask.request.headers['X-Real-Ip'],
+                charid=user_id)
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        sql_conn = mysql.connect(
+            database=_database.DB_DATABASE,
+            user=_database.DB_USERNAME,
+            password=_database.DB_PASSWORD,
+            host=_database.DB_HOST)
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+
+    cursor = sql_conn.cursor()
+
+    query = 'SELECT id,moonId,moonNr,planetId,planetNr,regionId,regionName,constellationId,constellationName,' \
+            'solarSystemId,solarSystemName,oreComposition,scannedByName,scannedDate FROM MoonScans WHERE ' \
+            'regionId=%s'
+
+    try:
+        _ = cursor.execute(query, (region_id,))
+        rows = cursor.fetchall()
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+    finally:
+        cursor.close()
+
+    moons = {}
+    conflicts = {}
+
+    for row in rows:
+        ore_table = json.loads(row[11])
+
+        for ore in ores:
+            if ore not in ore_table:
+                ore_table[ore] = float(0)
+
+        for ore in ores:
+            ore_table[short[ore]] = float(ore_table.pop(ore))
+
+        ore_summary = {
+            "hso": ore_table["ev"] + ore_table["esc"] + ore_table["epg"] + ore_table["epl"] + ore_table["eo"] + ore_table["ek"],
+            "lso": ore_table["ej"] + ore_table["ehp"] + ore_table["ehg"],
+            "nso": ore_table["ea"] + ore_table["eb"] + ore_table["ec"] + ore_table["edo"] + ore_table["eg"] + ore_table["esp"],
+            "r0": ore_table["bi"] + ore_table["cs"] + ore_table["sy"] + ore_table["ze"],
+            "r8": ore_table["cb"] + ore_table["eu"] + ore_table["sc"] + ore_table["ti"],
+            "r16": ore_table["cr"] + ore_table["ot"] + ore_table["sp"] + ore_table["va"],
+            "r32": ore_table["ca"] + ore_table["ci"] + ore_table["po"] + ore_table["zi"],
+            "r64": ore_table["lo"] + ore_table["mo"] + ore_table["xe"] + ore_table["yt"]
+        }
+
+        if row[1] not in moons:
+            moons[row[1]] = {
+                'id': row[0],
+                'moon_id': row[1],
+                'moon': row[2],
+                'planet_id': row[3],
+                'planet': row[4],
+                'region_id': row[5],
+                'region': row[6],
+                'const_id': row[7],
+                'const': row[8],
+                'system_id': row[9],
+                'system': row[10],
+                'ore_composition': ore_table,
+                'ore_summary': ore_summary,
+                'scanned_by': row[12],
+                'scanned_date': row[13].isoformat(),
+                'conflicted': False
+            }
+        else:
+            moons[row[1]]['conflicted'] = True
+
+            conflicts[row[0]] = {
+                'id': row[0],
+                'moon_id': row[1],
+                'moon': row[2],
+                'planet_id': row[3],
+                'planet': row[4],
+                'region_id': row[5],
+                'region': row[6],
+                'const_id': row[7],
+                'const': row[8],
+                'system_id': row[9],
+                'system': row[10],
+                'ore_composition': ore_table,
+                'ore_summary': ore_summary,
+                'scanned_by': row[12],
+                'scanned_date': row[13].isoformat(),
+                'conflicted': False
+            }
+
+    moon_list = []
+
+    for moon_id in moons:
+        moon_list.append(moons[moon_id])
+
+    for entry_id in conflicts:
+        moon_list.append(conflicts[entry_id])
+
+    return flask.Response(json.dumps(moon_list), status=200, mimetype='application/json')
+
+
 @blueprint.route('/<int:user_id>/moons/conflicts/', methods=['GET'])
 @verify_user(groups=['board'])
 def moons_get_conflicts(user_id):
@@ -604,115 +658,6 @@ def moons_get_conflicts(user_id):
     return flask.Response(json.dumps(conflict_list), status=200, mimetype='application/json')
 
 
-@blueprint.route('/<int:user_id>/moons/missing/', methods=['GET'])
-@verify_user(groups=['board'])
-def moons_get_missing(user_id):
-    import common.database as _database
-    import common.ldaphelpers as _ldaphelpers
-    import common.request_esi
-    import flask
-    import logging
-    import MySQLdb as mysql
-    import numpy
-    import json
-    import re
-
-    from ._roman import fromRoman
-
-    logger = logging.getLogger(__name__)
-
-    try:
-        sql_conn = mysql.connect(
-            database=_database.DB_DATABASE,
-            user=_database.DB_USERNAME,
-            password=_database.DB_PASSWORD,
-            host=_database.DB_HOST)
-    except mysql.Error as error:
-        logger.error('mysql error: {0}'.format(error))
-        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
-
-    cursor = sql_conn.cursor()
-
-    query = 'SELECT id,moonId,moonNr,planetNr,regionName,constellationName,solarSystemId,solarSystemName,oreComposition,scannedByName,' \
-            'scannedDate FROM MoonScans'
-    try:
-        _ = cursor.execute(query)
-        rows = cursor.fetchall()
-    except mysql.Error as error:
-        logger.error('mysql error: {0}'.format(error))
-        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
-    finally:
-        cursor.close()
-
-    systems = {}
-
-    for row in rows:
-        if row[6] not in systems:
-            systems[row[6]] = {
-                'region': row[4],
-                'const': row[5],
-                'system': row[7],
-                'scanned': [row[1]],
-                'moons': []
-            }
-
-            request_system_url = 'universe/systems/{}/'.format(row[6])
-            esi_system_code, esi_system_result = common.request_esi.esi(__name__, request_system_url, method='get')
-
-            if not esi_system_code == 200:
-                logger.error("/universe/systems/ API error {0}: {1}"
-                             .format(esi_system_code, esi_system_result.get('error', 'N/A')))
-                return flask.Response(json.dumps({'error': esi_system_result.get('error', 'esi error')}),
-                                      status=500, mimetype='application/json')
-
-            for planet in esi_system_result['planets']:
-                systems[row[6]]['moons'].extend(planet.get('moons', []))
-        else:
-            systems[row[6]]['scanned'].append(row[1])
-
-    moons = {}
-
-    regex_moon = re.compile("(.*) (XC|XL|L?X{0,3})(IX|IV|V?I{0,3}) - Moon ([0-9]{1,3})")
-
-    for system_id in systems:
-        for moon_id in systems[system_id]['moons']:
-            if moon_id not in systems[system_id]['scanned']:
-                moons[moon_id] = {
-                    'id': moon_id,
-                    'region': systems[system_id]['region'],
-                    'const': systems[system_id]['const'],
-                    'system': systems[system_id]['system']
-                }
-
-                request_moon_url = 'universe/moons/{}/'.format(moon_id)
-                esi_moon_code, esi_moon_result = common.request_esi.esi(__name__, request_moon_url, method='get')
-
-                if not esi_moon_code == 200:
-                    logger.error("/universe/moons/ API error {0}: {1}"
-                                 .format(esi_moon_code, esi_moon_result.get('error', 'N/A')))
-                    return flask.Response(json.dumps({'error': esi_moon_result.get('error', 'esi error')}),
-                                          status=500, mimetype='application/json')
-
-                match = regex_moon.match(esi_moon_result['name'])
-
-                if match:
-                    moons[moon_id]['system'] = match.group(1).strip()
-                    moons[moon_id]['planet'] = int(fromRoman(match.group(2)+match.group(3)))
-                    moons[moon_id]['moon'] = int(match.group(4))
-                else:
-                    logger.error("/universe/moons/ API bad result (no regex match) {0}: {1}"
-                                 .format(esi_moon_code, esi_moon_result.get('error', 'N/A')))
-                    return flask.Response(json.dumps({'error': esi_moon_result.get('error', 'esi error')}),
-                                          status=500, mimetype='application/json')
-
-    moon_list = []
-
-    for moon_id in moons:
-        moon_list.append(moons[moon_id])
-
-    return flask.Response(json.dumps(moon_list), status=200, mimetype='application/json')
-
-
 @blueprint.route('/<int:user_id>/moons/conflicts/resolve/<int:entry_id>/', methods=['POST'])
 @verify_user(groups=['board'])
 def moons_post_conflicts_resolve(user_id, entry_id):
@@ -777,6 +722,124 @@ def moons_post_conflicts_resolve(user_id, entry_id):
     }
 
     return flask.Response(json.dumps(result), status=200, mimetype='application/json')
+
+
+@blueprint.route('/<int:user_id>/moons/missing/', methods=['GET'])
+@verify_user(groups=['board'])
+def moons_get_missing(user_id):
+    import common.database as _database
+    import common.ldaphelpers as _ldaphelpers
+    import common.request_esi
+    import flask
+    import logging
+    import MySQLdb as mysql
+    import numpy
+    import json
+    import re
+
+    from ._roman import fromRoman
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        sql_conn = mysql.connect(
+            database=_database.DB_DATABASE,
+            user=_database.DB_USERNAME,
+            password=_database.DB_PASSWORD,
+            host=_database.DB_HOST)
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+
+    cursor = sql_conn.cursor()
+
+    query = 'SELECT id,moonId,moonNr,planetNr,regionName,constellationId,constellationName,solarSystemId,' \
+            'solarSystemName,oreComposition,scannedByName,scannedDate FROM MoonScans'
+    try:
+        _ = cursor.execute(query)
+        rows = cursor.fetchall()
+    except mysql.Error as error:
+        logger.error('mysql error: {0}'.format(error))
+        return flask.Response(json.dumps({'error': str(error)}), status=500, mimetype='application/json')
+    finally:
+        cursor.close()
+
+    constellations = {}
+
+    for row in rows:
+        if row[5] not in constellations:
+            constellations[row[5]] = {
+                'region': row[4],
+                'const': row[6],
+                'scanned': [row[1]],
+                'moons': []
+            }
+
+            request_const_url = 'universe/constellations/{}/'.format(row[5])
+            esi_const_code, esi_const_result = common.request_esi.esi(__name__, request_const_url, method='get')
+
+            if not esi_const_code == 200:
+                logger.error("/universe/constellations/ API error {0}: {1}"
+                             .format(esi_const_result, esi_const_code.get('error', 'N/A')))
+                return flask.Response(json.dumps({'error': esi_const_result.get('error', 'esi error')}),
+                                      status=500, mimetype='application/json')
+
+            for system_id in esi_const_result["systems"]:
+                request_system_url = 'universe/systems/{}/'.format(system_id)
+                esi_system_code, esi_system_result = common.request_esi.esi(__name__, request_system_url, method='get')
+
+                if not esi_system_code == 200:
+                    logger.error("/universe/systems/ API error {0}: {1}"
+                                 .format(esi_system_code, esi_system_result.get('error', 'N/A')))
+                    return flask.Response(json.dumps({'error': esi_system_result.get('error', 'esi error')}),
+                                          status=500, mimetype='application/json')
+
+                for planet in esi_system_result['planets']:
+                    constellations[row[5]]['moons'].extend(planet.get('moons', []))
+        else:
+            constellations[row[5]]['scanned'].append(row[1])
+
+    moons = {}
+
+    regex_moon = re.compile("(.*) (XC|XL|L?X{0,3})(IX|IV|V?I{0,3}) - Moon ([0-9]{1,3})")
+
+    for const_id in constellations:
+        for moon_id in constellations[const_id]['moons']:
+            if moon_id not in constellations[const_id]['scanned']:
+                moons[moon_id] = {
+                    'id': moon_id,
+                    'region': constellations[const_id]['region'],
+                    'const': constellations[const_id]['const'],
+                    'system': constellations[const_id]['system']
+                }
+
+                request_moon_url = 'universe/moons/{}/'.format(moon_id)
+                esi_moon_code, esi_moon_result = common.request_esi.esi(__name__, request_moon_url, method='get')
+
+                if not esi_moon_code == 200:
+                    logger.error("/universe/moons/ API error {0}: {1}"
+                                 .format(esi_moon_code, esi_moon_result.get('error', 'N/A')))
+                    return flask.Response(json.dumps({'error': esi_moon_result.get('error', 'esi error')}),
+                                          status=500, mimetype='application/json')
+
+                match = regex_moon.match(esi_moon_result['name'])
+
+                if match:
+                    moons[moon_id]['system'] = match.group(1).strip()
+                    moons[moon_id]['planet'] = int(fromRoman(match.group(2)+match.group(3)))
+                    moons[moon_id]['moon'] = int(match.group(4))
+                else:
+                    logger.error("/universe/moons/ API bad result (no regex match) {0}: {1}"
+                                 .format(esi_moon_code, esi_moon_result.get('error', 'N/A')))
+                    return flask.Response(json.dumps({'error': esi_moon_result.get('error', 'esi error')}),
+                                          status=500, mimetype='application/json')
+
+    moon_list = []
+
+    for moon_id in moons:
+        moon_list.append(moons[moon_id])
+
+    return flask.Response(json.dumps(moon_list), status=200, mimetype='application/json')
 
 
 @blueprint.route('/<int:user_id>/moons/scanners/', methods=['GET'])
