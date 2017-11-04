@@ -803,16 +803,14 @@ def moons_get_missing(user_id):
             for planet in esi_system_result['planets']:
                 moonlist.extend(planet.get('moons', []))
 
-        return {const_id: {"moons": moonlist}}
+        return moonlist
 
     with ThreadPoolExecutor(10) as executor:
         futures = {executor.submit(get_moonlist, const_id): const_id for const_id in constellations}
 
         for future in as_completed(futures):
-            data = future.result()
-
-            print(futures[future])
-            constellations.update(data)
+            const_id = futures[future]
+            constellations[const_id]["moons"] = future.result()
 
     moons = {}
 
