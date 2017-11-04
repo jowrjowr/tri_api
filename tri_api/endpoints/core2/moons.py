@@ -811,7 +811,7 @@ def moons_get_missing(user_id):
         for future in as_completed(futures):
             data = future.result()
 
-            print(data)
+            print(future)
             constellations.update(data)
 
     moons = {}
