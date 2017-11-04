@@ -738,6 +738,7 @@ def moons_get_missing(user_id):
     import re
 
     from ._roman import fromRoman
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
     logger = logging.getLogger(__name__)
 
@@ -774,30 +775,41 @@ def moons_get_missing(user_id):
                 'scanned': [row[1]],
                 'moons': []
             }
-
-            request_const_url = 'universe/constellations/{}/'.format(row[5])
-            esi_const_code, esi_const_result = common.request_esi.esi(__name__, request_const_url, method='get')
-
-            if not esi_const_code == 200:
-                logger.error("/universe/constellations/ API error {0}: {1}"
-                             .format(esi_const_result, esi_const_code.get('error', 'N/A')))
-                return flask.Response(json.dumps({'error': esi_const_result.get('error', 'esi error')}),
-                                      status=500, mimetype='application/json')
-
-            for system_id in esi_const_result["systems"]:
-                request_system_url = 'universe/systems/{}/'.format(system_id)
-                esi_system_code, esi_system_result = common.request_esi.esi(__name__, request_system_url, method='get')
-
-                if not esi_system_code == 200:
-                    logger.error("/universe/systems/ API error {0}: {1}"
-                                 .format(esi_system_code, esi_system_result.get('error', 'N/A')))
-                    return flask.Response(json.dumps({'error': esi_system_result.get('error', 'esi error')}),
-                                          status=500, mimetype='application/json')
-
-                for planet in esi_system_result['planets']:
-                    constellations[row[5]]['moons'].extend(planet.get('moons', []))
         else:
             constellations[row[5]]['scanned'].append(row[1])
+
+    def get_moonlist(const_id):
+        moonlist = []
+
+        request_const_url = 'universe/constellations/{}/'.format(const_id)
+        esi_const_code, esi_const_result = common.request_esi.esi(__name__, request_const_url, method='get')
+
+        if not esi_const_code == 200:
+            logger.error("/universe/constellations/ API error {0}: {1}"
+                         .format(esi_const_result, esi_const_code.get('error', 'N/A')))
+            return flask.Response(json.dumps({'error': esi_const_result.get('error', 'esi error')}),
+                                  status=500, mimetype='application/json')
+
+        for system_id in esi_const_result["systems"]:
+            request_system_url = 'universe/systems/{}/'.format(system_id)
+            esi_system_code, esi_system_result = common.request_esi.esi(__name__, request_system_url, method='get')
+
+            if not esi_system_code == 200:
+                logger.error("/universe/systems/ API error {0}: {1}"
+                             .format(esi_system_code, esi_system_result.get('error', 'N/A')))
+                return flask.Response(json.dumps({'error': esi_system_result.get('error', 'esi error')}),
+                                      status=500, mimetype='application/json')
+
+            for planet in esi_system_result['planets']:
+                moonlist.extend(planet.get('moons', []))
+
+        return {const_id: {"moons": moonlist}}
+
+    with ThreadPoolExecutor(10) as executor:
+        futures = {executor.submit(get_moonlist, const_id): const_id for const_id in constellations}
+
+        for future in as_completed(futures):
+            constellations.update(future.result())
 
     moons = {}
 
