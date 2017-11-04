@@ -239,7 +239,7 @@ def moons_get_region_moons(user_id, region_id):
     cursor = sql_conn.cursor()
 
     query = 'SELECT id,moonId,moonNr,planetId,planetNr,regionId,regionName,constellationId,constellationName,' \
-            'solarSystemId,solarSystemName,oreComposition,scannedByName,scannedDate FROM MoonScans WHERE' \
+            'solarSystemId,solarSystemName,oreComposition,scannedByName,scannedDate FROM MoonScans WHERE ' \
             'regionId=%s'
 
     try:
