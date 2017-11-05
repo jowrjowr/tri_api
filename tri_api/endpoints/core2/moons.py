@@ -642,8 +642,6 @@ def moons_get_structures(user_id):
 
     regex_moon = re.compile("(.*) (XC|XL|L?X{0,3})(IX|IV|V?I{0,3}) - Moon ([0-9]{1,3})")
 
-    i = 0
-
     for structure_id in structures:
         import numpy as np
 
@@ -664,8 +662,8 @@ def moons_get_structures(user_id):
             moon = systems[structure_system_id]["moons"][moon_id]
 
             distance2 = (moon["position"]["x"]-structure["position"]["x"])**2 + \
-                        (moon["position"]["y"]-structure["position"]["x"])**2 + \
-                        (moon["position"]["z"]-structure["position"]["x"])**2
+                        (moon["position"]["y"]-structure["position"]["y"])**2 + \
+                        (moon["position"]["z"]-structure["position"]["z"])**2
 
             if distance2 < structure_moon_distance2:
                 structure_moon_id = moon_id
@@ -687,8 +685,6 @@ def moons_get_structures(user_id):
                 structure["moon"] = "N/A"
 
             structure["distance"] = np.sqrt(structure_moon_distance2)
-
-        i += 1
 
     structure_list = []
 
