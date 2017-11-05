@@ -686,6 +686,8 @@ def moons_get_regions_summary(user_id):
     constellations = {}
 
     def get_constellations(region_id):
+        import common.request_esi
+
         request_region_url = 'universe/regions/{}/'.format(region_id)
         esi_region_code, esi_region_result = common.request_esi.esi(__name__, request_region_url, method='get')
 
@@ -711,6 +713,9 @@ def moons_get_regions_summary(user_id):
     systems = {}
 
     def get_systems(const_id):
+        import common.request_esi
+
+
         request_const_url = 'universe/constellations/{}/'.format(const_id)
         esi_const_code, esi_const_result = common.request_esi.esi(__name__, request_const_url, method='get')
 
@@ -736,6 +741,8 @@ def moons_get_regions_summary(user_id):
     moons = {}
 
     def get_moons(system_id):
+        import common.request_esi
+
         request_system_url = 'universe/systems/{}/'.format(system_id)
         esi_system_code, esi_system_result = common.request_esi.esi(__name__, request_system_url, method='get')
 
