@@ -654,6 +654,8 @@ def moons_get_structures(user_id):
         structure_moon_name = None
         structure_moon_distance2 = 10e20
 
+        print(structure_id)
+
         for moon_id in systems[structure_system_id]["moons"]:
             moon = systems[structure_system_id]["moons"][moon_id]
 
