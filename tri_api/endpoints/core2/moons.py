@@ -502,7 +502,7 @@ def moons_get_structures(user_id):
             structures[structure["structure_id"]] = structure
             structures[structure["structure_id"]]["character_id"] = corporations[corp_id]["character_id"]
 
-    return flask.Response(json.dumps({structures}),
+    return flask.Response(json.dumps(structures),
                           status=200, mimetype='application/json')
 
 
