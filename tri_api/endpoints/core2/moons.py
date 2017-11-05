@@ -455,7 +455,8 @@ def moons_get_structures(user_id):
 
     # get all characters that access & necessary scopes to structures
     dn = 'ou=People,dc=triumvirate,dc=rocks'
-    filterstr = '(&(esiScope=esi-corporations.read_structures.v1)(esiScope=esi-universe.read_structures.v1)(corporationRole=Director))'
+    filterstr = '(&(esiScope=esi-corporations.read_structures.v1)' \
+                '(esiScope=esi-universe.read_structures.v1)(corporationRole=Director))'
     attrlist = ['uid', 'corporation']
 
     code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
@@ -472,7 +473,7 @@ def moons_get_structures(user_id):
 
         request_structures_url = 'corporations/{}/structures/'.format(corp_id)
         esi_structures_code, esi_structures_result = common.request_esi.esi(__name__, request_structures_url, method='get',
-                                                                    char_id=char_id)
+                                                                    charid=char_id)
 
         if not esi_structures_code == 200:
             logger.error("/corporations/<corporation_id>/structures/ API error {0}: {1}"
