@@ -669,7 +669,8 @@ def moons_get_structures(user_id):
                 structure_moon_id = moon_id
                 structure_moon_name = moon["name"]
 
-                print(json.dumps(moon["position"])+" : "+json.dumps(structure["position"]))
+                print(json.dumps(moon["position"])+" : "+json.dumps(structure["position"]) + ":" + np.sqrt(distance2))
+
 
         if structure_moon_id is None:
             structure["planet"] = "N/A"
@@ -687,7 +688,6 @@ def moons_get_structures(user_id):
                 structure["moon"] = "N/A"
 
             structure["distance"] = np.sqrt(structure_moon_distance2)
-            print(str(structure["distance"]/1000)+"km")
 
     structure_list = []
 
