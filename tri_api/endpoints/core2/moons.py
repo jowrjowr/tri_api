@@ -503,6 +503,11 @@ def moons_get_structures(user_id):
                 structures[structure["structure_id"]] = structure
                 structures[structure["structure_id"]]["character_id"] = corporations[corp_id]["character_id"]
 
+                if structure["type_id"] == 35835:
+                    structures[structure["structure_id"]]["type_name"] = "Athanor"
+                elif structure["type_id"] == 35836:
+                    structures[structure["structure_id"]]["type_name"] = "Tatara"
+
     def get_structure_position(char_id, structure_id):
         import common.request_esi
 
@@ -524,6 +529,91 @@ def moons_get_structures(user_id):
             structure_id = futures[future]
 
             structures[structure_id]["position"] = future.result()
+
+    # get all relevant moons
+    systems = {}
+
+    def get_moons(_system_id):
+        import common.request_esi
+
+        request_system_url = 'universe/systems/{}/'.format(_system_id)
+        esi_system_code, esi_system_result = common.request_esi.esi(__name__, request_system_url, method='get')
+
+        if not esi_system_code == 200:
+            logger.error("/universe/systems/ API error {0}: {1}"
+                         .format(esi_system_code, esi_system_result.get('error', 'N/A')))
+            return None
+
+        moons = []
+
+        for planet in esi_system_result["planets"]:
+            moons.extend(planet.get("moons", []))
+
+        return moons
+
+    with ThreadPoolExecutor(10) as executor:
+        futures = {executor.submit(get_moons, structures[structure_id]["system_id"]): structure_id for structure_id in structures}
+        for future in as_completed(futures):
+            system_id = structures[futures[future]]["system_id"]
+            result = future.result()
+
+            if result is not None:
+                if system_id in systems:
+                    for moon_id in result:
+                        systems[system_id]["moons"][moon_id] = {}
+                else:
+                    systems[system_id]["moons"] = []
+
+                    for moon_id in result:
+                        systems[system_id]["moons"][moon_id] = {}
+
+    def get_system_info(_system_id):
+        import common.request_esi
+
+        _result = {}
+
+        request_system_url = 'universe/systems/{}/'.format(_system_id)
+        esi_system_code, esi_system_result = common.request_esi.esi(__name__, request_system_url, method='get')
+
+        if not esi_system_code == 200:
+            logger.error("/universe/systems/ API error {0}: {1}"
+                         .format(esi_system_code, esi_system_result.get('error', 'N/A')))
+            return _result
+
+        _result["system"] = esi_system_result["name"]
+
+        request_constellation_url = 'universe/constellations/{}/'.format(esi_system_result["constellation_Id"])
+        esi_constellation_code, esi_constellation_result = common.request_esi.esi(__name__, request_constellation_url, method='get')
+
+        if not esi_constellation_code == 200:
+            logger.error("/universe/constellations/ API error {0}: {1}"
+                         .format(esi_constellation_code, esi_constellation_result.get('error', 'N/A')))
+            return _result
+
+        _result["const"] = esi_constellation_result["name"]
+
+        request_region_url = 'universe/regions/{}/'.format(esi_constellation_result["region_id"])
+        esi_region_code, esi_region_result = common.request_esi.esi(__name__, request_region_url,
+                                                                                  method='get')
+
+        if not esi_region_code == 200:
+            logger.error("/universe/constellations/ API error {0}: {1}"
+                         .format(esi_region_code, esi_region_result.get('error', 'N/A')))
+            return _result
+
+        _result["region"] = esi_constellation_result["name"]
+
+        return _result
+
+    with ThreadPoolExecutor(10) as executor:
+        futures = {executor.submit(get_system_info, system_id): system_id for system_id in systems}
+        for future in as_completed(futures):
+            system_id = futures[future]
+            result = future.result()
+
+            systems[system_id]["region"] = result.get("region", "N/A")
+            systems[system_id]["const"] = result.get("const", "N/A")
+            systems[system_id]["system"] = result.get("system", "N/A")
 
     return flask.Response(json.dumps(structures),
                           status=200, mimetype='application/json')
