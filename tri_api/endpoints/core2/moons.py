@@ -510,7 +510,7 @@ def moons_get_structures(user_id):
                 elif structure["type_id"] == 35836:
                     structures[structure["structure_id"]]["type_name"] = "Tatara"
 
-    def get_structure_position(char_id, structure_id):
+    def get_structure_info(char_id, structure_id):
         import common.request_esi
 
         request_structures_url = 'universe/structures/{}/'.format(structure_id)
@@ -523,14 +523,14 @@ def moons_get_structures(user_id):
                          .format(esi_structures_code, esi_structures_result.get('error', 'N/A')))
             return None
 
-        return esi_structures_result["position"]
+        return esi_structures_result["position"], esi_structures_result["position"]
 
     with ThreadPoolExecutor(10) as executor:
-        futures = {executor.submit(get_structure_position, structures[structure_id]["character_id"], structure_id): structure_id for structure_id in structures}
+        futures = {executor.submit(get_structure_info, structures[structure_id]["character_id"], structure_id): structure_id for structure_id in structures}
         for future in as_completed(futures):
             structure_id = futures[future]
 
-            structures[structure_id]["position"] = future.result()
+            structures[structure_id]["name"], structures[structure_id]["position"] = future.result()
 
     systems = {}
 
@@ -604,7 +604,7 @@ def moons_get_structures(user_id):
                          .format(esi_region_code, esi_region_result.get('error', 'N/A')))
             return _result
 
-        _result["region"] = esi_constellation_result["name"]
+        _result["region"] = esi_region_result["name"]
 
         return _result
 
