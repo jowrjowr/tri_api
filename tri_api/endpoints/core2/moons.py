@@ -456,7 +456,8 @@ def moons_get_structures(user_id):
     # get all characters that access & necessary scopes to structures
     dn = 'ou=People,dc=triumvirate,dc=rocks'
     filterstr = '(&(esiScope=esi-corporations.read_structures.v1)' \
-                '(esiScope=esi-universe.read_structures.v1)(corporationRole=Director))'
+                '(esiScope=esi-universe.read_structures.v1)(corporationRole=Director)' \
+                '(esiAccessToken=*))'
     attrlist = ['uid', 'corporation']
 
     code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
