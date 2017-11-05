@@ -445,6 +445,7 @@ def moons_get_structures(user_id):
     import json
 
     from common.logger import securitylog
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
     securitylog(__name__, 'viewed moon structures',
                 ipaddress=flask.request.headers['X-Real-Ip'],
@@ -454,7 +455,7 @@ def moons_get_structures(user_id):
 
     # get all characters that access & necessary scopes to structures
     dn = 'ou=People,dc=triumvirate,dc=rocks'
-    filterstr = '(&(esiScope=esi-universe.read_structures.v1)(corporationRole=Director))'
+    filterstr = '(&(esiScope=esi-corporations.read_structures.v1)(esiScope=esi-universe.read_structures.v1)(corporationRole=Director))'
     attrlist = ['uid', 'corporation']
 
     code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
@@ -464,11 +465,42 @@ def moons_get_structures(user_id):
         return flask.Response(json.dumps({'error': "ldap error"}),
                               status=500, mimetype='application/json')
 
-    print(result)
+    corporations = {}
 
-    result = [info for (dn, info) in result]
+    def get_structures(char_id, corp_id):
+        import common.request_esi
 
-    return flask.Response(json.dumps({result}),
+        request_structures_url = 'corporations/{}/structures/'.format(corp_id)
+        esi_structures_code, esi_structures_result = common.request_esi.esi(__name__, request_structures_url, method='get',
+                                                                    char_id=char_id)
+
+        if not esi_structures_code == 200:
+            logger.error("/corporations/<corporation_id>/structures/ API error {0}: {1}"
+                         .format(esi_structures_code, esi_structures_result.get('error', 'N/A')))
+            return None
+
+        return esi_structures_result
+
+    with ThreadPoolExecutor(10) as executor:
+        futures = {executor.submit(get_structures, result[cn]["uid"], result[cn]["corporation"]): cn for cn in result}
+        for future in as_completed(futures):
+            char_id = result[futures[future]]['uid']
+            corp_id = result[futures[future]]['corporation']
+
+            if corp_id not in corporations:
+                corporations[corp_id] = {
+                    "character_id": char_id,
+                    "structures": future.result()
+                }
+
+    structures = {}
+
+    for corp_id in corporations:
+        for structure in corporations[corp_id]["structures"]:
+            structures[structure["structure_id"]] = structure
+            structures[structure["structure_id"]]["character_id"] = corporations[corp_id]["character_id"]
+
+    return flask.Response(json.dumps({structures}),
                           status=200, mimetype='application/json')
 
 
