@@ -562,7 +562,9 @@ def moons_get_structures(user_id):
                     for moon_id in result:
                         systems[system_id]["moons"][moon_id] = {}
                 else:
-                    systems[system_id]["moons"] = []
+                    systems[system_id] = {
+                        "moons": {}
+                    }
 
                     for moon_id in result:
                         systems[system_id]["moons"][moon_id] = {}
