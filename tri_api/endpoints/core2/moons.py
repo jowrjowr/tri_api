@@ -350,7 +350,7 @@ def moons_post(user_id):
     }), status=200, mimetype='application/json')
 
 
-@blueprint.route('/<int:user_id>/moons/regions/', methods=['GET'])
+@blueprint.route('/<int:user_id>/moons/regions/list/', methods=['GET'])
 @verify_user(groups=['board'])
 def moons_get_regions(user_id):
     import common.database as _database
