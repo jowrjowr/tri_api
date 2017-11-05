@@ -652,6 +652,10 @@ def moons_get_structures(user_id):
         # find nearest moon
         structure_system_id = structure["system_id"]
 
+        structure["region"] = systems[structure_system_id]["region"]
+        structure["const"] = systems[structure_system_id]["const"]
+        structure["system"] = systems[structure_system_id]["system"]
+
         structure_moon_id = None
         structure_moon_name = None
         structure_moon_distance2 = 1e30
