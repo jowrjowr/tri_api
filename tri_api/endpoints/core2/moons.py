@@ -685,7 +685,7 @@ def moons_get_structures(user_id):
                 structure["moon"] = "N/A"
 
             structure["distance"] = np.sqrt(structure_moon_distance2)
-            print(distance2)
+            print(str(structure["distance"]/1000)+"km")
 
     structure_list = []
 
