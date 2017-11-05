@@ -434,6 +434,42 @@ def moons_get_scanners(user_id):
     return flask.Response(json.dumps(scanner_list), status=200, mimetype='application/json')
 
 
+@blueprint.route('/<int:user_id>/moons/structures/', methods=['GET'])
+@verify_user(groups=['board'])
+def moons_get_structures(user_id):
+    import common.database as _database
+    import common.ldaphelpers as _ldaphelpers
+    import flask
+    import logging
+    import MySQLdb as mysql
+    import json
+
+    from common.logger import securitylog
+
+    securitylog(__name__, 'viewed moon structures',
+                ipaddress=flask.request.headers['X-Real-Ip'],
+                charid=user_id)
+
+    logger = logging.getLogger(__name__)
+
+    # get all characters that access & necessary scopes to structures
+    dn = 'ou=People,dc=triumvirate,dc=rocks'
+    filterstr = '&((esiScope=esi-universe.read_structures.v1)(corporationRole=Director))'.format(charid)
+    attrlist = ['uid', 'corporation']
+
+    code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
+
+    if not code:
+        logger.error("unable to fetch ldap information")
+        return flask.Response(json.dumps({'error': "ldap error"}),
+                              status=500, mimetype='application/json')
+
+    result = [info for (dn, info) in result]
+
+    return flask.Response(json.dumps({result}),
+                          status=200, mimetype='application/json')
+
+
 @blueprint.route('/<int:user_id>/moons/regions/list/', methods=['GET'])
 @verify_user(groups=['board'])
 def moons_get_regions_list(user_id):
