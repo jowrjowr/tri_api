@@ -443,9 +443,11 @@ def moons_get_structures(user_id):
     import logging
     import MySQLdb as mysql
     import json
+    import re
 
     from common.logger import securitylog
     from concurrent.futures import ThreadPoolExecutor, as_completed
+    from ._roman import fromRoman
 
     securitylog(__name__, 'viewed moon structures',
                 ipaddress=flask.request.headers['X-Real-Ip'],
@@ -530,7 +532,6 @@ def moons_get_structures(user_id):
 
             structures[structure_id]["position"] = future.result()
 
-    # get all relevant moons
     systems = {}
 
     def get_moons(_system_id):
@@ -616,6 +617,70 @@ def moons_get_structures(user_id):
             systems[system_id]["region"] = result.get("region", "N/A")
             systems[system_id]["const"] = result.get("const", "N/A")
             systems[system_id]["system"] = result.get("system", "N/A")
+
+    def get_moon_position(_moon_id):
+        import common.request_esi
+
+        request_moon_url = 'universe/moons/{}/'.format(_moon_id)
+        esi_moon_code, esi_moon_result = common.request_esi.esi(__name__, request_moon_url, method='get')
+
+        if not esi_moon_code == 200:
+            logger.error("/universe/moons/ API error {0}: {1}"
+                         .format(esi_moon_code, esi_moon_result.get('error', 'N/A')))
+            return None
+
+        return esi_moon_result["name"], esi_moon_result["position"]
+
+    for system_id in systems:
+        with ThreadPoolExecutor(10) as executor:
+            futures = {executor.submit(get_moon_position, moon_id): moon_id for moon_id in systems[system_id]["moons"]}
+            for future in as_completed(futures):
+                moon_id = futures[future]
+                result = future.result()
+
+                systems[system_id]["moons"][moon_id]["name"], systems[system_id]["moons"][moon_id]["position"] = result
+
+    regex_moon = re.compile("(.*) (XC|XL|L?X{0,3})(IX|IV|V?I{0,3}) - Moon ([0-9]{1,3})")
+
+    for structure_id in structures:
+        import numpy as np
+
+        structure = structures[structure_id]
+
+        # find nearest moon
+        structure_system_id = structure["system_id"]
+
+        structure_moon_id = None
+        structure_moon_name = None
+        structure_moon_distance2 = 1e20
+
+        for moon_id in systems[structure_system_id]["moons"]:
+            moon = systems[structure_system_id]["moons"][moon_id]
+
+            distance2 = (moon["position"]["x"]-structure["position"]["x"])**2 + \
+                        (moon["position"]["y"]**2-structure["position"]["x"]) + \
+                        (moon["position"]["z"]-structure["position"]["x"])**2
+
+            if distance2 < structure_moon_distance2:
+                structure_moon_id = moon_id
+                structure_moon_name = moon["name"]
+
+        if structure_moon_id is None:
+            structure["planet"] = "N/A"
+            structure["moon"] = "N/A"
+            structure["distance"] = "N/A"
+        else:
+            match = regex_moon.match(structure_moon_name)
+
+            if match:
+                structure['planet'] = int(fromRoman(match.group(2) + match.group(3)))
+                structure['moon'] = int(match.group(4))
+            else:
+                logger.error("regex matching for moon name failed")
+                structure["planet"] = "N/A"
+                structure["moon"] = "N/A"
+
+            structure["distance"] = np.sqrt(structure_moon_distance2)
 
     return flask.Response(json.dumps(structures),
                           status=200, mimetype='application/json')
