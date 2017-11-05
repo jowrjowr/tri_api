@@ -715,7 +715,6 @@ def moons_get_regions_summary(user_id):
     def get_systems(const_id):
         import common.request_esi
 
-
         request_const_url = 'universe/constellations/{}/'.format(const_id)
         esi_const_code, esi_const_result = common.request_esi.esi(__name__, request_const_url, method='get')
 
@@ -728,7 +727,7 @@ def moons_get_regions_summary(user_id):
 
     for region_id in constellations:
         with ThreadPoolExecutor(10) as executor:
-            futures = {executor.submit(get_systems, const_id): const_id for const_id in regions[region_id]}
+            futures = {executor.submit(get_systems, const_id): const_id for const_id in constellations[region_id]}
             for future in as_completed(futures):
                 result = future.result()
 
