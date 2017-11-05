@@ -658,9 +658,9 @@ def moons_get_structures(user_id):
         if not esi_alliance_code == 200:
             logger.error("/alliances/<alliance_id>/ API error {0}: {1}"
                          .format(esi_alliance_code, esi_alliance_result.get('error', 'N/A')))
-            return esi_corporation_result["name"], "N/A"
+            return esi_corporation_result["corporation_name"], "N/A"
 
-        return esi_alliance_result["name"], esi_corporation_result["name"]
+        return esi_alliance_result["alliance_name"], esi_corporation_result["corporation_name"]
 
     with ThreadPoolExecutor(10) as executor:
         futures = {executor.submit(get_structure_owner, structures[structure_id]["corporation_id"]): structure_id for structure_id in structures}
