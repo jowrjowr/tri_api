@@ -510,13 +510,13 @@ def moons_get_structures(user_id):
                 elif structure["type_id"] == 35836:
                     structures[structure["structure_id"]]["type_name"] = "Tatara"
 
-    def get_structure_info(char_id, structure_id):
+    def get_structure_info(_char_id, structure_id):
         import common.request_esi
 
         request_structures_url = 'universe/structures/{}/'.format(structure_id)
         esi_structures_code, esi_structures_result = common.request_esi.esi(__name__, request_structures_url,
                                                                             method='get',
-                                                                            charid=char_id)
+                                                                            charid=_char_id)
 
         if not esi_structures_code == 200:
             logger.error("/universe/structures/<structure_id>/ API error {0}: {1}"
@@ -639,6 +639,35 @@ def moons_get_structures(user_id):
                 result = future.result()
 
                 systems[system_id]["moons"][moon_id]["name"], systems[system_id]["moons"][moon_id]["position"] = result
+
+    def get_structure_owner(_corp_id):
+        import common.request_esi
+
+        request_corporation_url = 'corporations/{}/'.format(_corp_id)
+        esi_corporation_code, esi_corporation_result = common.request_esi.esi(__name__, request_corporation_url, method='get')
+
+        if not esi_corporation_code == 200:
+            logger.error("/corporations/<corporation_id>/ API error {0}: {1}"
+                         .format(esi_corporation_code, esi_corporation_result.get('error', 'N/A')))
+            return "N/A", "N/A"
+
+        request_alliance_url = 'alliances/{}/'.format(esi_corporation_result["alliance_id"])
+        esi_alliance_code, esi_alliance_result = common.request_esi.esi(__name__, request_alliance_url,
+                                                                              method='get')
+
+        if not esi_alliance_code == 200:
+            logger.error("/alliances/<alliance_id>/ API error {0}: {1}"
+                         .format(esi_alliance_code, esi_alliance_result.get('error', 'N/A')))
+            return esi_corporation_result["name"], "N/A"
+
+        return esi_alliance_result["name"], esi_corporation_result["name"]
+
+    with ThreadPoolExecutor(10) as executor:
+        futures = {executor.submit(get_structure_owner, structures[structure_id]["corporation_id"]): structure_id for structure_id in structures}
+        for future in as_completed(futures):
+            structure_id = futures[future]
+
+            structures[structure_id]["alliance"], structures[structure_id]["corporation"] = future.result()
 
     regex_moon = re.compile("(.*) (XC|XL|L?X{0,3})(IX|IV|V?I{0,3}) - Moon ([0-9]{1,3})")
 
