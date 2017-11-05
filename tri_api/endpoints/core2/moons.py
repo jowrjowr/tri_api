@@ -669,6 +669,8 @@ def moons_get_structures(user_id):
                 structure_moon_id = moon_id
                 structure_moon_name = moon["name"]
 
+                print(moon["position"]+" : "+structure["position"])
+
         if structure_moon_id is None:
             structure["planet"] = "N/A"
             structure["moon"] = "N/A"
