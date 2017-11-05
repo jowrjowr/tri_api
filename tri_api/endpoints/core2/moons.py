@@ -686,7 +686,12 @@ def moons_get_structures(user_id):
 
         i += 1
 
-    return flask.Response(json.dumps(structures),
+    structure_list = []
+
+    for structure_id in structures:
+        structure_list.append(structures[structure_id])
+
+    return flask.Response(json.dumps(structure_list),
                           status=200, mimetype='application/json')
 
 
