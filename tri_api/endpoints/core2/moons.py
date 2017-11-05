@@ -462,7 +462,7 @@ def moons_get_region_summary(user_id):
             "r64": ore_table["lo"] + ore_table["mo"] + ore_table["xe"] + ore_table["yt"]
         }
 
-        if row[0] not in regions:
+        if row[0] in regions:
             regions[row[0]]["scanned_moons"] += 1
 
             for key in regions[row[0]]["ore_composition"]:
