@@ -499,8 +499,31 @@ def moons_get_structures(user_id):
 
     for corp_id in corporations:
         for structure in corporations[corp_id]["structures"]:
-            structures[structure["structure_id"]] = structure
-            structures[structure["structure_id"]]["character_id"] = corporations[corp_id]["character_id"]
+            if structure["type_id"] in [35835, 35836]:
+                structures[structure["structure_id"]] = structure
+                structures[structure["structure_id"]]["character_id"] = corporations[corp_id]["character_id"]
+
+    def get_structure_position(char_id, structure_id):
+        import common.request_esi
+
+        request_structures_url = 'universe/structures/{}/'.format(structure_id)
+        esi_structures_code, esi_structures_result = common.request_esi.esi(__name__, request_structures_url,
+                                                                            method='get',
+                                                                            charid=char_id)
+
+        if not esi_structures_code == 200:
+            logger.error("/universe/structures/<structure_id>/ API error {0}: {1}"
+                         .format(esi_structures_code, esi_structures_result.get('error', 'N/A')))
+            return None
+
+        return esi_structures_result["position"]
+
+    with ThreadPoolExecutor(10) as executor:
+        futures = {executor.submit(get_structure_position, structures[structure_id]["character_id"], structure_id): structure_id for structure_id in structures}
+        for future in as_completed(futures):
+            structure_id = futures[future]
+
+            structures[structure_id]["position"] = future.result()
 
     return flask.Response(json.dumps(structures),
                           status=200, mimetype='application/json')
