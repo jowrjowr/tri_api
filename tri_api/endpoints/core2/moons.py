@@ -755,8 +755,6 @@ def moons_get_regions_summary(user_id):
         for planet in esi_system_result["planets"]:
             moons.extend(planet.get("moons", []))
 
-        print("moons:{0}".format(moons))
-
         return moons
 
     for region_id in systems:
@@ -766,7 +764,7 @@ def moons_get_regions_summary(user_id):
                 result = future.result()
 
                 if result is not None:
-                    if region_id in systems:
+                    if region_id in moons:
                         moons[region_id].extend(result)
                     else:
                         moons[region_id] = result
