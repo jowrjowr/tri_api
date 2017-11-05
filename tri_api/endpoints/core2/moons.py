@@ -642,6 +642,8 @@ def moons_get_structures(user_id):
 
     regex_moon = re.compile("(.*) (XC|XL|L?X{0,3})(IX|IV|V?I{0,3}) - Moon ([0-9]{1,3})")
 
+    i = 0
+
     for structure_id in structures:
         import numpy as np
 
@@ -654,10 +656,11 @@ def moons_get_structures(user_id):
         structure_moon_name = None
         structure_moon_distance2 = 10e20
 
-        print(structure_id)
-
         for moon_id in systems[structure_system_id]["moons"]:
             moon = systems[structure_system_id]["moons"][moon_id]
+
+            if(i==0):
+                print(moon_id)
 
             distance2 = (moon["position"]["x"]-structure["position"]["x"])**2 + \
                         (moon["position"]["y"]**2-structure["position"]["x"]) + \
@@ -666,6 +669,8 @@ def moons_get_structures(user_id):
             if distance2 < structure_moon_distance2:
                 structure_moon_id = moon_id
                 structure_moon_name = moon["name"]
+
+        print(structure_moon_distance2)
 
         if structure_moon_id is None:
             structure["planet"] = "N/A"
@@ -683,6 +688,8 @@ def moons_get_structures(user_id):
                 structure["moon"] = "N/A"
 
             structure["distance"] = np.sqrt(structure_moon_distance2)
+
+        i += 1
 
     return flask.Response(json.dumps(structures),
                           status=200, mimetype='application/json')
