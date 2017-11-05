@@ -755,6 +755,8 @@ def moons_get_regions_summary(user_id):
         for planet in esi_system_result["planets"]:
             moons.extend(planet.get("moons", []))
 
+        print("moons:{0}".format(moons))
+
         return moons
 
     for region_id in systems:
