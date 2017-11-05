@@ -411,11 +411,7 @@ def moons_get_region_summary(user_id):
     import MySQLdb as mysql
     import json
 
-    from common.logger import securitylog
-
-    securitylog(__name__, 'viewed moon scan',
-                ipaddress=flask.request.headers['X-Real-Ip'],
-                charid=user_id)
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
     logger = logging.getLogger(__name__)
 
@@ -431,8 +427,7 @@ def moons_get_region_summary(user_id):
 
     cursor = sql_conn.cursor()
 
-    query = 'SELECT id,moonId,moonNr,planetId,planetNr,regionId,regionName,constellationId,constellationName,' \
-            'solarSystemId,solarSystemName,oreComposition,scannedByName,scannedDate FROM MoonScans'
+    query = 'SELECT regionId,regionName,oreComposition FROM MoonScans'
     try:
         _ = cursor.execute(query)
         rows = cursor.fetchall()
@@ -445,7 +440,45 @@ def moons_get_region_summary(user_id):
     regions = {}
 
     for row in rows:
-        pass
+        ore_table = json.loads(row[2])
+
+        for ore in ores:
+            if ore not in ore_table:
+                ore_table[ore] = float(0)
+
+        for ore in ores:
+            ore_table[short[ore]] = float(ore_table.pop(ore))
+
+        ore_summary = {
+            "hso": ore_table["ev"] + ore_table["esc"] + ore_table["epg"] + ore_table["epl"] + ore_table["eo"] +
+                   ore_table["ek"],
+            "lso": ore_table["ej"] + ore_table["ehp"] + ore_table["ehg"],
+            "nso": ore_table["ea"] + ore_table["eb"] + ore_table["ec"] + ore_table["edo"] + ore_table["eg"] + ore_table[
+                "esp"],
+            "r0": ore_table["bi"] + ore_table["cs"] + ore_table["sy"] + ore_table["ze"],
+            "r8": ore_table["cb"] + ore_table["eu"] + ore_table["sc"] + ore_table["ti"],
+            "r16": ore_table["cr"] + ore_table["ot"] + ore_table["sp"] + ore_table["va"],
+            "r32": ore_table["ca"] + ore_table["ci"] + ore_table["po"] + ore_table["zi"],
+            "r64": ore_table["lo"] + ore_table["mo"] + ore_table["xe"] + ore_table["yt"]
+        }
+
+        if row[0] not in regions:
+            regions[row[0]]["scanned_moons"] += 1
+
+            for key in regions[row[0]]["ore_composition"]:
+                regions[row[0]]["ore_composition"][key] += ore_table[key]
+
+            for key in regions[row[0]]["ore_summary"]:
+                regions[row[0]]["ore_summary"][key] += ore_summary[key]
+        else:
+            regions[row[0]] = {
+                "region_id": row[0],
+                "region": row[1],
+                "ore_composition": ore_table,
+                "ore_summary": ore_summary,
+                "scanned_moons": 1,
+                "total_moons": 0
+            }
 
     region_list = []
 
