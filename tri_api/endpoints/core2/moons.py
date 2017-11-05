@@ -669,6 +669,8 @@ def moons_get_structures(user_id):
                 structure_moon_id = moon_id
                 structure_moon_name = moon["name"]
 
+                structure_moon_distance2 = distance2
+
                 if structure["system"] == "A24L-V":
                     print(json.dumps(structure["position"])+" : "+json.dumps(moon["position"]) + ":" + str(np.sqrt(distance2)))
 
