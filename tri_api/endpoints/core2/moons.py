@@ -660,7 +660,7 @@ def moons_get_structures(user_id):
             moon = systems[structure_system_id]["moons"][moon_id]
 
             distance2 = (moon["position"]["x"]-structure["position"]["x"])**2 + \
-                        (moon["position"]["y"]**2-structure["position"]["x"]) + \
+                        (moon["position"]["y"]-structure["position"]["x"])**2 + \
                         (moon["position"]["z"]-structure["position"]["x"])**2
 
             if (i == 0):
