@@ -523,7 +523,7 @@ def moons_get_structures(user_id):
                          .format(esi_structures_code, esi_structures_result.get('error', 'N/A')))
             return None
 
-        return esi_structures_result["position"], esi_structures_result["position"]
+        return esi_structures_result["name"], esi_structures_result["position"]
 
     with ThreadPoolExecutor(10) as executor:
         futures = {executor.submit(get_structure_info, structures[structure_id]["character_id"], structure_id): structure_id for structure_id in structures}
