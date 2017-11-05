@@ -651,16 +651,19 @@ def moons_get_structures(user_id):
                          .format(esi_corporation_code, esi_corporation_result.get('error', 'N/A')))
             return "N/A", "N/A"
 
-        request_alliance_url = 'alliances/{}/'.format(esi_corporation_result["alliance_id"])
-        esi_alliance_code, esi_alliance_result = common.request_esi.esi(__name__, request_alliance_url,
-                                                                              method='get')
+        if "alliance_id" in esi_corporation_result:
+            request_alliance_url = 'alliances/{}/'.format(esi_corporation_result["alliance_id"])
+            esi_alliance_code, esi_alliance_result = common.request_esi.esi(__name__, request_alliance_url,
+                                                                                  method='get')
 
-        if not esi_alliance_code == 200:
-            logger.error("/alliances/<alliance_id>/ API error {0}: {1}"
-                         .format(esi_alliance_code, esi_alliance_result.get('error', 'N/A')))
-            return esi_corporation_result["corporation_name"], "N/A"
+            if not esi_alliance_code == 200:
+                logger.error("/alliances/<alliance_id>/ API error {0}: {1}"
+                             .format(esi_alliance_code, esi_alliance_result.get('error', 'N/A')))
+                return esi_corporation_result["corporation_name"], "N/A"
 
-        return esi_alliance_result["alliance_name"], esi_corporation_result["corporation_name"]
+            return esi_alliance_result["alliance_name"], esi_corporation_result["corporation_name"]
+        else:
+            return "", esi_corporation_result["corporation_name"]
 
     with ThreadPoolExecutor(10) as executor:
         futures = {executor.submit(get_structure_owner, structures[structure_id]["corporation_id"]): structure_id for structure_id in structures}
