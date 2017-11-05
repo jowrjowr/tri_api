@@ -584,7 +584,7 @@ def moons_get_structures(user_id):
 
         _result["system"] = esi_system_result["name"]
 
-        request_constellation_url = 'universe/constellations/{}/'.format(esi_system_result["constellation_Id"])
+        request_constellation_url = 'universe/constellations/{}/'.format(esi_system_result["constellation_id"])
         esi_constellation_code, esi_constellation_result = common.request_esi.esi(__name__, request_constellation_url, method='get')
 
         if not esi_constellation_code == 200:
