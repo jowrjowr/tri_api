@@ -654,24 +654,21 @@ def moons_get_structures(user_id):
 
         structure_moon_id = None
         structure_moon_name = None
-        structure_moon_distance2 = 10e20
+        structure_moon_distance2 = 1e20
 
         for moon_id in systems[structure_system_id]["moons"]:
             moon = systems[structure_system_id]["moons"][moon_id]
-
-            if(i==0):
-                print(moon_id)
 
             distance2 = (moon["position"]["x"]-structure["position"]["x"])**2 + \
                         (moon["position"]["y"]**2-structure["position"]["x"]) + \
                         (moon["position"]["z"]-structure["position"]["x"])**2
 
+            if (i == 0):
+                print(distance2)
+
             if distance2 < structure_moon_distance2:
                 structure_moon_id = moon_id
                 structure_moon_name = moon["name"]
-
-        print(structure_moon_distance2)
-
         if structure_moon_id is None:
             structure["planet"] = "N/A"
             structure["moon"] = "N/A"
