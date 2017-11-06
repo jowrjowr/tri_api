@@ -477,13 +477,13 @@ def moons_get_structures(user_id):
                 "character_id": result[cn]["uid"]
             }
 
-            if ' esi-industry.read_corporation_mining.v1' in result[cn]["esiScope"]:
+            if 'esi-industry.read_corporation_mining.v1' in result[cn]["esiScope"]:
                 corporations[result[cn]["corporation"]]["read_extraction"] = True
             else:
                 corporations[result[cn]["corporation"]]["read_extraction"] = False
 
         elif not corporations[result[cn]["corporation"]]["read_extraction"]:
-            if ' esi-industry.read_corporation_mining.v1' in result[cn]["esiScope"]:
+            if 'esi-industry.read_corporation_mining.v1' in result[cn]["esiScope"]:
                 corporations[result[cn]["corporation"]]["character_id"] = result[cn]["uid"]
                 corporations[result[cn]["corporation"]]["read_extraction"] = True
 
