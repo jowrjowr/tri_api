@@ -506,7 +506,7 @@ def moons_get_structures(user_id):
         for structure in corporations[corp_id]["structures"]:
             if structure["type_id"] in [35835, 35836]:
                 structures[structure["structure_id"]] = structure
-                print(corporations[corp_id])
+                print(corporations[corp_id]["character_id"])
                 structures[structure["structure_id"]]["character_id"] = corporations[corp_id]["character_id"]
 
                 structures[structure["structure_id"]]["chunk_arrival"] = ""
