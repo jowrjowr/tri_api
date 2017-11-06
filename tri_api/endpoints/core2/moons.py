@@ -516,13 +516,13 @@ def moons_get_structures(user_id):
     def get_structure_extractions(char_id, corp_id):
         import common.request_esi
 
-        request_extractions_url = 'corporations/{}/mining/extractions/'.format(corp_id)
+        request_extractions_url = 'corporation/{}/mining/extractions/'.format(corp_id)
         esi_extractions_code, esi_extractions_result = common.request_esi.esi(__name__, request_extractions_url,
                                                                             method='get',
                                                                             charid=char_id)
 
         if not esi_extractions_code == 200:
-            logger.error("/corporations/<corporation_id>/mining/extractions/ API error {0}: {1}"
+            logger.error("/corporation/<corporation_id>/mining/extractions/ API error {0}: {1}"
                          .format(esi_extractions_code, esi_extractions_result.get('error', 'N/A')))
             return None
 
