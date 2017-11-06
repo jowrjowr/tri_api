@@ -544,8 +544,6 @@ def moons_get_structures(user_id):
         for future in as_completed(futures):
             extractions = future.result()
 
-            print("data for corp: {0}".format(futures[future]))
-
             for extraction in extractions:
                 if extraction["structure_id"] in structures:
                     structures[extraction["structure_id"]]["chunk_arrival"] = extraction["chunk_arrival_time"]
