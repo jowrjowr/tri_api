@@ -460,7 +460,7 @@ def moons_get_structures(user_id):
     filterstr = '(&(esiScope=esi-corporations.read_structures.v1)' \
                 '(esiScope=esi-universe.read_structures.v1)(corporationRole=Director)' \
                 '(esiAccessToken=*))'
-    attrlist = ['uid', 'corporation']
+    attrlist = ['uid', 'corporation', 'esiScope']
 
     code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
 
@@ -476,6 +476,11 @@ def moons_get_structures(user_id):
             corporations[result[cn]["corporation"]] = {
                 "character_id": result[cn]["uid"]
             }
+
+            if ' esi-industry.read_corporation_mining.v1' in result[cn]["esiScope"]:
+                corporations[result[cn]["corporation"]]["read_extraction"] = True
+            else:
+                corporations[result[cn]["corporation"]]["read_extraction"] = False
 
     def get_structures(char_id, corp_id):
         import common.request_esi
@@ -529,7 +534,8 @@ def moons_get_structures(user_id):
         return esi_extractions_result
 
     with ThreadPoolExecutor(10) as executor:
-        futures = {executor.submit(get_structure_extractions, corporations[corp_id]["character_id"], corp_id): corp_id for corp_id in corporations}
+        futures = {executor.submit(get_structure_extractions, corporations[corp_id]["character_id"], corp_id):
+                       corp_id for corp_id in dict((k, v) for k, v in corporations.items() if v["read_extraction"] is True)}
         for future in as_completed(futures):
             extractions = future.result()
 
