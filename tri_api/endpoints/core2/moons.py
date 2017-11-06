@@ -496,10 +496,9 @@ def moons_get_structures(user_id):
         for future in as_completed(futures):
             corp_id = futures[future]
 
-            if corp_id not in corporations:
-                corporations[corp_id] = {
-                    "structures": future.result()
-                }
+            corporations[corp_id] = {
+                "structures": future.result()
+            }
 
     structures = {}
 
