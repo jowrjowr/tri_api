@@ -512,16 +512,23 @@ def moons_get_structures(user_id):
     for corp_id in corporations:
         for structure in corporations[corp_id]["structures"]:
             if structure["type_id"] in [35835, 35836]:
-                structures[structure["structure_id"]] = structure
-                structures[structure["structure_id"]]["character_id"] = corporations[corp_id]["character_id"]
+                if "services" in structure:
+                    valid_drill = False
 
-                structures[structure["structure_id"]]["chunk_arrival"] = ""
-                structures[structure["structure_id"]]["chunk_decay"] = ""
+                    for service in structure["services"]:
+                        if service["name"] == "Moon Drilling":
+                            valid_drill = True
+                    if valid_drill:
+                        structures[structure["structure_id"]] = structure
+                        structures[structure["structure_id"]]["character_id"] = corporations[corp_id]["character_id"]
 
-                if structure["type_id"] == 35835:
-                    structures[structure["structure_id"]]["type_name"] = "Athanor"
-                elif structure["type_id"] == 35836:
-                    structures[structure["structure_id"]]["type_name"] = "Tatara"
+                        structures[structure["structure_id"]]["chunk_arrival"] = ""
+                        structures[structure["structure_id"]]["chunk_decay"] = ""
+
+                        if structure["type_id"] == 35835:
+                            structures[structure["structure_id"]]["type_name"] = "Athanor"
+                        elif structure["type_id"] == 35836:
+                            structures[structure["structure_id"]]["type_name"] = "Tatara"
 
     def get_structure_extractions(char_id, corp_id):
         import common.request_esi
