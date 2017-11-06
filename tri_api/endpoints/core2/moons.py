@@ -495,10 +495,7 @@ def moons_get_structures(user_id):
         futures = {executor.submit(get_structures, corporations[corp_id]["character_id"], corp_id): corp_id for corp_id in corporations}
         for future in as_completed(futures):
             corp_id = futures[future]
-
-            corporations[corp_id] = {
-                "structures": future.result()
-            }
+            corporations[corp_id]["structures"] = future.result()
 
     structures = {}
 
@@ -506,7 +503,6 @@ def moons_get_structures(user_id):
         for structure in corporations[corp_id]["structures"]:
             if structure["type_id"] in [35835, 35836]:
                 structures[structure["structure_id"]] = structure
-                print(corp_id)
                 structures[structure["structure_id"]]["character_id"] = corporations[corp_id]["character_id"]
 
                 structures[structure["structure_id"]]["chunk_arrival"] = ""
