@@ -99,6 +99,7 @@ def core_fleets(char_id):
     else:
         return Response({'error': 'not found'}, status=404, mimetype='application/json')
 
+
 @app.route('/core/fleets/opsboard/past/<int:char_id>/', methods=['GET'])
 def core_fleets_past(char_id):
     from flask import Response, request

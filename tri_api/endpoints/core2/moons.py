@@ -471,6 +471,12 @@ def moons_get_structures(user_id):
 
     corporations = {}
 
+    for cn in result:
+        if result[cn]["corporation"] not in corporations:
+            corporations[result[cn]["corporation"]] = {
+                "character_id": corporations[result[cn]["uid"]]
+            }
+
     def get_structures(char_id, corp_id):
         import common.request_esi
 
@@ -486,14 +492,12 @@ def moons_get_structures(user_id):
         return esi_structures_result
 
     with ThreadPoolExecutor(10) as executor:
-        futures = {executor.submit(get_structures, result[cn]["uid"], result[cn]["corporation"]): cn for cn in result}
+        futures = {executor.submit(get_structures, corporations[corp_id]["character_id"], corp_id): corp_id for corp_id in corporations}
         for future in as_completed(futures):
-            char_id = result[futures[future]]['uid']
-            corp_id = result[futures[future]]['corporation']
+            corp_id = futures[future]
 
             if corp_id not in corporations:
                 corporations[corp_id] = {
-                    "character_id": char_id,
                     "structures": future.result()
                 }
 
@@ -505,10 +509,38 @@ def moons_get_structures(user_id):
                 structures[structure["structure_id"]] = structure
                 structures[structure["structure_id"]]["character_id"] = corporations[corp_id]["character_id"]
 
+                structures[structure["structure_id"]]["chunk_arrival"] = ""
+                structures[structure["structure_id"]]["chunk_decay"] = ""
+
                 if structure["type_id"] == 35835:
                     structures[structure["structure_id"]]["type_name"] = "Athanor"
                 elif structure["type_id"] == 35836:
                     structures[structure["structure_id"]]["type_name"] = "Tatara"
+
+    def get_structure_extractions(char_id, corp_id):
+        import common.request_esi
+
+        request_extractions_url = 'corporations/{}/mining/extractions/'.format(corp_id)
+        esi_extractions_code, esi_extractions_result = common.request_esi.esi(__name__, request_extractions_url,
+                                                                            method='get',
+                                                                            charid=char_id)
+
+        if not esi_extractions_code == 200:
+            logger.error("/corporations/<corporation_id>/mining/extractions/ API error {0}: {1}"
+                         .format(esi_extractions_code, esi_extractions_result.get('error', 'N/A')))
+            return None
+
+        return esi_extractions_result
+
+    with ThreadPoolExecutor(10) as executor:
+        futures = {executor.submit(get_structure_extractions, corporations[corp_id]["character_id"], corp_id): corp_id for corp_id in corporations}
+        for future in as_completed(futures):
+            extractions = future.result()
+
+            for extraction in extractions:
+                if extraction["structure_id"] in structures:
+                    structures[extraction["structure_id"]]["chunk_arrival"] = extraction["chunk_arrival_time"]
+                    structures[extraction["structure_id"]]["chunk_decay"] = extraction["chunk_arrival_time"]
 
     def get_structure_info(_char_id, structure_id):
         import common.request_esi
