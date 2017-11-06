@@ -474,7 +474,7 @@ def moons_get_structures(user_id):
     for cn in result:
         if result[cn]["corporation"] not in corporations:
             corporations[result[cn]["corporation"]] = {
-                "character_id": corporations[result[cn]["uid"]]
+                "character_id": result[cn]["uid"]
             }
 
     def get_structures(char_id, corp_id):
