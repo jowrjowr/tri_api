@@ -1133,6 +1133,7 @@ def moons_post(user_id):
 
     from common.logger import securitylog
     from ._roman import fromRoman
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
     logger = logging.getLogger(__name__)
 
@@ -1180,52 +1181,70 @@ def moons_post(user_id):
 
                 i += 1
 
-            if 'system_id' in moon:
-                import common.request_esi
-
-                # get system details
-                request_system_url = 'universe/systems/{}/'.format(moon['system_id'])
-                esi_system_code, esi_system_result = common.request_esi.esi(__name__, request_system_url, method='get')
-
-                if not esi_system_code == 200:
-                    logger.error("/universe/systems/ API error {0}: {1}"
-                                 .format(esi_system_code, esi_system_result.get('error', 'N/A')))
-                    return flask.Response(json.dumps({'error': esi_system_result.get('error', 'esi error')}),
-                                          status=500, mimetype='application/json')
-
-                constellation_id = esi_system_result['constellation_id']
-
-                # get constellation details
-                request_const_url = 'universe/constellations/{}/'.format(constellation_id)
-                esi_const_code, esi_const_result = common.request_esi.esi(__name__, request_const_url, method='get')
-
-                if not esi_const_code == 200:
-                    logger.error("/universe/constellations/ API error {0}: {1}"
-                                 .format(esi_const_code, esi_const_result.get('error', 'N/A')))
-                    return flask.Response(json.dumps({'error': esi_const_result.get('error', 'esi error')}),
-                                          status=500, mimetype='application/json')
-
-                constellation_name = esi_const_result['name']
-                region_id = esi_const_result['region_id']
-
-                # get region details
-                request_region_url = 'universe/regions/{}/'.format(region_id)
-                esi_region_code, esi_region_result = common.request_esi.esi(__name__, request_region_url, method='get')
-
-                if not esi_region_code == 200:
-                    logger.error("/universe/regions/ API error {0}: {1}"
-                                 .format(esi_region_code, esi_region_result.get('error', 'N/A')))
-                    return flask.Response(json.dumps({'error': esi_region_result.get('error', 'esi error')}),
-                                          status=500, mimetype='application/json')
-
-                region_name = esi_region_result['name']
-
-                moon['const_id'] = constellation_id
-                moon['const'] = constellation_name
-                moon['region_id'] = region_id
-                moon['region'] = region_name
-
             moons.append(moon)
+
+    def update_moon(_moon):
+        if 'system_id' in _moon:
+            import common.request_esi
+
+            # get system details
+            request_system_url = 'universe/systems/{}/'.format(_moon['system_id'])
+            esi_system_code, esi_system_result = common.request_esi.esi(__name__, request_system_url, method='get')
+
+            if not esi_system_code == 200:
+                logger.error("/universe/systems/ API error {0}: {1}"
+                             .format(esi_system_code, esi_system_result.get('error', 'N/A')))
+                return {}
+
+            constellation_id = esi_system_result['constellation_id']
+
+            # get constellation details
+            request_const_url = 'universe/constellations/{}/'.format(constellation_id)
+            esi_const_code, esi_const_result = common.request_esi.esi(__name__, request_const_url, method='get')
+
+            if not esi_const_code == 200:
+                logger.error("/universe/constellations/ API error {0}: {1}"
+                             .format(esi_const_code, esi_const_result.get('error', 'N/A')))
+                return {}
+
+            constellation_name = esi_const_result['name']
+            region_id = esi_const_result['region_id']
+
+            # get region details
+            request_region_url = 'universe/regions/{}/'.format(region_id)
+            esi_region_code, esi_region_result = common.request_esi.esi(__name__, request_region_url, method='get')
+
+            if not esi_region_code == 200:
+                logger.error("/universe/regions/ API error {0}: {1}"
+                             .format(esi_region_code, esi_region_result.get('error', 'N/A')))
+                return {}
+
+            region_name = esi_region_result['name']
+
+            # get moon details
+            request_moon_url = 'universe/moons/{}/'.format(_moon['moon_id'])
+            esi_moon_code, esi_moon_result = common.request_esi.esi(__name__, request_moon_url, method='get')
+
+            if not esi_moon_code == 200:
+                logger.error("/universe/moons/ API error {0}: {1}"
+                             .format(esi_moon_code, esi_moon_result.get('error', 'N/A')))
+                return {}
+
+            moon_position = esi_moon_result['position']
+
+            _moon['const_id'] = constellation_id
+            _moon['const'] = constellation_name
+            _moon['region_id'] = region_id
+            _moon['region'] = region_name
+            _moon['position'] = moon_position
+
+        return _moon
+
+    with ThreadPoolExecutor(10) as executor:
+        futures = {executor.submit(update_moon, moon): moon for moon in moons}
+        for future in as_completed(futures):
+            moon = futures[future]
+            moon.update(future.result())
 
     try:
         sql_conn = mysql.connect(
@@ -1256,13 +1275,13 @@ def moons_post(user_id):
                     new_moons += 1
 
                     cursor.execute("INSERT INTO MoonScans "
-                                   "(moonId, moonNr, planetId, planetNr, regionId, "
+                                   "(moonId, moonNr,moonPosition , planetId, planetNr, regionId, "
                                    "regionName, constellationId, constellationName, solarSystemId, solarSystemName,"
                                    "oreComposition, scannedBy, scannedByName, scannedDate) VALUES "
                                    "(%s, %s, %s, %s, %s,"
                                    "%s, %s, %s, %s, %s,"
                                    "%s, %s, %s, NOW())",
-                                   (moon['moon_id'], moon['moon'], moon['planet_id'], moon['planet'], moon['region_id'],
+                                   (moon['moon_id'], moon['moon'], json.dumps(moon["position"]), moon['planet_id'], moon['planet'], moon['region_id'],
                                     moon['region'], moon['const_id'], moon['const'], moon['system_id'], moon['system'],
                                     json.dumps(moon['ore_composition']), int(user_id), scanned_by_name))
                 else:
