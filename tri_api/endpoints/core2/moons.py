@@ -1278,7 +1278,7 @@ def moons_post(user_id):
                                    "(moonId, moonNr,moonPosition , planetId, planetNr, regionId, "
                                    "regionName, constellationId, constellationName, solarSystemId, solarSystemName,"
                                    "oreComposition, scannedBy, scannedByName, scannedDate) VALUES "
-                                   "(%s, %s, %s, %s, %s,"
+                                   "(%s, %s, %s, %s, %s, %s,"
                                    "%s, %s, %s, %s, %s,"
                                    "%s, %s, %s, NOW())",
                                    (moon['moon_id'], moon['moon'], json.dumps(moon["position"]), moon['planet_id'], moon['planet'], moon['region_id'],
