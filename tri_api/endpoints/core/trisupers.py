@@ -146,7 +146,7 @@ def core_corpsupers():
 
     supers = dict()
 
-    with ThreadPoolExecutor(75) as executor:
+    with ThreadPoolExecutor(25) as executor:
         futures = { executor.submit(audit_pilot, result_supers[cn]): cn for cn in result_supers }
         for future in as_completed(futures):
             data = future.result()
