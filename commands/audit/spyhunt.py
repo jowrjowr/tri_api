@@ -74,7 +74,6 @@ def audit_security(targets=None):
         if action == 'jabber login':
             jabber_logins[charid].append(IP)
 
-    #print(set(data['action'].keys()))
     # test for tor
 
     ips = set(data['action'][IP])
@@ -103,6 +102,8 @@ def audit_security(targets=None):
 
     bad_asns = aws + azure + digocean
 
+    warning_charids = dict()
+
     for ip in list(all_ips):
         try:
             asn_detail = geo_asn.get(ip)
@@ -113,12 +114,47 @@ def audit_security(targets=None):
         asn = asn_detail.get('autonomous_system_number')
         asn_owner = asn_detail.get('autonomous_system_organization')
 
-#        print(ip, asn, asn_owner)
         if asn in bad_asns:
             charids = list(data['ip'][ip])
-            if not charids == [ None ]:
+
+            for charid in charids:
+                if charid == None:
+                    continue
+                # make sure the charid has a dict
+                try:
+                    warning_charids[charid]
+                except KeyError:
+                    warning_charids[charid] = dict()
+                # make sure the charid dict has useful arrays
+                try:
+                    warning_charids[charid]['ips']
+                    warning_charids[charid]['asns']
+                    warning_charids[charid]['asn_owners']
+                except KeyError:
+                    warning_charids[charid]['ips'] = []
+                    warning_charids[charid]['asns'] = []
+                    warning_charids[charid]['asn_owners'] = []
+
+                warning_charids[charid]['ips'].append(ip)
+                warning_charids[charid]['asn_owners'].append(asn_owner)
+                warning_charids[charid]['asns'].append(asn)
                 _logger.log('[' + __name__ + '] ip {0} in bad asn {1} ({2})'.format(ip, asn, asn_owner),_logger.LogLevel.WARNING)
                 _logger.log('[' + __name__ + '] ip {0} used by charids: {1}'.format(ip, charids),_logger.LogLevel.WARNING)
+
+
+    for charid in warning_charids:
+        ips = set( warning_charids[charid]['ips'] )
+        asns = set( warning_charids[charid]['asns'] )
+        asn_owners = set( warning_charids[charid]['asn_owners'] )
+
+        msg1 = 'charid {0}:'.format(charid)
+        msg2 = '\t bad ips: {0}'.format(ips)
+        msg3 = '\t bad asns: {0}'.format(asn_owners)
+
+        print(msg1)
+        print(msg2)
+        print(msg3)
+
     return
 
     for charid in jabber_logins:
