@@ -151,6 +151,7 @@ def audit_bothunt():
     import common.credentials.broadcast as _jabber
     import common.logger as _logger
     import common.credentials.bothunt as _bothunt
+    import common.ldaphelpers as _ldaphelpers
     import re
     import logging
     import requests
@@ -189,9 +190,30 @@ def audit_bothunt():
 
     _logger.log('[' + __name__ + '] {0} active jabber sessions'.format(len(clients)),_logger.LogLevel.INFO)
 
-    thing = 'rainbowarielmoon@triumvirate.rocks/6447582518372469981144650259794242310811493004068295965831'
+    connected_clients = clients.keys()
+    for client in connected_clients:
+        cn, server = client.split('@')
+        dn = 'ou=People,dc=triumvirate,dc=rocks'
+        filterstr = 'cn={}'.format(cn)
+        attributes = ['authGroup', 'characterName']
+        code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attributes)
+
+        if code == False:
+            msg = 'unable to connect to ldap'
+            _logger.log('[' + __name__ + '] {0}'.format(msg), _logger.LogLevel.ERROR)
+            continue
+        (dn, info), = result.items()
+
+        charname = info['characterName']
+        groups = info['authGroup']
+
+        if not 'trisupers' in groups:
+            clients.pop(client, None)
+
+#    return
+#    thing = 'rainbowarielmoon@triumvirate.rocks/6447582518372469981144650259794242310811493004068295965831'
 #    thing = 'saekatyr@triumvirate.rocks/729827350702828396058635616511165752724531413542125212543'
-    clients = {thing: None}
+#    clients = {thing: None}
     jabber = Jabber('bothunt', j_user, j_pass, clients)
     jabber.connect()
     jabber.process(block=False)
