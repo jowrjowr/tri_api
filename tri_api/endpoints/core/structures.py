@@ -100,6 +100,8 @@ def structure_parse(charid, object, structure_id):
     from datetime import datetime, timedelta
 
     structure = {}
+    structure_id = int(structure_id)
+
     try:
         structure['fuel_expires'] = object['fuel_expires']
     except:
