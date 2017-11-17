@@ -86,8 +86,12 @@ def zkill_info(function, charid, dn):
         _logger.log('[' + function + '] no kills for {0}'.format(charid),_logger.LogLevel.DEBUG)
         return None
 
-    killid = result[0]['killID']
-    killtime = result[0]['killTime']
+    try:
+        killid = result[0]['killID']
+        killtime = result[0]['killTime']
+    except Exception as e:
+        _logger.log('[' + function + '] unable to parse last kill for {0}: {1}'.format(charid, e),_logger.LogLevel.WARNING)
+        return False
 
     _logger.log('[' + function + '] last kill for {0}: {1}'.format(charid, killtime),_logger.LogLevel.DEBUG)
 

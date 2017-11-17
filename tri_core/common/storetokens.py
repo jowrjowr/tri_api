@@ -28,7 +28,7 @@ def storetokens(charid, atoken, rtoken, expires=None, token_type='esi'):
     if user_count == 0:
         # why are we modifyin something that doesn't exist?
         # create the stub user
-        code, dn =_ldaphelpers.ldap_create_stub(__name__, charid)
+        code, dn =_ldaphelpers.ldap_create_stub(__name__, charid=charid)
 
         if code == False:
             # couldn't make the stub

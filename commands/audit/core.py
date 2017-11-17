@@ -73,7 +73,7 @@ def audit_core():
 
     activity = dict()
 
-    with ThreadPoolExecutor(50) as executor:
+    with ThreadPoolExecutor(15) as executor:
         futures = { executor.submit(user_audit, dn, users[dn]): dn for dn in users.keys() }
         for future in as_completed(futures):
             data = future.result()

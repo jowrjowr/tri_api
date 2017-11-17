@@ -234,7 +234,7 @@ def ts3_validate_users(ts3conn):
     # only matches people who should not have a TS identity
 
     dn = 'ou=People,dc=triumvirate,dc=rocks'
-    filterstr = '(&(!(accountstatus=blue))(teamspeakuid=*))'
+    filterstr = '(&(!(accountStatus=blue))(teamspeakuid=*))'
     attributes = ['characterName', 'uid', 'esiAccessToken' ]
     code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attributes)
 

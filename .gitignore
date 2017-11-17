@@ -7,3 +7,4 @@ logs/*
 env
 common
 !tri_core/common
+sde/*

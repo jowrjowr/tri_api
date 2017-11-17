@@ -12,8 +12,9 @@ import common.logger as _logger
 def start_discord(username, password, covername, handler, discord_queue):
 
     prefix = '[' + __name__ + '][' + username + '] '
-    wait = random.randint(1,10)
+    wait = random.randint(1,60)
     _logger.log(prefix + 'starting up. {0} ({1}) waiting {2} seconds'.format(covername, username, wait), _logger.LogLevel.INFO)
+    time.sleep(wait)
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     client = discord.Client(loop=loop,cache_auth=False)
