@@ -174,6 +174,7 @@ def fetch_chardetails(charid):
             (dn, info), = result.items()
         except ValueError:
             print("error: {}".format(charid))
+            print(result)
             return None
 
         chardetails['charname'] = info['characterName']
@@ -196,6 +197,7 @@ def fetch_chardetails(charid):
 
         if corp_id is None:
             print("error: {} no corp".format(charid))
+            print(result)
 
         chardetails['corporation'] = info['corporationName']
 
