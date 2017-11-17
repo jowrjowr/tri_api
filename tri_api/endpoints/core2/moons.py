@@ -774,6 +774,362 @@ def moons_get_structures(user_id):
                           status=200, mimetype='application/json')
 
 
+@blueprint.route('/<int:user_id>/moons/structures/corp/', methods=['GET'])
+@verify_user(groups=['triumvirate'])
+def moons_get_structure_cycles(user_id):
+    import common.database as _database
+    import common.ldaphelpers as _ldaphelpers
+    import flask
+    import logging
+    import MySQLdb as mysql
+    import json
+    import re
+
+    from common.logger import securitylog
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from ._roman import fromRoman
+
+    securitylog(__name__, 'viewed moon structures',
+                ipaddress=flask.request.headers['X-Real-Ip'],
+                charid=user_id)
+
+    logger = logging.getLogger(__name__)
+
+    # get corporation id
+    dn = 'ou=People,dc=triumvirate,dc=rocks'
+    filterstr = '(uid={})'.format(user_id)
+    attrlist = ['corporation']
+
+    code, result_user = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
+
+    if not code:
+        logger.error("unable to fetch ldap information")
+        return flask.Response(json.dumps({'error': "ldap error"}),
+                              status=500, mimetype='application/json')
+
+    (dn, info), = result_user.items()
+
+    corporation = info['corporation']
+
+    # get all characters that access & necessary scopes to structures
+    dn = 'ou=People,dc=triumvirate,dc=rocks'
+    filterstr = '(&(esiScope=esi-corporations.read_structures.v1)' \
+                '(esiScope=esi-universe.read_structures.v1)(corporationRole=Director)' \
+                '(esiAccessToken=*)(corporation={}))'.format(corporation)
+    attrlist = ['uid', 'corporation', 'esiScope']
+
+    code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
+
+    if not code:
+        logger.error("unable to fetch ldap information")
+        return flask.Response(json.dumps({'error': "ldap error"}),
+                              status=500, mimetype='application/json')
+
+    corporations = {}
+
+    for cn in result:
+        if result[cn]["corporation"] not in corporations:
+            corporations[result[cn]["corporation"]] = {
+                "character_id": result[cn]["uid"]
+            }
+
+            if 'esi-industry.read_corporation_mining.v1' in result[cn]["esiScope"]:
+                corporations[result[cn]["corporation"]]["read_extraction"] = True
+            else:
+                corporations[result[cn]["corporation"]]["read_extraction"] = False
+
+        elif not corporations[result[cn]["corporation"]]["read_extraction"]:
+            if 'esi-industry.read_corporation_mining.v1' in result[cn]["esiScope"]:
+                corporations[result[cn]["corporation"]]["character_id"] = result[cn]["uid"]
+                corporations[result[cn]["corporation"]]["read_extraction"] = True
+
+    def get_structures(char_id, corp_id):
+        import common.request_esi
+
+        request_structures_url = 'corporations/{}/structures/'.format(corp_id)
+        esi_structures_code, esi_structures_result = common.request_esi.esi(__name__, request_structures_url, method='get',
+                                                                    charid=char_id)
+
+        if not esi_structures_code == 200:
+            logger.error("/corporations/<corporation_id>/structures/ API error {0}: {1}"
+                         .format(esi_structures_code, esi_structures_result.get('error', 'N/A')))
+            return None
+
+        return esi_structures_result
+
+    with ThreadPoolExecutor(10) as executor:
+        futures = {executor.submit(get_structures, corporations[corp_id]["character_id"], corp_id): corp_id for corp_id in corporations}
+        for future in as_completed(futures):
+            corp_id = futures[future]
+            corporations[corp_id]["structures"] = future.result()
+
+    structures = {}
+
+    for corp_id in corporations:
+        for structure in corporations[corp_id]["structures"]:
+            if structure["type_id"] in [35835, 35836]:
+                if "services" in structure:
+                    valid_drill = False
+
+                    for service in structure["services"]:
+                        if service["name"] == "Moon Drilling":
+                            valid_drill = True
+                    if valid_drill:
+                        structures[structure["structure_id"]] = structure
+                        structures[structure["structure_id"]]["character_id"] = corporations[corp_id]["character_id"]
+
+                        structures[structure["structure_id"]]["chunk_arrival"] = ""
+                        structures[structure["structure_id"]]["chunk_decay"] = ""
+
+                        if structure["type_id"] == 35835:
+                            structures[structure["structure_id"]]["type_name"] = "Athanor"
+                        elif structure["type_id"] == 35836:
+                            structures[structure["structure_id"]]["type_name"] = "Tatara"
+
+    def get_structure_extractions(char_id, corp_id):
+        import common.request_esi
+
+        request_extractions_url = 'corporation/{}/mining/extractions/'.format(corp_id)
+        esi_extractions_code, esi_extractions_result = common.request_esi.esi(__name__, request_extractions_url,
+                                                                            method='get',
+                                                                            charid=char_id)
+
+        if not esi_extractions_code == 200:
+            logger.error("/corporation/<corporation_id>/mining/extractions/ API error {0}: {1}"
+                         .format(esi_extractions_code, esi_extractions_result.get('error', 'N/A')))
+            return None
+
+        return esi_extractions_result
+
+    with ThreadPoolExecutor(10) as executor:
+        futures = {executor.submit(get_structure_extractions, corporations[corp_id]["character_id"], corp_id):
+                       corp_id for corp_id in dict((k, v) for k, v in corporations.items() if v["read_extraction"] is True)}
+        for future in as_completed(futures):
+            extractions = future.result()
+
+            for extraction in extractions:
+                if extraction["structure_id"] in structures:
+                    structures[extraction["structure_id"]]["chunk_arrival"] = extraction["chunk_arrival_time"]
+                    structures[extraction["structure_id"]]["chunk_decay"] = extraction["chunk_arrival_time"]
+
+    def get_structure_info(_char_id, structure_id):
+        import common.request_esi
+
+        request_structures_url = 'universe/structures/{}/'.format(structure_id)
+        esi_structures_code, esi_structures_result = common.request_esi.esi(__name__, request_structures_url,
+                                                                            method='get',
+                                                                            charid=_char_id)
+
+        if not esi_structures_code == 200:
+            logger.error("/universe/structures/<structure_id>/ API error {0}: {1}"
+                         .format(esi_structures_code, esi_structures_result.get('error', 'N/A')))
+            return None
+
+        return esi_structures_result["name"], esi_structures_result["position"]
+
+    with ThreadPoolExecutor(10) as executor:
+        futures = {executor.submit(get_structure_info, structures[structure_id]["character_id"], structure_id): structure_id for structure_id in structures}
+        for future in as_completed(futures):
+            structure_id = futures[future]
+
+            structures[structure_id]["name"], structures[structure_id]["position"] = future.result()
+
+    systems = {}
+
+    def get_moons(_system_id):
+        import common.request_esi
+
+        request_system_url = 'universe/systems/{}/'.format(_system_id)
+        esi_system_code, esi_system_result = common.request_esi.esi(__name__, request_system_url, method='get')
+
+        if not esi_system_code == 200:
+            logger.error("/universe/systems/ API error {0}: {1}"
+                         .format(esi_system_code, esi_system_result.get('error', 'N/A')))
+            return None
+
+        moons = []
+
+        for planet in esi_system_result["planets"]:
+            moons.extend(planet.get("moons", []))
+
+        return moons
+
+    with ThreadPoolExecutor(10) as executor:
+        futures = {executor.submit(get_moons, structures[structure_id]["system_id"]): structure_id for structure_id in structures}
+        for future in as_completed(futures):
+            system_id = structures[futures[future]]["system_id"]
+            result = future.result()
+
+            if result is not None:
+                if system_id in systems:
+                    for moon_id in result:
+                        systems[system_id]["moons"][moon_id] = {}
+                else:
+                    systems[system_id] = {
+                        "moons": {}
+                    }
+
+                    for moon_id in result:
+                        systems[system_id]["moons"][moon_id] = {}
+
+    def get_system_info(_system_id):
+        import common.request_esi
+
+        _result = {}
+
+        request_system_url = 'universe/systems/{}/'.format(_system_id)
+        esi_system_code, esi_system_result = common.request_esi.esi(__name__, request_system_url, method='get')
+
+        if not esi_system_code == 200:
+            logger.error("/universe/systems/ API error {0}: {1}"
+                         .format(esi_system_code, esi_system_result.get('error', 'N/A')))
+            return _result
+
+        _result["system"] = esi_system_result["name"]
+
+        request_constellation_url = 'universe/constellations/{}/'.format(esi_system_result["constellation_id"])
+        esi_constellation_code, esi_constellation_result = common.request_esi.esi(__name__, request_constellation_url, method='get')
+
+        if not esi_constellation_code == 200:
+            logger.error("/universe/constellations/ API error {0}: {1}"
+                         .format(esi_constellation_code, esi_constellation_result.get('error', 'N/A')))
+            return _result
+
+        _result["const"] = esi_constellation_result["name"]
+
+        request_region_url = 'universe/regions/{}/'.format(esi_constellation_result["region_id"])
+        esi_region_code, esi_region_result = common.request_esi.esi(__name__, request_region_url,
+                                                                                  method='get')
+
+        if not esi_region_code == 200:
+            logger.error("/universe/constellations/ API error {0}: {1}"
+                         .format(esi_region_code, esi_region_result.get('error', 'N/A')))
+            return _result
+
+        _result["region"] = esi_region_result["name"]
+
+        return _result
+
+    with ThreadPoolExecutor(10) as executor:
+        futures = {executor.submit(get_system_info, system_id): system_id for system_id in systems}
+        for future in as_completed(futures):
+            system_id = futures[future]
+            result = future.result()
+
+            systems[system_id]["region"] = result.get("region", "N/A")
+            systems[system_id]["const"] = result.get("const", "N/A")
+            systems[system_id]["system"] = result.get("system", "N/A")
+
+    def get_moon_position(_moon_id):
+        import common.request_esi
+
+        request_moon_url = 'universe/moons/{}/'.format(_moon_id)
+        esi_moon_code, esi_moon_result = common.request_esi.esi(__name__, request_moon_url, method='get')
+
+        if not esi_moon_code == 200:
+            logger.error("/universe/moons/ API error {0}: {1}"
+                         .format(esi_moon_code, esi_moon_result.get('error', 'N/A')))
+            return None
+
+        return esi_moon_result["name"], esi_moon_result["position"]
+
+    for system_id in systems:
+        with ThreadPoolExecutor(10) as executor:
+            futures = {executor.submit(get_moon_position, moon_id): moon_id for moon_id in systems[system_id]["moons"]}
+            for future in as_completed(futures):
+                moon_id = futures[future]
+                result = future.result()
+
+                systems[system_id]["moons"][moon_id]["name"], systems[system_id]["moons"][moon_id]["position"] = result
+
+    def get_structure_owner(_corp_id):
+        import common.request_esi
+
+        request_corporation_url = 'corporations/{}/'.format(_corp_id)
+        esi_corporation_code, esi_corporation_result = common.request_esi.esi(__name__, request_corporation_url, method='get')
+
+        if not esi_corporation_code == 200:
+            logger.error("/corporations/<corporation_id>/ API error {0}: {1}"
+                         .format(esi_corporation_code, esi_corporation_result.get('error', 'N/A')))
+            return "N/A", "N/A"
+
+        if "alliance_id" in esi_corporation_result:
+            request_alliance_url = 'alliances/{}/'.format(esi_corporation_result["alliance_id"])
+            esi_alliance_code, esi_alliance_result = common.request_esi.esi(__name__, request_alliance_url,
+                                                                                  method='get')
+
+            if not esi_alliance_code == 200:
+                logger.error("/alliances/<alliance_id>/ API error {0}: {1}"
+                             .format(esi_alliance_code, esi_alliance_result.get('error', 'N/A')))
+                return esi_corporation_result["corporation_name"], "N/A"
+
+            return esi_alliance_result["alliance_name"], esi_corporation_result["corporation_name"]
+        else:
+            return "", esi_corporation_result["corporation_name"]
+
+    with ThreadPoolExecutor(10) as executor:
+        futures = {executor.submit(get_structure_owner, structures[structure_id]["corporation_id"]): structure_id for structure_id in structures}
+        for future in as_completed(futures):
+            structure_id = futures[future]
+
+            structures[structure_id]["alliance"], structures[structure_id]["corporation"] = future.result()
+
+    regex_moon = re.compile("(.*) (XC|XL|L?X{0,3})(IX|IV|V?I{0,3}) - Moon ([0-9]{1,3})")
+
+    for structure_id in structures:
+        import numpy as np
+
+        structure = structures[structure_id]
+
+        # find nearest moon
+        structure_system_id = structure["system_id"]
+
+        structure["region"] = systems[structure_system_id]["region"]
+        structure["const"] = systems[structure_system_id]["const"]
+        structure["system"] = systems[structure_system_id]["system"]
+
+        structure_moon_id = None
+        structure_moon_name = None
+        structure_moon_distance2 = 1e30
+
+        for moon_id in systems[structure_system_id]["moons"]:
+            moon = systems[structure_system_id]["moons"][moon_id]
+
+            distance2 = (moon["position"]["x"]-structure["position"]["x"])**2 + \
+                        (moon["position"]["y"]-structure["position"]["y"])**2 + \
+                        (moon["position"]["z"]-structure["position"]["z"])**2
+
+            if distance2 < structure_moon_distance2:
+                structure_moon_id = moon_id
+                structure_moon_name = moon["name"]
+                structure_moon_distance2 = distance2
+
+        if structure_moon_id is None:
+            structure["planet"] = "N/A"
+            structure["moon"] = "N/A"
+            structure["distance"] = "N/A"
+        else:
+            match = regex_moon.match(structure_moon_name)
+
+            if match:
+                structure['planet'] = int(fromRoman(match.group(2) + match.group(3)))
+                structure['moon'] = int(match.group(4))
+            else:
+                logger.error("regex matching for moon name failed")
+                structure["planet"] = "N/A"
+                structure["moon"] = "N/A"
+
+            structure["distance"] = np.sqrt(structure_moon_distance2)
+
+    structure_list = []
+
+    for structure_id in structures:
+        structure_list.append(structures[structure_id])
+
+    return flask.Response(json.dumps(structure_list),
+                          status=200, mimetype='application/json')
+
+
 @blueprint.route('/<int:user_id>/moons/regions/list/', methods=['GET'])
 @verify_user(groups=['board'])
 def moons_get_regions_list(user_id):
