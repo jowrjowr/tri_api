@@ -193,6 +193,10 @@ def fetch_chardetails(charid):
             chardetails['lastKillTime'] = None
 
         corp_id = info['corporation']
+
+        if corp_id is None:
+            print("error: {} no corp".format(charid))
+
         chardetails['corporation'] = info['corporationName']
 
         # does the char have a token?
