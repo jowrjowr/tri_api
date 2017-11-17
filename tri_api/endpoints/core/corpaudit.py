@@ -147,9 +147,7 @@ def fetch_chardetails(charid):
     attrlist=['characterName', 'authGroup', 'teamspeakdbid', 'esiAccessToken', 'altOf', 'corporation', 'lastKill', 'lastKillTime','corporationName']
     code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
 
-    print("char_id: {}".format(charid))
-
-    if result is None or code == False:
+    if result is None or not code:
         # no result? simple response.
         chardetails['location'] = 'Unknown'
         chardetails['corporation'] = 'Unknown'
@@ -170,9 +168,11 @@ def fetch_chardetails(charid):
         chardetails['charname'] = affiliations.get('charname')
 
     else:
-        print(result)
-
-        (dn, info), = result.items()
+        try:
+            (dn, info), = result.items()
+        except:
+            print("error: {}".format(charid))
+            raise
 
         chardetails['charname'] = info['characterName']
 
