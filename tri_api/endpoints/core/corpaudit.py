@@ -168,7 +168,11 @@ def fetch_chardetails(charid):
         chardetails['charname'] = affiliations.get('charname')
 
     else:
-        (dn, info), = result.items()
+        try:
+            (dn, info), = result.items()
+        except Exception as err:
+            print("error for {}".format(charid))
+            raise
 
         chardetails['charname'] = info['characterName']
 
