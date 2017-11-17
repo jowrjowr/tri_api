@@ -170,6 +170,9 @@ def fetch_chardetails(charid):
         chardetails['charname'] = affiliations.get('charname')
 
     else:
+        if charid == "97207051":
+            print(result)
+
         (dn, info), = result.items()
 
         chardetails['charname'] = info['characterName']
