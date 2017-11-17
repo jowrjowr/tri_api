@@ -149,7 +149,7 @@ def fetch_chardetails(charid):
 
     print("char_id: {}".format(charid))
 
-    if result == None or code == False:
+    if result is None or code == False:
         # no result? simple response.
         chardetails['location'] = 'Unknown'
         chardetails['corporation'] = 'Unknown'
