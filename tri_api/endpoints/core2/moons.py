@@ -789,7 +789,7 @@ def moons_get_structure_cycles(user_id):
     from concurrent.futures import ThreadPoolExecutor, as_completed
     from ._roman import fromRoman
 
-    securitylog(__name__, 'viewed moon structures',
+    securitylog(__name__, 'viewed corp moon structures',
                 ipaddress=flask.request.headers['X-Real-Ip'],
                 charid=user_id)
 
