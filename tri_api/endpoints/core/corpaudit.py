@@ -127,7 +127,9 @@ def core_corpaudit(charid):
         for future in as_completed(futures):
             #charid = futures[future]['character_id']
             data = future.result()
-            users[data['charname']] = data
+
+            if data is not None:
+                users[data['charname']] = data
     js = json.dumps(users)
     resp = Response(js, status=200, mimetype='application/json')
     return resp
@@ -170,9 +172,9 @@ def fetch_chardetails(charid):
     else:
         try:
             (dn, info), = result.items()
-        except:
+        except ValueError:
             print("error: {}".format(charid))
-            raise
+            return None
 
         chardetails['charname'] = info['characterName']
 
