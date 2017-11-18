@@ -7,7 +7,7 @@ scope += ['esi-location.read_ship_type.v1', 'esi-skills.read_skillqueue.v1', 'es
 scope += ['esi-universe.read_structures.v1', 'esi-corporations.read_structures.v1', 'esi-search.search_structures.v1']
 scope += ['esi-characters.read_corporation_roles.v1', 'esi-assets.read_assets.v1', 'esi-location.read_online.v1' ]
 scope += ['esi-characters.read_fatigue.v1', 'esi-mail.read_mail.v1', 'esi-characters.read_notifications.v1', 'esi-corporations.track_members.v1' ]
-scope += ['esi-industry.read_corporation_mining.v1', ]
+scope += ['esi-industry.read_corporation_mining.v1', 'esi-corporations.read_facilities.v1' ]
 # dedupe scope list because holy shit really?
 
 scope = set(scope)
