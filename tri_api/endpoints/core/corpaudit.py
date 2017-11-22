@@ -238,11 +238,11 @@ def fetch_chardetails(charid):
             code, result = common.request_esi.esi(__name__, request_url, 'get')
 
             if not code == 200:
-                _logger.log('[' + function + '] /characters API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.WARNING)
+                _logger.log('[' + __name__ + '] /characters API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.WARNING)
             try:
                 chardetails['altof'] = result['name']
             except KeyError as error:
-                _logger.log('[' + function + '] User does not exist: {0})'.format(charid), _logger.LogLevel.ERROR)
+                _logger.log('[' + __name__ + '] User does not exist: {0})'.format(charid), _logger.LogLevel.ERROR)
                 chardetails['altof'] = 'Unknown'
         else:
             chardetails['altof'] = None
