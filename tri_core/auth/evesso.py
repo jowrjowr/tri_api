@@ -15,13 +15,17 @@ import tri_core.common.session as _session
 
 from tri_core.common.register import registeruser
 from tri_core.common.storetokens import storetokens
-from tri_core.common.scopes import scope, blue_scope
+from tri_core.common.scopes import scope, blue_scope, renter_scope
 from tri_core.common.session import readsession
-from tri_core.common.testing import vg_blues, vg_alliances
+from tri_core.common.testing import vg_blues, vg_alliances, vg_renters
 
 from requests_oauthlib import OAuth2Session
 
-@app.route('/auth/eve/register_blue', methods=['GET'])
+@app.route('/auth/eve/register/renter', methods=['GET'])
+def auth_evesso_renter():
+    return evesso(renter=True)
+
+@app.route('/auth/eve/register/blue', methods=['GET'])
 def auth_evesso_blue():
     return evesso(tempblue=True)
 
@@ -29,7 +33,7 @@ def auth_evesso_blue():
 def auth_evesso():
     return evesso()
 
-@app.route('/auth/eve/register_alt', methods=['GET'])
+@app.route('/auth/eve/register/alt', methods=['GET'])
 def auth_evesso_alt():
 
     cookie = request.cookies.get('tri_core')
@@ -40,7 +44,7 @@ def auth_evesso_alt():
         payload = readsession(cookie)
         return evesso(isalt=True, altof=payload['charID'])
 
-def evesso(isalt=False, altof=None, tempblue=False):
+def evesso(isalt=False, altof=None, tempblue=False, renter=False):
 
     client_id = _eve.client_id
     client_secret = _eve.client_secret
@@ -55,11 +59,14 @@ def evesso(isalt=False, altof=None, tempblue=False):
     ipaddress = request.headers['X-Real-Ip']
     if isalt == True:
         _logger.securitylog(__name__, 'SSO login initiated', ipaddress=ipaddress, detail='alt of {}'.format(altof))
-    if tempblue == True:
+    elif tempblue == True:
         _logger.securitylog(__name__, 'SSO login initiated', ipaddress=ipaddress, detail='temp blue')
         # the scope list for temp blues is very short
         auth_scopes = blue_scope
-
+    elif renter == True:
+        _logger.securitylog(__name__, 'SSO login initiated', ipaddress=ipaddress, detail='renter')
+        # the renter scope list is distinct
+        auth_scopes = renter_scope
     else:
         auth_scopes = scope
         _logger.securitylog(__name__, 'SSO login initiated', ipaddress=ipaddress)
@@ -80,19 +87,17 @@ def evesso(isalt=False, altof=None, tempblue=False):
         base_auth_url,
         isalt=isalt,
         altof=altof,
+        renter=renter,
         tempblue=tempblue,
         )
-    session['oauth2_state'] = state
 
     # store useful parameters in oauth state
 
     session['tempblue'] = tempblue
-
-    # alt details
-    # technically altof will be any previous cookie which can be the same main char. this will be used.
-
+    session['oauth2_state'] = state
     session['isalt'] = isalt
     session['altof'] = altof
+    session['renter'] = renter
 
     return redirect(auth_url, code=302)
 
@@ -113,6 +118,7 @@ def auth_evesso_callback():
     altof = session.get('altof')
     isalt = session.get('isalt')
     tempblue = session.get('tempblue')
+    renter = session.get('renter')
     state = session.get('oauth2_state')
     ipaddress = request.headers['X-Real-Ip']
 
@@ -125,6 +131,9 @@ def auth_evesso_callback():
         _logger.securitylog(__name__, 'SSO callback received', ipaddress=ipaddress, detail='temp blue')
         # make sure we only check for the blue scope list
         auth_scopes = blue_scope
+    elif renter == True:
+        _logger.securitylog(__name__, 'SSO callback received', ipaddress=ipaddress, detail='renter')
+        auth_scopes = renter_scope
     else:
         _logger.securitylog(__name__, 'SSO callback received', ipaddress=ipaddress)
         auth_scopes = scope
@@ -142,11 +151,13 @@ def auth_evesso_callback():
         auto_refresh_url=token_url,
     )
 
+    headers = {'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' }
     try:
         atoken = oauth_session.fetch_token(
             token_url,
             client_secret=client_secret,
             authorization_response=request.url,
+            headers=headers,
         )
 
     except Exception as error:
@@ -170,17 +181,17 @@ def auth_evesso_callback():
         return response
 
     ## fetch the information for later checking
-    
+
     # token data
-    
+
     tokendata = json.loads(result.text)
     charid = tokendata['CharacterID']
     tokentype = tokendata['TokenType']
     expires_at = tokendata['ExpiresOn']
     charname = tokendata['CharacterName']
-    
+
     # full ESI affiliations
-    
+
     affilliations = _esihelpers.esi_affiliations(charid)
 
     if affilliations.get('error'):
@@ -230,6 +241,8 @@ def auth_evesso_callback():
 
     code, result = check_scope(__name__, charid, auth_scopes, atoken=access_token)
 
+    print(access_token, refresh_token)
+
     if code == 'error':
         # something in the check broke
         msg = 'error in testing scopes for {0}: {1}'.format(charid, result)
@@ -246,7 +259,7 @@ def auth_evesso_callback():
         _logger.securitylog(__name__, 'core login scope modification', charid=charid, ipaddress=ipaddress)
 
         message = "Don't tinker with the scope list, please.<br>"
-        message += "If you have an issue with it, talk to vanguard leadership."
+        message += "If you have an issue with it, talk to triumvirate leadership."
         response = make_response(message)
         return response
     elif code == True:
@@ -276,11 +289,11 @@ def auth_evesso_callback():
         return make_response(message)
 
 
-    # only vanguard & blues are allowed to use auth
-    if allianceid not in vg_blues() and allianceid not in vg_alliances():
+    # only tri & blues are allowed to use auth
+    if allianceid not in vg_blues() and allianceid not in vg_alliances() and allianceid not in vg_renters():
         if not isalt:
-            # not an alt, not a blue. go away.
-            msg = 'please contact a recruiter if you are interested in joining vanguard'
+            # not an alt, not a blue. not a renter. go away.
+            msg = 'please contact a recruiter if you are interested in joining triumvirate'
             logmsg = 'non-blue user {0} ({1}) tried to register'.format(charid, charname)
             _logger.log('[' + __name__ + '] {0}'.format(logmsg),_logger.LogLevel.WARNING)
             _logger.securitylog(__name__, 'non-blue user tried to register', charid=charid, ipaddress=ipaddress)
@@ -289,9 +302,9 @@ def auth_evesso_callback():
             # someone is registering a non-blue alt, nbd
             pass
 
-    # make sure the temp blue endpoint not being used by vanguard proper
+    # make sure the temp blue endpoint not being used by tri proper
     if tempblue:
-        # this is a vanguard blue, but not vanguard proper.
+        # this is a tri blue, but not tri proper.
         # ...or at least ought to be.
         if allianceid in vg_alliances():
             # naughty! but not worth logging
@@ -314,6 +327,8 @@ def auth_evesso_callback():
         _logger.securitylog(__name__, msg, charid=charid, ipaddress=ipaddress)
     elif tempblue == True:
         _logger.securitylog(__name__, msg, charid=charid, ipaddress=ipaddress, detail='blue from {0}'.format(alliancename))
+    elif renter == True:
+        _logger.securitylog(__name__, msg, charid=charid, ipaddress=ipaddress, detail='renter from {0}'.format(alliancename))
     else:
         _logger.securitylog(__name__, msg, charid=charid, ipaddress=ipaddress, detail='alt of {0}'.format(altof))
 
@@ -366,7 +381,7 @@ def auth_evesso_callback():
                 code, result = _ldaphelpers.ldap_altupdate(__name__, altof, charid)
                 return response
             else:
-                # registered vanguard main.
+                # registered character
                 _logger.log('[' + __name__ + '] user {0} ({1}) already registered'.format(charid, charname),_logger.LogLevel.INFO)
                 _logger.securitylog(__name__, 'core login', charid=charid, ipaddress=ipaddress)
                 code, result = _ldaphelpers.ldap_altupdate(__name__, altof, charid)
@@ -379,6 +394,13 @@ def auth_evesso_callback():
         _logger.log('[' + __name__ + '] user {0} ({1}) not registered'.format(charid, charname),_logger.LogLevel.INFO)
         _logger.securitylog(__name__, 'core user registered', charid=charid, ipaddress=ipaddress, detail='blue from {0}'.format(alliancename))
         code, result = registeruser(charid, access_token, refresh_token, tempblue=True)
+        return response
+
+    # handle new renters
+    if renter:
+        _logger.log('[' + __name__ + '] user {0} ({1}) not registered'.format(charid, charname),_logger.LogLevel.INFO)
+        _logger.securitylog(__name__, 'core user registered', charid=charid, ipaddress=ipaddress, detail='renter from {0}'.format(alliancename))
+        code, result = registeruser(charid, access_token, refresh_token, renter=True)
         return response
 
     # handle new alts
