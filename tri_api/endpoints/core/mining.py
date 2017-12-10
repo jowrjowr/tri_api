@@ -3,6 +3,7 @@ from tri_api import app
 from joblib import Parallel, delayed
 from common.check_role import check_role
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import MySQLdb as mysql
 import common.logger as _logger
 import common.ldaphelpers as _ldaphelpers
 import common.request_esi
@@ -12,29 +13,117 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from dateutil.parser import parse
 from tri_core.common.moonprices import moon_typedata
+from tri_core.common.testing import vg_renters
+
+@app.route('/core/command/structures/mining_ledger', methods=['GET'])
+def command_mining_ledger():
+
+    # process mining ledger as a command level view
+
+    ipaddress = request.headers['X-Real-Ip']
+    log_charid = request.args.get('log_charid')
+    msg = 'command mining ledger view'
+
+    _logger.securitylog(__name__, msg, ipaddress=ipaddress, charid=log_charid)
+
+    # the following alliances are taxed on moon miner ownership
+
+    taxed_alliances = vg_renters() + [ 933731581 ]
+
+    # process all the alliances and each corp within them
+
+    command_ledger = {}
+    ledger_characters = []
+
+    for alliance in taxed_alliances:
+
+        request_url = 'alliances/{0}/corporations/'.format(alliance)
+        code, result = common.request_esi.esi(__name__, request_url, 'get', version='v1')
+
+        if not code == 200:
+            # something broke severely
+            _logger.log('[' + __name__ + '] /alliances/{0}/corporations API error {1}: {2}'.format(alliance, code, result['error']), _logger.LogLevel.ERROR)
+            resp = Response(result['error'], status=code, mimetype='application/json')
+            return resp
+
+        msg = '/alliances/{0}/corporations output: {1}'.format(alliance, result)
+        _logger.log('[' + __name__ + '] /mining/observers output: '.format(result), _logger.LogLevel.DEBUG)
+
+        for corporation in result:
+            # fetch a character per-corp that can fetch the mining ledger data
+
+            mining_scope = 'esi-industry.read_corporation_mining.v1'
+
+            dn = 'ou=People,dc=triumvirate,dc=rocks'
+            filterstr='(&(corporation={0})(esiScope={1})(corporationRole=Director))'.format(corporation, mining_scope)
+            attrlist=[ 'uid' ]
+            code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
+
+            if code == False:
+                msg = 'unable to fetch ldap information: {}'.format(error)
+                _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
+                resp = Response(msg, status=500, mimetype='application/json')
+                return resp
+
+            if result is None:
+                # no compatible token, for whatever reason. no ledger.
+                command_ledger[alliance] = {}
+                continue
+
+            # grab the first compatible token. it literally doesn't matter which.
+            # dictionaries are explicitly unordered though!
+
+            user = next(iter(result))
+            charid = result[user]['uid']
+            msg = 'using {0} ({1}) for checking corp {2}'.format(user, charid, corporation)
+
+            # TODO: REMOVE DEBUG
+            _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.INFO)
+
+            ledger_characters += charid
+
+
+    with ThreadPoolExecutor(15) as executor:
+        futures = { executor.submit(mining_ledger, charid): charid for charid in ledger_characters }
+        for future in as_completed(futures):
+            data = future.result()
+            print(data)
 
 @app.route('/core/<charid>/structures/mining_ledger', methods=['GET'])
 def core_mining_ledger(charid):
 
-    # locate all active moon mining structures
 
     allowed_roles = ['Director', 'Accountant']
     code, result = check_role(__name__, charid, allowed_roles)
 
     if code == 'error':
         error = 'unable to check character roles for {0}: ({1}) {2}'.format(charid, code, result)
-        _logger.log('[' + __name__ + ']' + error,_logger.LogLevel.ERROR)
-        js = json.dumps({ 'error': error})
-        resp = Response(js, status=500, mimetype='application/json')
-        return resp
+        _logger.log('[' + __name__ + ']' + error, _logger.LogLevel.ERROR)
+        resp = Response(error, status=500, mimetype='application/json')
     elif code == False:
         error = 'insufficient corporate roles to access this endpoint.'
         _logger.log('[' + __name__ + '] ' + error,_logger.LogLevel.INFO)
-        js = json.dumps({ 'error': error})
-        resp = Response(js, status=403, mimetype='application/json')
-        return resp
+        resp = Response(error, status=500, mimetype='application/json')
     else:
         _logger.log('[' + __name__ + '] sufficient roles to view corp mining structure information',_logger.LogLevel.DEBUG)
+
+
+    # wrapper around the ledger function for flask
+
+    code, result = mining_ledger(charid)
+
+    if code is True:
+        js = json.dumps(result)
+        resp = Response(js, status=200, mimetype='application/json')
+    else:
+        js = json.dumps({ 'error': result })
+        resp = Response(js, status=500, mimetype='application/json')
+
+    return resp
+
+def mining_ledger(charid):
+
+    # process mining ledger for taxes for a corp
 
     # get corpid
 
@@ -45,13 +134,13 @@ def core_mining_ledger(charid):
 
     if code == False:
         msg = 'unable to fetch ldap information: {}'.format(error)
-        _logger.log('[' + function + '] {}'.format(msg),_logger.LogLevel.ERROR)
-        return None
+        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
+        return False, msg
 
     if result == None:
-        msg = 'uid {0} not in ldap'.format(uid)
-        _logger.log('[' + function + '] {}'.format(msg),_logger.LogLevel.DEBUG)
-        return None
+        msg = 'uid {0} not in ldap'.format(charid)
+        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.DEBUG)
+        return False, msg
     (dn, info), = result.items()
 
     corpid = info.get('corporation')
@@ -65,15 +154,13 @@ def core_mining_ledger(charid):
     if not code == 200:
         # something broke severely
         _logger.log('[' + __name__ + '] /mining/observers API error ' + str(code) + ': ' + str(result_parsed['error']), _logger.LogLevel.ERROR)
-        resp = Response(result_parsed['error'], status=code, mimetype='application/json')
-        return resp
+        return False, result_parsed['error']
 
     _logger.log('[' + __name__ + '] /mining/observers output:'.format(result_parsed), _logger.LogLevel.DEBUG)
 
     try:
         errormsg = result_parsed['error']
-        resp = Response(errormsg, status=403, mimetype='application/json')
-        return resp
+        return False, errormsg
     except Exception:
         pass
 
@@ -88,9 +175,8 @@ def core_mining_ledger(charid):
             data = future.result()
             structure_id = data.get('structure_id')
             structures[structure_id] = data
-    js = json.dumps(structures)
-    resp = Response(js, status=200, mimetype='application/json')
-    return resp
+
+    return True, structures
 
 def ledger_parse(moon_data, charid, corpid, object, structure_id):
 
@@ -142,7 +228,7 @@ def ledger_parse(moon_data, charid, corpid, object, structure_id):
 
     typeid = data['type_id']
     esi_url = 'universe/types/{0}'.format(typeid)
-    esi_url = esi_url + '?datasource=tranquility'
+    esi_url = esi_url + ''
 
     code, typedata = common.request_esi.esi(__name__, esi_url, 'get')
     if not code == 200:

@@ -61,7 +61,7 @@ def forward():
 
     # telegram
     # this exists outside kinda with how the auth works and limited uses
-    pool.submit(start_telegram, discord_queue)
+    #pool.submit(start_telegram, discord_queue)
 
     for row in rows:
         covername = row[1]
@@ -74,7 +74,8 @@ def forward():
         if server_type == 'discord':
             pool.submit(start_discord, username, password, covername, handler, discord_queue)
         elif server_type == 'slack':
-            pool.submit(start_slack, username, password, covername, handler, server, discord_queue)
+            pass
+            #pool.submit(start_slack, username, password, covername, handler, server, discord_queue)
         elif server_type == 'jabber':
             jid = username + '@' + server
             pool.submit(start_jabber, jid, password, covername, handler, discord_queue)

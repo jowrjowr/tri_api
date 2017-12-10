@@ -7,7 +7,7 @@ import math
 import resource
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from tri_core.common.testing import vg_alliances, vg_blues
+from tri_core.common.testing import vg_alliances, vg_blues, vg_renters
 
 def audit_core():
     # keep the ldap account status entries in sync
@@ -86,7 +86,7 @@ def user_audit(dn, details):
     _logger.log('[' + __name__ + '] {0}'.format(msg),_logger.LogLevel.DEBUG)
     # groups that a non-blue user is allowed to have
 
-    safegroups = set([ 'public', 'ban_pending', 'banned' ])
+    safegroups = set([ 'public', 'ban_pending', 'banned', ])
 
     if details['uid'] == None:
         return False
@@ -159,7 +159,7 @@ def user_audit(dn, details):
     if 'banned' not in raw_groups and status is not 'banned':
 
         # this character is blue but not marked as such
-        if esi_allianceid in vg_alliances() or esi_allianceid in vg_blues():
+        if esi_allianceid in vg_alliances() or esi_allianceid in vg_blues() or esi_allianceid in vg_renters():
             if not status == 'blue':
                 _ldaphelpers.update_singlevalue(dn, 'accountStatus', 'blue')
 
@@ -184,6 +184,11 @@ def user_audit(dn, details):
             if 'vanguardBlue' in eff_groups and esi_allianceid in vg_alliances():
                 # a special case for people moving from vanguard blues to vanguard
                 _ldaphelpers.purge_authgroups(dn, ['vanguardBlue'])
+
+            if 'renters' not in eff_groups:
+                if esi_allianceid in vg_renters():
+                    # renters get renters
+                    _ldaphelpers.add_value(dn, 'authGroup', 'renters')
 
             if 'triumvirate' not in eff_groups:
                 if esi_allianceid == triumvirate:

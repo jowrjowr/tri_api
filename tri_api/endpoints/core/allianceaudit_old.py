@@ -89,7 +89,7 @@ def audit_character(corp_dict, entry):
 
     corp_id = entry['corporation']
     if corp_id not in corp_dict['corps']:
-        request_url = 'corporations/{}/?datasource=tranquility'.format(corp_id)
+        request_url = 'corporations/{}/'.format(corp_id)
         esi_code, esi_result = common.request_esi.esi(__name__, request_url, method='get')
 
         if not esi_code == 200:
@@ -119,11 +119,11 @@ def audit_character(corp_dict, entry):
 
     # supercapital audit
     if entry['esiAccessToken'] is not None:
-        request_location_url = 'characters/{}/location/?datasource=tranquility'.format(entry['uid'])
+        request_location_url = 'characters/{}/location/'.format(entry['uid'])
         esi_location_code, esi_location_result = common.request_esi.esi(__name__, request_location_url, method='get',
                                                                         charid=entry['uid'])
 
-        request_ship_url = 'characters/{}/ship/?datasource=tranquility'.format(entry['uid'])
+        request_ship_url = 'characters/{}/ship/'.format(entry['uid'])
         esi_ship_code, esi_ship_result = common.request_esi.esi(__name__, request_ship_url, method='get',
                                                                 charid=entry['uid'])
         if esi_location_code != 200:
@@ -142,7 +142,7 @@ def audit_character(corp_dict, entry):
             err_result = {'code': esi_ship_code, 'error': error}
             return esi_ship_code, err_result
 
-        request_sys_url = 'universe/systems/{}/?datasource=tranquility'.format(esi_location_result['solar_system_id'])
+        request_sys_url = 'universe/systems/{}/'.format(esi_location_result['solar_system_id'])
         esi_system_code, esi_system_result = common.request_esi.esi(__name__, request_sys_url, method='get')
 
         if esi_system_code != 200:
@@ -207,7 +207,7 @@ def audit_character(corp_dict, entry):
             scope_code, _ = _check_scope.check_scope(__name__, entry['uid'], ['esi-assets.read_assets.v1'])
 
             if scope_code:
-                request_assets_url = 'characters/{}/assets/?datasource=tranquility'.format(entry['uid'])
+                request_assets_url = 'characters/{}/assets/'.format(entry['uid'])
                 esi_assets_code, esi_assets_result = common.request_esi.esi(__name__, request_assets_url, method='get',
                                                                             charid=entry['uid'])
                 if esi_assets_code != 200:

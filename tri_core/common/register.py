@@ -1,4 +1,4 @@
-def registeruser(charid, atoken, rtoken, isalt=False, altof=None, tempblue=False):
+def registeruser(charid, atoken, rtoken, isalt=False, altof=None, tempblue=False, renter=False):
     # put the barest skeleton of information into ldap/mysql
 
     import common.logger as _logger
@@ -20,10 +20,10 @@ def registeruser(charid, atoken, rtoken, isalt=False, altof=None, tempblue=False
 
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
 
-    if isalt == False:
-        _logger.log('[' + __name__ + '] registering user {}'.format(charid),_logger.LogLevel.INFO)
-    else:
+    if isalt:
         _logger.log('[' + __name__ + '] registering user {0} (alt of {1})'.format(charid, altof),_logger.LogLevel.INFO)
+    else:
+        _logger.log('[' + __name__ + '] registering user {}'.format(charid),_logger.LogLevel.INFO)
 
 
     ldap_conn = ldap.initialize(_ldap.ldap_host, bytes_mode=False)
@@ -80,9 +80,12 @@ def registeruser(charid, atoken, rtoken, isalt=False, altof=None, tempblue=False
     if tempblue:
         # default level of access for vanguard blues
         authgroups = [ 'public', 'vanguardBlue' ]
+    if renter:
+        # renter groups
+        authgroups = [ 'public', 'renters' ]
     else:
-        # default level of access for vanguard
-        authgroups = [ 'public', 'vanguard' ]
+        # default level of access
+        authgroups = [ 'public' ]
 
     if 'allianceid' in user.keys():
         if user['allianceid'] == 933731581:
@@ -90,6 +93,7 @@ def registeruser(charid, atoken, rtoken, isalt=False, altof=None, tempblue=False
             authgroups.append('triumvirate')
 
     user['authgroup'] = authgroups
+
     # encode to make ldap happy
     for item in user.keys():
         # everything but authgroup is a single valued entry that needs to be encoded

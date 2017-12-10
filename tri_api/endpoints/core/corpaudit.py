@@ -58,7 +58,7 @@ def core_corpaudit(charid):
             _logger.log('[' + __name__ + '] sufficient roles to view corp auditing information', _logger.LogLevel.DEBUG)
 
             if data['corporation'] not in corporation_id_list:
-                request_url = 'corporations/{0}/members/?datasource=tranquility'.format(data['corporation'])
+                request_url = 'corporations/{0}/members/'.format(data['corporation'])
                 code, result = common.request_esi.esi(__name__, request_url, method='get', charid=data['uid'], version='v2')
 
                 if not code == 200:
@@ -94,7 +94,7 @@ def core_corpaudit(charid):
             _logger.log('[' + __name__ + '] sufficient roles to view corp auditing information',_logger.LogLevel.DEBUG)
 
         # get character affiliations to determine corp (could use ldap)
-        request_url = 'characters/affiliation/?datasource=tranquility'
+        request_url = 'characters/affiliation/'
         data = '[{}]'.format(charid)
         code, result = common.request_esi.esi(__name__, request_url, method='post', data=data)
 
@@ -109,7 +109,7 @@ def core_corpaudit(charid):
         corpid = result[0]['corporation_id']
         # get list of corp members
 
-        request_url = 'corporations/{0}/members/?datasource=tranquility'.format(corpid)
+        request_url = 'corporations/{0}/members/'.format(corpid)
         code, result = common.request_esi.esi(__name__, request_url, method='get', charid=charid, version='v2')
 
         if not code == 200:
@@ -234,7 +234,7 @@ def fetch_chardetails(charid):
         # str(None) == False
         if str(detail).isdigit():
             chardetails['isalt'] = True
-            request_url = 'characters/{0}/?datasource=tranquility'.format(detail)
+            request_url = 'characters/{0}/'.format(detail)
             code, result = common.request_esi.esi(__name__, request_url, 'get')
 
             if not code == 200:
@@ -251,7 +251,7 @@ def fetch_chardetails(charid):
         ## start fetching character-specific information
 
         #
-        request_url = 'characters/{0}/location/?datasource=tranquility'.format(charid)
+        request_url = 'characters/{0}/location/'.format(charid)
         code, result = common.request_esi.esi(__name__, request_url, method='get', charid=charid, version='v1')
 
         if not code == 200:
@@ -265,7 +265,7 @@ def fetch_chardetails(charid):
             location = result['solar_system_id']
             chardetails['location_id'] = location
 
-        request_url = 'characters/{0}/location/?datasource=tranquility'.format(charid)
+        request_url = 'characters/{0}/location/'.format(charid)
         code, result = common.request_esi.esi(__name__, request_url, method='get', charid=charid, version='v1')
 
         if not code == 200:
@@ -293,7 +293,7 @@ def fetch_chardetails(charid):
 
         # get online status
 
-        request_url = 'characters/{0}/online/?datasource=tranquility'.format(charid)
+        request_url = 'characters/{0}/online/'.format(charid)
         code, result = common.request_esi.esi(__name__, request_url, method='get', charid=charid, version='v2')
 
         if not code == 200:
@@ -306,7 +306,7 @@ def fetch_chardetails(charid):
             chardetails['online'] = result['online']
             chardetails['last_online'] = result['last_login']
         try:
-            request_url_corp = 'corporations/{0}/?datasource=tranquility'.format(corp_id)
+            request_url_corp = 'corporations/{0}/'.format(corp_id)
             code_corp, result_corp = common.request_esi.esi(__name__, request_url_corp, 'get')
 
             if not code_corp == 200:

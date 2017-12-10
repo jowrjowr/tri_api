@@ -242,7 +242,7 @@ def audit_forums():
         if users[charname]['pp_main_photo'] is None:
         # set forum portrait to their in-game avatar if the user doesn't have one
 
-            esi_url = 'characters/{0}/portrait/?datasource=tranquility'.format(charid)
+            esi_url = 'characters/{0}/portrait/'.format(charid)
             code, result = common.request_esi.esi(__name__, esi_url, 'get')
             _logger.log('[' + __name__ + '] /characters portrait output: {}'.format(result), _logger.LogLevel.DEBUG)
 

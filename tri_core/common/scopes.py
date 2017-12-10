@@ -1,4 +1,4 @@
-# the scope list imported by SSO
+# the overall triumvirate scope list
 
 scope = ['publicData']
 scope += ['esi-clones.read_clones.v1', 'esi-characters.read_contacts.v1']
@@ -8,11 +8,23 @@ scope += ['esi-universe.read_structures.v1', 'esi-corporations.read_structures.v
 scope += ['esi-characters.read_corporation_roles.v1', 'esi-assets.read_assets.v1', 'esi-location.read_online.v1' ]
 scope += ['esi-characters.read_fatigue.v1', 'esi-mail.read_mail.v1', 'esi-characters.read_notifications.v1', 'esi-corporations.track_members.v1' ]
 scope += ['esi-industry.read_corporation_mining.v1', 'esi-corporations.read_facilities.v1' ]
-# dedupe scope list because holy shit really?
-
-scope = set(scope)
-scope = list(scope)
 
 # blues get a truncated scope for basic data
 
 blue_scope = ['publicData']
+
+# renter scopes are distinct. mostly for structures and shit
+
+renter_scope = ['publicData', 'esi-corporations.read_structures.v1', 'esi-universe.read_structures.v1',  'esi-search.search_structures.v1' ]
+renter_scope += [ 'esi-characters.read_corporation_roles.v1', 'esi-industry.read_corporation_mining.v1', 'esi-corporations.read_facilities.v1' ]
+
+# dedupe scope lists because holy shit really?
+
+scope = set(scope)
+scope = list(scope)
+
+blue_scope = set(scope)
+blue_scope = list(scope)
+
+renter_scope = set(renter_scope)
+renter_scope = list(renter_scope)

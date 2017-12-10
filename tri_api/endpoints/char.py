@@ -168,7 +168,7 @@ def fetch_chardetails(info):
 
     # fetch skill queue
     if check_scope(__name__, alt_charid, ['esi-skills.read_skillqueue.v1'])[0]:
-        request_url = 'characters/' + str(alt_charid) + '/skillqueue/?datasource=tranquility'
+        request_url = 'characters/' + str(alt_charid) + '/skillqueue/'
         code, result = esi(__name__, request_url, 'get', charid=alt_charid, version='v2')
         _logger.log('[' + __name__ + '] /characters output: {}'.format(result), _logger.LogLevel.DEBUG)
 
@@ -198,7 +198,7 @@ def fetch_chardetails(info):
 
         if not skill_training_id == None:
             # map the skill id to a name
-            request_url = 'universe/names/?datasource=tranquility'
+            request_url = 'universe/names/'
             data = '[{}]'.format(skill_training_id)
             code, result = esi(__name__, request_url, data=data, method='post', version='v2')
             _logger.log('[' + __name__ + '] /universe output: {}'.format(result), _logger.LogLevel.DEBUG)
@@ -213,7 +213,7 @@ def fetch_chardetails(info):
 
     # fetch alt location
     if check_scope(__name__, alt_charid, ['esi-location.read_location.v1'])[0]:
-        request_url = 'characters/{0}/location/?datasource=tranquility'.format(alt_charid)
+        request_url = 'characters/{0}/location/'.format(alt_charid)
         code, result = esi(__name__, request_url, method='get', charid=alt_charid, version='v1')
         _logger.log('[' + __name__ + '] /characters output: {}'.format(result), _logger.LogLevel.DEBUG)
 
@@ -229,7 +229,7 @@ def fetch_chardetails(info):
         if location == None:
             new_entry['location'] = 'Unknown'
         else:
-            request_url = 'universe/systems/{0}/?datasource=tranquility'.format(location)
+            request_url = 'universe/systems/{0}/'.format(location)
             code, result = esi(__name__, request_url, 'get')
             if not code == 200:
                 _logger.log('[' + __name__ + '] /universe/systems API error ' + str(code) + ': ' + str(data['error']), _logger.LogLevel.INFO)

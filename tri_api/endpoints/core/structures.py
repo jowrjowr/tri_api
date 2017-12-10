@@ -55,7 +55,7 @@ def core_structures(charid):
     corpid = info.get('corporation')
 
     esi_url = 'corporations/' + str(corpid)
-    esi_url = esi_url + '/structures?datasource=tranquility'
+    esi_url = esi_url + '/structures'
 
     # get all structures that this user has access to
 
@@ -130,7 +130,7 @@ def structure_parse(charid, object, structure_id):
 
     structure['vuln_dates'] = vuln_dates
     esi_url = 'universe/structures/' + str(structure_id)
-    esi_url = esi_url + '?datasource=tranquility'
+    esi_url = esi_url + ''
 
     code, data = common.request_esi.esi(__name__, esi_url, method='get', charid=charid)
     if not code == 200:
@@ -154,7 +154,7 @@ def structure_parse(charid, object, structure_id):
 
     typeid = data['type_id']
     esi_url = 'universe/types/{0}'.format(typeid)
-    esi_url = esi_url + '?datasource=tranquility'
+    esi_url = esi_url + ''
 
     code, typedata = common.request_esi.esi(__name__, esi_url, 'get')
     if not code == 200:
@@ -173,7 +173,7 @@ def structure_parse(charid, object, structure_id):
 
     system_id = data['solar_system_id']
     esi_url = 'universe/systems/{0}/'.format(system_id)
-    esi_url = esi_url + '?datasource=tranquility'
+    esi_url = esi_url + ''
 
     code, data = common.request_esi.esi(__name__, esi_url, 'get')
     if not code == 200:
@@ -194,7 +194,7 @@ def structure_parse(charid, object, structure_id):
     # step 2: get the constellation info
 
     esi_url = 'universe/constellations/{0}'.format(constellation_id)
-    esi_url = esi_url + '?datasource=tranquility'
+    esi_url = esi_url + ''
 
     code, data = common.request_esi.esi(__name__, esi_url, 'get')
     if not code == 200:
@@ -213,7 +213,7 @@ def structure_parse(charid, object, structure_id):
 
     # step 3: get region name
     esi_url = 'universe/regions/{0}/'.format(region_id)
-    esi_url = esi_url + '?datasource=tranquility'
+    esi_url = esi_url + ''
 
     code, data = common.request_esi.esi(__name__, esi_url, 'get')
     if not code == 200:

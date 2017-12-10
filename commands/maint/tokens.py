@@ -268,7 +268,7 @@ def eve_tokenthings(dn, evetokens):
 
     if 'esi-characters.read_corporation_roles.v1' in ldap_scopes:
 
-        request_url = 'characters/{0}/roles/?datasource=tranquility'.format(charid)
+        request_url = 'characters/{0}/roles/'.format(charid)
         code, result = common.request_esi.esi(__name__, request_url, method='get', charid=charid, version='v1')
 
         if code == 403:
@@ -300,7 +300,7 @@ def eve_tokenthings(dn, evetokens):
     # the verify url is specifically not versioned
     # the token parameter is to bypass caching
 
-    verify_url = 'verify/?datasource=tranquility&token={0}'.format(atoken)
+    verify_url = 'verify/?token={0}'.format(atoken)
     code, result = common.request_esi.esi(__name__, verify_url, method='get', base='esi_verify')
     if not code == 200:
         _logger.log('[' + __name__ + '] unable to get token information for {0}: {1}'.format(charid, result['error']),_logger.LogLevel.ERROR)

@@ -103,7 +103,7 @@ def alliance_data(charid, alliance_id):
     corps = dict()
 
     # get alliance corporation
-    request_url = 'alliances/{}/corporations/?datasource=tranquility'.format(alliance_id)
+    request_url = 'alliances/{}/corporations/'.format(alliance_id)
     esi_corp_code, esi_corp_result = common.request_esi.esi(__name__, request_url, method='get')
 
     if not esi_corp_code == 200:
@@ -131,7 +131,7 @@ def audit_corp(charid, corp_id):
     corp_result['id'] = corp_id
 
 
-    request_url = 'corporations/{}/?datasource=tranquility'.format(corp_id)
+    request_url = 'corporations/{}/'.format(corp_id)
     esi_corporation_code, esi_corporation_result = common.request_esi.esi(__name__, request_url, method='get')
 
     if not esi_corporation_code == 200:

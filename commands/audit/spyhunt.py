@@ -222,7 +222,7 @@ def audit_security(targets=None):
         chunk = data[:chunksize]
         del data[:chunksize]
         _logger.log('[' + __name__ + '] passing {0} items to affiliations endpoint'.format(len(chunk)), _logger.LogLevel.INFO)
-        request_url = 'characters/affiliation/?datasource=tranquility'
+        request_url = 'characters/affiliation/'
         chunk = json.dumps(chunk)
         code, result = common.request_esi.esi(__name__, request_url, method='post', data=chunk)
         for item in result:

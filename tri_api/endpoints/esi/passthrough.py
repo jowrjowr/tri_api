@@ -41,7 +41,10 @@ def core_esi_passthrough(version, url):
 
     # we're going to just pass the request through with the access token attached
 
-    esi_url = url + '?' + parameterstring
+    if len(parameters) > 0:
+        esi_url = url + '?' + parameterstring
+    else:
+        esi_url = url
 
     if request.method == 'GET':
         code, result = common.request_esi.esi(__name__, esi_url, method='get', version=version, charid=charid)

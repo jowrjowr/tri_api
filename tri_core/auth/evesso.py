@@ -178,6 +178,8 @@ def auth_evesso_callback():
         _logger.log('[' + __name__ + '] {0}'.format(msg),_logger.LogLevel.ERROR)
         message = 'SORRY, internal error. Try again.'
         response = make_response(message)
+        print(result)
+
         return response
 
     ## fetch the information for later checking

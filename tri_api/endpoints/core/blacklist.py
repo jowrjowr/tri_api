@@ -78,7 +78,7 @@ def core_blacklist():
 
             if main_name is False or None:
 
-                request_url = 'characters/{0}/?datasource=tranquility'.format(main_charid)
+                request_url = 'characters/{0}/'.format(main_charid)
                 code, result = common.request_esi.esi(__name__, request_url, 'get')
 
                 if not code == 200:
@@ -101,7 +101,7 @@ def core_blacklist():
 
         if approver is False or None:
             # no loger in ldap?
-            request_url = 'characters/{0}/?datasource=tranquility'.format(info['banApprovedBy'])
+            request_url = 'characters/{0}/'.format(info['banApprovedBy'])
             code, result = common.request_esi.esi(__name__, request_url, 'get')
 
             if not code == 200:
@@ -116,7 +116,7 @@ def core_blacklist():
             banlist[charname]['banApprovedBy'] = approver
 
         if reporter is False or None:
-            request_url = 'characters/{0}/?datasource=tranquility'.format(info['banReportedBy'])
+            request_url = 'characters/{0}/'.format(info['banReportedBy'])
             code, result = common.request_esi.esi(__name__, request_url, 'get')
 
             if not code == 200:
@@ -201,7 +201,7 @@ def core_blacklist_pending():
 
             if main_name is False or None:
 
-                request_url = 'characters/{0}/?datasource=tranquility'.format(main_charid)
+                request_url = 'characters/{0}/'.format(main_charid)
                 code, result = common.request_esi.esi(__name__, request_url, 'get')
 
                 if not code == 200:
@@ -222,7 +222,7 @@ def core_blacklist_pending():
         reporter = _ldaphelpers.ldap_uid2name(__name__, info['banReportedBy'])
 
         if reporter is False or None:
-            request_url = 'characters/{0}/?datasource=tranquility'.format(info['banReportedBy'])
+            request_url = 'characters/{0}/'.format(info['banReportedBy'])
             code, result = common.request_esi.esi(__name__, request_url, 'get')
 
             if not code == 200:
