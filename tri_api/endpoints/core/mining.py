@@ -20,11 +20,15 @@ def command_mining_ledger():
 
     # process mining ledger as a command level view
 
-    ipaddress = request.headers['X-Real-Ip']
+    log_address = request.args.get('log_ip')
     log_charid = request.args.get('log_charid')
     msg = 'command mining ledger view'
 
-    _logger.securitylog(__name__, msg, ipaddress=ipaddress, charid=log_charid)
+    _logger.securitylog(__name__, msg, ipaddress=log_address, charid=log_charid)
+
+    # fetch the common moon pricing data
+
+    _, moon_data = moon_typedata()
 
     # the following alliances are taxed on moon miner ownership
 
@@ -32,8 +36,8 @@ def command_mining_ledger():
 
     # process all the alliances and each corp within them
 
-    command_ledger = {}
-    ledger_characters = []
+    command_ledger = dict()
+    ledger_characters = list()
 
     for alliance in taxed_alliances:
 
@@ -52,6 +56,26 @@ def command_mining_ledger():
         for corporation in result:
             # fetch a character per-corp that can fetch the mining ledger data
 
+            corporation = int(corporation)
+
+            # get the corp name
+
+            request_url = 'corporations/{0}/'.format(corporation)
+            code, result = common.request_esi.esi(__name__, request_url, method='get', version='v3')
+            if not code == 200:
+                corpname = 'Unknown'
+            else:
+                corpname = result.get('corporation_name')
+
+            command_ledger[corporation] = {
+                'corpid': corporation,
+                'corpname': corpname,
+                'moons': 0,
+                'this_month': 0,
+                'last_month': 0,
+                'token': False,
+            }
+
             mining_scope = 'esi-industry.read_corporation_mining.v1'
 
             dn = 'ou=People,dc=triumvirate,dc=rocks'
@@ -67,8 +91,11 @@ def command_mining_ledger():
 
             if result is None:
                 # no compatible token, for whatever reason. no ledger.
-                command_ledger[alliance] = {}
+                command_ledger[corporation]['token'] = False
                 continue
+            else:
+                # has a token
+                command_ledger[corporation]['token'] = True
 
             # grab the first compatible token. it literally doesn't matter which.
             # dictionaries are explicitly unordered though!
@@ -80,14 +107,31 @@ def command_mining_ledger():
             # TODO: REMOVE DEBUG
             _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.INFO)
 
-            ledger_characters += charid
-
+            ledger_characters.append(charid)
 
     with ThreadPoolExecutor(15) as executor:
-        futures = { executor.submit(mining_ledger, charid): charid for charid in ledger_characters }
+        futures = { executor.submit(mining_ledger, moon_data, charid): charid for charid in ledger_characters }
         for future in as_completed(futures):
-            data = future.result()
-            print(data)
+            code, result = future.result()
+
+            for structure_id in result:
+
+                data = result[structure_id]
+                # fetch the actual ledger data
+
+                last_month = data['ledger']['last_month']['taxable']
+                this_month = data['ledger']['this_month']['taxable']
+                corpid = int(data['corpid'])
+                corpname = data['corpname']
+
+                # there ought to already be ledger data. add to it.
+
+                command_ledger[corpid]['moons'] += 1
+                command_ledger[corpid]['this_month'] += this_month
+                command_ledger[corpid]['last_month'] += last_month
+
+    js = json.dumps(command_ledger)
+    return Response(js, status=200, mimetype='application/json')
 
 @app.route('/core/<charid>/structures/mining_ledger', methods=['GET'])
 def core_mining_ledger(charid):
@@ -107,10 +151,12 @@ def core_mining_ledger(charid):
     else:
         _logger.log('[' + __name__ + '] sufficient roles to view corp mining structure information',_logger.LogLevel.DEBUG)
 
+    # moon mining data
+    _, moon_data = moon_typedata()
 
     # wrapper around the ledger function for flask
 
-    code, result = mining_ledger(charid)
+    code, result = mining_ledger(moon_data, charid)
 
     if code is True:
         js = json.dumps(result)
@@ -121,7 +167,7 @@ def core_mining_ledger(charid):
 
     return resp
 
-def mining_ledger(charid):
+def mining_ledger(moon_data, charid):
 
     # process mining ledger for taxes for a corp
 
@@ -129,7 +175,7 @@ def mining_ledger(charid):
 
     dn = 'ou=People,dc=triumvirate,dc=rocks'
     filterstr='(uid={})'.format(charid)
-    attrlist=['uid', 'corporation']
+    attrlist=[ 'uid', 'corporation', 'corporationName' ]
     code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
 
     if code == False:
@@ -144,7 +190,7 @@ def mining_ledger(charid):
     (dn, info), = result.items()
 
     corpid = info.get('corporation')
-
+    corpname = info.get('corporationName')
 
     # fetch all moon mining structure ids
 
@@ -167,12 +213,12 @@ def mining_ledger(charid):
     # get name of structures and build the structure dictionary
 
     structures = dict()
-    moon_ores_byname, moon_ores_bytype = moon_typedata()
 
     with ThreadPoolExecutor(10) as executor:
-        futures = { executor.submit(ledger_parse, moon_ores_bytype, charid, corpid, object, object['observer_id']): object for object in result_parsed }
+        futures = { executor.submit(ledger_parse, moon_data, charid, corpid, object, object['observer_id']): object for object in result_parsed }
         for future in as_completed(futures):
             data = future.result()
+            data['corpname'] = corpname
             structure_id = data.get('structure_id')
             structures[structure_id] = data
 
@@ -215,7 +261,6 @@ def ledger_parse(moon_data, charid, corpid, object, structure_id):
         structure['system'] = 'Unknown'
         structure['region'] = 'Unknown'
         error = data['error']
-        print(data)
         error_code = code
         return structure
 
@@ -223,6 +268,7 @@ def ledger_parse(moon_data, charid, corpid, object, structure_id):
     structure['solar_system_id'] = data.get('solar_system_id')
     structure['type_id'] = data.get('type_id')
     structure['position'] = data.get('position')
+    structure['corpid'] = corpid
 
     # get structure type name
 
