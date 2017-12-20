@@ -361,11 +361,15 @@ def ledger_parse(moon_data, charid, corpid, object, structure_id):
             this_month_taxable_value += taxed_value
             this_month_total_value += total_value
 
-    this_month_total_value = round(this_month_total_value, 2)
-    this_month_taxable_value = round(this_month_taxable_value, 2)
+    # build ledger, but scale by billion isk as well
 
-    last_month_total_value = round(last_month_total_value, 2)
-    last_month_taxable_value = round(last_month_taxable_value, 2)
+    billion = 1000000000
+
+    this_month_total_value = round(this_month_total_value / billion, 2)
+    this_month_taxable_value = round(this_month_taxable_value / billion, 2)
+
+    last_month_total_value = round(last_month_total_value / billion, 2)
+    last_month_taxable_value = round(last_month_taxable_value / billion, 2)
 
 
     ledger = {
