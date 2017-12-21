@@ -161,7 +161,7 @@ def teamspeak_groups(charid):
         # get the corp info
 
         request_url = 'corporations/{0}/'.format(corpid)
-        code, result = common.request_esi.esi(__name__, request_url, 'get')
+        code, result = common.request_esi.esi(__name__, request_url, 'get', version='v4')
 
         if code != 200:
             # something broke severely
@@ -171,7 +171,7 @@ def teamspeak_groups(charid):
             result = {'code': code, 'error': error}
             return False, result
 
-        corp_name = result['corporation_name']
+        corp_name = result['name']
         corp_ticker = result['ticker']
 
         # the group name is referred to by ticker
