@@ -131,7 +131,7 @@ def discord_tokenthings(dn, discordtokens):
         _logger.log('[' + __name__ + '] unable to refresh discord token for {0}: {1}'.format(dn, result), _logger.LogLevel.INFO)
 
         # only these exception types are valid reasons to purge a token
-        purgetype = [ 'InvalidGrantError', 'UnauthorizedClientError', 'InvalidClientError' ]
+        purgetype = [ 'InvalidGrantError', 'UnauthorizedClientError', 'InvalidClientError', 'InvalidTokenError' ]
 
         if result in purgetype:
 
@@ -219,8 +219,10 @@ def eve_tokenthings(dn, evetokens):
         msg = 'unable to refresh token for charid {0}: {1}'.format(charid, result)
         _logger.log('[' + __name__ + '] {0}'.format(msg), _logger.LogLevel.INFO)
 
+        print(code, result, dn)
+
         # only these exception types are valid reasons to purge a token
-        purgetype = [ 'InvalidGrantError', 'UnauthorizedClientError', 'InvalidClientError' ]
+        purgetype = [ 'InvalidGrantError', 'UnauthorizedClientError', 'InvalidClientError', 'InvalidTokenError' ]
 
         if result in purgetype:
 
@@ -269,7 +271,7 @@ def eve_tokenthings(dn, evetokens):
     if 'esi-characters.read_corporation_roles.v1' in ldap_scopes:
 
         request_url = 'characters/{0}/roles/'.format(charid)
-        code, result = common.request_esi.esi(__name__, request_url, method='get', charid=charid, version='v1')
+        code, result = common.request_esi.esi(__name__, request_url, method='get', charid=charid, version='v2')
 
         if code == 403:
             error = 'no perms to read roles for {0}: ({1}) {2}'.format(charid, code, result['error'])
