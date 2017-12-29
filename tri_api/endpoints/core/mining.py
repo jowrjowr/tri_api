@@ -61,11 +61,11 @@ def command_mining_ledger():
             # get the corp name
 
             request_url = 'corporations/{0}/'.format(corporation)
-            code, result = common.request_esi.esi(__name__, request_url, method='get', version='v3')
+            code, result = common.request_esi.esi(__name__, request_url, method='get', version='v4')
             if not code == 200:
                 corpname = 'Unknown'
             else:
-                corpname = result.get('corporation_name')
+                corpname = result.get('name')
 
             command_ledger[corporation] = {
                 'corpid': corporation,
@@ -79,9 +79,11 @@ def command_mining_ledger():
             mining_scope = 'esi-industry.read_corporation_mining.v1'
 
             dn = 'ou=People,dc=triumvirate,dc=rocks'
-            filterstr='(&(corporation={0})(esiScope={1})(corporationRole=Director))'.format(corporation, mining_scope)
+            filterstr='(&(corporation={0})(esiScope={1})(corporationRole=Director)(esiAccessToken=*))'.format(corporation, mining_scope)
             attrlist=[ 'uid' ]
             code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
+
+            print(code, result)
 
             if code == False:
                 msg = 'unable to fetch ldap information: {}'.format(error)
@@ -114,9 +116,16 @@ def command_mining_ledger():
         for future in as_completed(futures):
             code, result = future.result()
 
+            if code is not True:
+                continue
+
             for structure_id in result:
 
-                data = result[structure_id]
+                try:
+                    data = result[structure_id]
+                except Exception as e:
+                    print(structure_id)
+                    continue
                 # fetch the actual ledger data
 
                 last_month = data['ledger']['last_month']['taxable']

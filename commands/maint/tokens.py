@@ -283,6 +283,8 @@ def eve_tokenthings(dn, evetokens):
 
             # figure out what needs to be added and removed from ldap
 
+            result = result.get('roles')
+
             missing_roles = set(result) - set(roles)
             extra_roles = set(roles) - set(result)
 

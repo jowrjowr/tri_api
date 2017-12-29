@@ -93,7 +93,7 @@ def alliance_data(charid, alliance_id):
 
     alliance_info = _esihelpers.alliance_info(alliance_id)
     if alliance_info is not None:
-        alliance_name = alliance_info['alliance_name']
+        alliance_name = alliance_info['name']
     else:
         alliance_name = 'Unknown'
 
