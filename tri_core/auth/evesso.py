@@ -178,7 +178,6 @@ def auth_evesso_callback():
         _logger.log('[' + __name__ + '] {0}'.format(msg),_logger.LogLevel.ERROR)
         message = 'SORRY, internal error. Try again.'
         response = make_response(message)
-        print(result)
 
         return response
 
@@ -242,8 +241,6 @@ def auth_evesso_callback():
     # just in case someone got cute and peeled some off.
 
     code, result = check_scope(__name__, charid, auth_scopes, atoken=access_token)
-
-    print(access_token, refresh_token)
 
     if code == 'error':
         # something in the check broke
