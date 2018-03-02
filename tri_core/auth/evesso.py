@@ -59,6 +59,7 @@ def evesso(isalt=False, altof=None, tempblue=False, renter=False):
     ipaddress = request.headers['X-Real-Ip']
     if isalt == True:
         _logger.securitylog(__name__, 'SSO login initiated', ipaddress=ipaddress, detail='alt of {}'.format(altof))
+        auth_scopes = scope
     elif tempblue == True:
         _logger.securitylog(__name__, 'SSO login initiated', ipaddress=ipaddress, detail='temp blue')
         # the scope list for temp blues is very short
