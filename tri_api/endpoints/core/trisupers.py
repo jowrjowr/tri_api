@@ -271,7 +271,7 @@ def audit_pilot(entry):
     corp_info = _esihelpers.corporation_info(corpid)
 
     if corp_info is not None:
-        basic_pilot['corporation'] = corp_info['corporation_name']
+        basic_pilot['corporation'] = corp_info['name']
     else:
         basic_pilot['corporation'] = "Unknown"
 
@@ -430,7 +430,7 @@ def audit_pilot_capitals(entry):
     corp_info = _esihelpers.corporation_info(corpid)
 
     if corp_info is not None:
-        basic_pilot['corporation'] = corp_info['corporation_name']
+        basic_pilot['corporation'] = corp_info['name']
     else:
         basic_pilot['corporation'] = "Unknown"
 

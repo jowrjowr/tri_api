@@ -31,6 +31,8 @@ def moon_typedata():
     standard = list(range(46675, 46690))
 
     ore_list = standard + ubiquitous + common_ore + uncommon + rare + exceptional
+    ore_list.append(46287)
+    ore_list.append(46303)
 
     try:
         sql_conn = mysql.connect(
@@ -249,6 +251,7 @@ def moon_information(moon, composition, ore_data):
     standard = list(range(46675, 46690))
 
     taxable_ore_list = ubiquitous + common_ore + uncommon + rare + exceptional
+    taxable_ore_list.append(46287)
 
 
     # experimentally determined by folks to be 20,000 m^3/hr +/- a few m^3

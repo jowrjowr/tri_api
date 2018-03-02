@@ -59,7 +59,7 @@ def core_corpaudit(charid):
 
             if data['corporation'] not in corporation_id_list:
                 request_url = 'corporations/{0}/members/'.format(data['corporation'])
-                code, result = common.request_esi.esi(__name__, request_url, method='get', charid=data['uid'], version='v2')
+                code, result = common.request_esi.esi(__name__, request_url, method='get', charid=data['uid'], version='v3')
 
                 if not code == 200:
                     # something broke severely
@@ -68,8 +68,7 @@ def core_corpaudit(charid):
                     error = result['error']
                     result = {'code': code, 'error': error}
                     return code, result
-
-                character_id_list += [char['character_id'] for char in result]
+                character_id_list = result
                 corporation_id_list.append(data['corporation'])
 
     if 1==0:
@@ -312,9 +311,9 @@ def fetch_chardetails(charid):
             if not code_corp == 200:
                 _logger.log('[' + __name__ + '] /corporations API error {0}: {1}'.format(code_corp, result_corp['error']), _logger.LogLevel.WARNING)
             else:
-                chardetails['corporation'] = result_corp['corporation_name']
+                chardetails['corporation'] = result_corp['name']
         except KeyError as error:
-            _logger.log('[' + __name__ + '] corporation id does not exist: {0})'.format(corp_id), _logger.LogLevel.ERROR)
+            _logger.log('[' + __name__ + '] corporation id does not exist: {0}'.format(corp_id), _logger.LogLevel.ERROR)
             charname = None
     return chardetails
 

@@ -256,6 +256,9 @@ def ledger_parse(moon_data, charid, corpid, object, structure_id):
     standard = list(range(46675, 46690))
 
     taxable = ubiquitous + common_ore + uncommon + rare + exceptional
+    taxable.append(46287)
+    taxable.append(46303)
+
     all_ores = standard + taxable
 
     structure = { 'structure_id': structure_id }

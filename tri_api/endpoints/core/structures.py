@@ -121,12 +121,14 @@ def structure_parse(charid, object, structure_id):
     start = start.replace(hour=0, minute=0, second=0, microsecond=0)
     start = start - timedelta(days=_offsets[today])
     vuln_dates = []
-    for moment in object['current_vul']:
-        hour = moment['hour']
-        day = moment['day']
-        window = start + timedelta(days=day, hours=hour)
-        window = window.strftime("%Y-%m-%d %H:%M:%S")
-        vuln_dates.append(window)
+# currently broken due to how vulnerability hours were rewritten
+#
+#    for moment in object['current_vul']:
+#        hour = moment['hour']
+#        day = moment['day']
+#        window = start + timedelta(days=day, hours=hour)
+#        window = window.strftime("%Y-%m-%d %H:%M:%S")
+#        vuln_dates.append(window)
 
     structure['vuln_dates'] = vuln_dates
     esi_url = 'universe/structures/' + str(structure_id)
