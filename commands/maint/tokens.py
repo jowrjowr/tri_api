@@ -232,6 +232,12 @@ def eve_tokenthings(dn, evetokens):
             mod_attrs.append((ldap.MOD_REPLACE, 'esiRefreshToken', None ))
             mod_attrs.append((ldap.MOD_REPLACE, 'esiAccessToken', None ))
             mod_attrs.append((ldap.MOD_REPLACE, 'esiAccessTokenExpires', None ))
+
+            # corp roles and esi scopes now serve no purpose since the tokens are gone
+
+            mod_attrs.append((ldap.MOD_REPLACE, 'corporationRole', None ))
+            mod_attrs.append((ldap.MOD_REPLACE, 'esiScope', None ))
+
             try:
                 ldap_conn.modify_s(dn, mod_attrs)
             except ldap.LDAPError as error:
