@@ -19,6 +19,7 @@ def sashslack(message, group):
         '500percent':       '#jf_pilots',
         'triprobers':       '#hole_probers',
         'blackops':         '#black_ops',
+        'structures':       '#_sash_structures',
     }
 
     # not every group has a slask channel
@@ -40,5 +41,6 @@ def sashslack(message, group):
         _logger.log('[' + __name__ + '] broadcast to group {0} sent to sash slack channel {1}'.format(group, channel),_logger.LogLevel.INFO)
         return True
     else:
+        print(response)
         _logger.log('[' + __name__ + '] unable to broadcast message to group {0}: {1}'.format(group, response['error']),_logger.LogLevel.ERROR)
         return False

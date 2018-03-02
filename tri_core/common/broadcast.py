@@ -85,7 +85,7 @@ def start_jabber(users, message):
         _logger.log('[' + __name__ + '] User {0} unable to broadcast to users {0}: {1}'.format(user, error),_logger.LogLevel.ERROR)
         return False
 
-def broadcast(message, group):
+def broadcast(message, group=None, corpid=None):
 
     # broadcast a message to all the members of a given ldap group
 
@@ -97,32 +97,61 @@ def broadcast(message, group):
     from collections import defaultdict
     from queue import Queue
 
-    _logger.log('[' + __name__ + '] broadcasting to: {}'.format(group),_logger.LogLevel.INFO)
-    _logger.log('[' + __name__ + '] broadcast message: {}'.format(message),_logger.LogLevel.INFO)
-
-    # send message to sash slack
-    sashslack(message, group)
+    dn = 'ou=People,dc=triumvirate,dc=rocks'
+    attrlist=['cn']
 
     # skip certain users
-
     skip = [ 'sovereign' ]
 
-    dn = 'ou=People,dc=triumvirate,dc=rocks'
-    filterstr='(&(objectclass=pilot)(authGroup={0}))'.format(group)
-    attrlist=['cn']
-    code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
+    if corpid is not None:
+        # broadcast message to entire authgroup
 
-    if code == False:
-        msg = 'unable to fetch ldap information: {}'.format(error)
-        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
-        return None
+        _logger.log('[' + __name__ + '] broadcasting to corporation: {}'.format(corpid),_logger.LogLevel.INFO)
+        _logger.log('[' + __name__ + '] broadcast message: {}'.format(message),_logger.LogLevel.INFO)
 
-    if result == None:
-        msg = 'no users in group {0}'.format(charid)
-        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.WARNING)
-        return None
+        # send message to sash slack
 
-    _logger.log('[' + __name__ + '] total users in authgroup {0}: {1}'.format(group, len(result)),_logger.LogLevel.INFO)
+        if corpid == 98203328:
+            # send to #_ops for now
+            sashslack(message, 'structures')
+
+        filterstr='(&(objectclass=pilot)(corporation={0}))'.format(corpid)
+
+        code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
+
+        if code == False:
+            msg = 'unable to fetch ldap information: {}'.format(error)
+            _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
+            return None
+
+        if result == None:
+            msg = 'no users in group {0}'.format(charid)
+            _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.WARNING)
+            return None
+
+        _logger.log('[' + __name__ + '] total users in corp {0}: {1}'.format(corpid, len(result)),_logger.LogLevel.INFO)
+
+    if group is not None:
+        # broadcast message to an authgroup
+
+        # send message to sash slack
+        sashslack(message, group)
+
+
+        filterstr='(&(objectclass=pilot)(authGroup={0}))'.format(group)
+        code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
+
+        if code == False:
+            msg = 'unable to fetch ldap information: {}'.format(error)
+            _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
+            return None
+
+        if result == None:
+            msg = 'no users in group {0}'.format(charid)
+            _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.WARNING)
+            return None
+
+        _logger.log('[' + __name__ + '] total users in authgroup {0}: {1}'.format(group, len(result)),_logger.LogLevel.INFO)
 
     users = list()
 

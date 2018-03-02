@@ -14,6 +14,23 @@ def core_group_broadcast(group):
     # spew at a group
     if request.method == 'POST':
         _logger.securitylog(__name__, 'broadcast', detail='group {0}'.format(group), ipaddress=ipaddress)
-        broadcast(message, group)
+        broadcast(message, group=group)
         return Response({}, status=200, mimetype='application/json')
+
+@app.route('/core/corp/<int:corpid>/broadcast', methods=[ 'POST' ])
+def core_corp_broadcast(corpid):
+
+    from flask import request, json, Response
+    import common.logger as _logger
+    from tri_core.common.broadcast import broadcast
+    ipaddress = 'automated'
+    message = request.get_data()
+    message = message.decode('utf-8')
+
+    # spew at a specific corpid
+    if request.method == 'POST':
+        _logger.securitylog(__name__, 'broadcast', detail='corpid {0}'.format(corpid), ipaddress=ipaddress)
+        broadcast(message, corpid=corpid)
+        return Response({}, status=200, mimetype='application/json')
+
 
