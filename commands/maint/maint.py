@@ -4,6 +4,7 @@ from commands.maint.jabberlogs import maint_jabber_logs
 from commands.maint.activity import maint_activity
 from commands.maint.discordusers import maint_discordusers
 from commands.maint.timerboard_campaigns import maint_timerboard_campaigns
+from commands.maint.notifications import maint_notifications
 import common.logger as _logger
 import argparse
 
@@ -56,6 +57,8 @@ class parseaction(argparse.Action):
         elif values == 'discordusers':
             _logger.log('[' + __name__ + '] discord users', _logger.LogLevel.INFO)
             maint_discordusers()
+        elif values == 'notifications':
+            maint_notifications()
         elif values == 'timerboard_campaigns':
             _logger.log('[' + __name__ + '] timerboard sov campaigns', _logger.LogLevel.INFO)
             maint_timerboard_campaigns()
@@ -63,7 +66,7 @@ class parseaction(argparse.Action):
 def add_arguments(parser):
     parser.add_argument("--maint",
         dest='maint_target',
-        choices=['tokens', 'ldapgroups', 'jabberlogs', 'activity', 'discordusers', 'timerboard_campaigns', 'all'],
+        choices=['tokens', 'ldapgroups', 'jabberlogs', 'activity', 'discordusers', 'timerboard_campaigns', 'notifications', 'all'],
         default='all',
         action=parseaction,
         help='core maintenance commands',
