@@ -130,7 +130,7 @@ def migrateusers():
         user['bldate'], user['blconfirmdate'], user['requestedby'], user['charid'], user['approvedby'], user['reasontype'], user['reasontext'], user['altof'] = row
 
         try:
-            request_url = 'https://esi.tech.ccp.is/latest/characters/{0}/?datasource=tranquility'.format(user['approvedby'])
+            request_url = 'https://esi.tech.ccp.is/latest/characters/{0}/'.format(user['approvedby'])
             code, result = common.request_esi.esi(__name__, request_url, 'get')
             user['approvedbyname'] = result['name']
         except Exception as error:
@@ -155,7 +155,7 @@ def migrateusers():
         chunk = data[:chunksize]
         del data[:chunksize]
         print('passing {} items'.format(len(chunk)))
-        request_url = 'https://esi.tech.ccp.is/latest/characters/affiliation/?datasource=tranquility'
+        request_url = 'https://esi.tech.ccp.is/latest/characters/affiliation/'
         chunk = json.dumps(chunk)
         result = requests.post(request_url, headers=headers, data=chunk)
         print(result.text)
@@ -173,7 +173,7 @@ def migrateusers():
 
         # character name
 
-        request_url = 'https://esi.tech.ccp.is/latest/characters/{0}/?datasource=tranquility'.format(charid)
+        request_url = 'https://esi.tech.ccp.is/latest/characters/{0}/'.format(charid)
         code, result = common.request_esi.esi(__name__, request_url, 'get')
         user['charname'] = result['name']
 
