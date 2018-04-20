@@ -23,8 +23,8 @@ renter_scope += [ 'esi-characters.read_corporation_roles.v1', 'esi-industry.read
 scope = set(scope)
 scope = list(scope)
 
-blue_scope = set(scope)
-blue_scope = list(scope)
+blue_scope = set(blue_scope)
+blue_scope = list(blue_scope)
 
 renter_scope = set(renter_scope)
 renter_scope = list(renter_scope)
