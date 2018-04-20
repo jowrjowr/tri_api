@@ -65,7 +65,7 @@ def system_structure_search(charid, solar_system_name):
     # get the solar system info
 
     request_url = 'characters/{0}/search/?categories=structure&search={1}'.format(charid, solar_system_name)
-    code, result = common.request_esi.esi(__name__, request_url, version='v2', charid=charid)
+    code, result = common.request_esi.esi(__name__, request_url, version='v3', charid=charid)
 
     if not code == 200:
         # something broke severely
@@ -197,7 +197,7 @@ def huthunt(alliance_id):
         return None
 
     if result == None:
-        msg = 'cn {0} not in ldap'.format(cn)
+        msg = 'no director/station manager for alliance {0} in ldap'.format(alliance_id)
         _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.WARNING)
         return None
 
@@ -228,3 +228,4 @@ def huthunt(alliance_id):
 
 #huthunt(99004425)
 #huthunt(1006830534)
+huthunt(99003500)
