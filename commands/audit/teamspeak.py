@@ -377,6 +377,7 @@ def ts3_validate_users(ts3conn):
             registered_username = None
             orphan = True
 
+
         elif len(result) == 1:
             # the dbid is matched to an single ldap user
             (dn, info), = result.items()
@@ -432,6 +433,7 @@ def ts3_validate_users(ts3conn):
                 except ldap.LDAPError as error:
                     _logger.log('[' + __name__ + '] unable to purge TS entries for {0}: {1}'.format(dn, error),_logger.LogLevel.ERROR)
 
+
         # if the user is online, we want to make sure that the username matches
         # what is in the teamspeak table
 
@@ -440,23 +442,22 @@ def ts3_validate_users(ts3conn):
             cldbid = int(client['client_database_id'])
             client_username = client['client_nickname']
 
-#            if not client_username or not registered_username:
-#                continue
 
-            if orphan:
-                print(client_username, registered_username, clid, cldbid)
-                continue
+            if orphan is True and cldbid == ts_dbid:
                 # a registered TS user needs to have an ESI token on their LDAP
-                reason = 'Please login to CORE. Your token has become invalid.'
+                reason = 'You are no longer registered on CORE'
+
                 try:
                     resp = ts3conn.clientkick(reasonid=5, reasonmsg=reason, clid=clid)
-                    _logger.log('[' + __name__ + '] ts3 user {0} kicked from server: no esi token'.format(user_nick),_logger.LogLevel.WARNING)
+                    _logger.log('[' + __name__ + '] ts3 user {0} kicked from server: no active registration'.format(user_nick),_logger.LogLevel.WARNING)
                     _logger.log('[' + __name__ + '] TS db: "{0}", client: "{1}"'.format(registered_username,client_username),_logger.LogLevel.DEBUG)
                     kicked = True
                     _logger.securitylog(__name__, 'ts3 without ESI', charname=registered_username, date=user_lastconn, ipaddress=user_lastip)
                 except ts3.query.TS3QueryError as err:
                     _logger.log('[' + __name__ + '] ts3 error: "{0}"'.format(err),_logger.LogLevel.ERROR)
 
+            if not client_username or not registered_username:
+                continue
 
             if client_username.lower() == registered_username.lower() and token == None and kicked == False:
                 # a registered TS user needs to have an ESI token on their LDAP
