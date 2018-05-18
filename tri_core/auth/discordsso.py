@@ -64,12 +64,14 @@ def auth_discord_register():
     return redirect(auth_url, code=302)
 
 @app.route('/auth/discord/callback', methods=['GET'])
-def auth_spyregister_callback():
+def auth_discord_callback():
 
     from requests_oauthlib import OAuth2Session
     import common.logger as _logger
     import common.credentials.discord as _discord
     import tri_core.common.storetokens as _storetokens
+    import common.ldaphelpers as _ldaphelpers
+    import common.request_esi
 
     from tri_core.common.session import readsession
 
@@ -139,7 +141,12 @@ def auth_spyregister_callback():
     rtoken = result['refresh_token']
     expires = result['expires_at']
 
+    # store the discord token
+
     _storetokens.storetokens(charid, atoken, rtoken, expires, token_type='discord')
 
     _logger.log('[' + __name__ + '] discord registration complete',_logger.LogLevel.INFO)
-    return('ALL DONE!')
+    discord_widget = '<iframe src="https://discordapp.com/widget?id=358117641724100609&theme=dark" width="350" height="500" allowtransparency="true" frameborder="0"></iframe>'
+    message = "You are done.<br> Connect to discord if you have not already<br>"
+    message += discord_widget
+    return message

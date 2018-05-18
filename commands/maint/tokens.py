@@ -114,13 +114,6 @@ def discord_tokenthings(dn, discordtokens):
     if not old_rtoken:
         return True
 
-    # do we even bother refreshing?
-
-    if expires is not None and old_rtoken is not None:
-        difference = expires - time.time()
-        if difference > 3600:
-            return True
-
     result, code = _discordrefresh.refresh_token(old_rtoken)
 
     if code is not True:
@@ -161,26 +154,6 @@ def discord_tokenthings(dn, discordtokens):
         ldap_conn.unbind()
         return False
 
-    # fetch the discord uid and store that too
-    request_url = '/users/@me'
-    code, result = common.request_esi.esi(__name__, request_url, method='get', charid=charid, version='v6', base='discord')
-
-    if not code == 200:
-        error = 'unable to get discord user information for {0}: ({1}) {2}'.format(dn, code, result['error'])
-        _logger.log('[' + __name__ + '] ' + error,_logger.LogLevel.ERROR)
-        return False
-
-    new_discorduid = result.get('id')
-
-    try:
-        new_discorduid = int(new_discorduid)
-    except Exception as e:
-        return False
-
-    # don't bother updating the uid unless it changes
-    if discorduid != new_discorduid:
-        _ldaphelpers.update_singlevalue(dn, 'discorduid', new_discorduid)
-
     return True
 
 def eve_tokenthings(dn, evetokens):
@@ -219,7 +192,6 @@ def eve_tokenthings(dn, evetokens):
         msg = 'unable to refresh token for charid {0}: {1}'.format(charid, result)
         _logger.log('[' + __name__ + '] {0}'.format(msg), _logger.LogLevel.INFO)
 
-        print(code, result, dn)
 
         # only these exception types are valid reasons to purge a token
         purgetype = [ 'InvalidGrantError', 'UnauthorizedClientError', 'InvalidClientError', 'InvalidTokenError' ]
@@ -313,7 +285,7 @@ def eve_tokenthings(dn, evetokens):
     verify_url = 'verify/?token={0}'.format(atoken)
     code, result = common.request_esi.esi(__name__, verify_url, method='get', base='esi_verify')
     if not code == 200:
-        _logger.log('[' + __name__ + '] unable to get token information for {0}: {1}'.format(charid, result['error']),_logger.LogLevel.ERROR)
+        _logger.log('[' + __name__ + '] unable to get token information for {0}: {1}'.format(charid, result),_logger.LogLevel.ERROR)
         ldap_conn.unbind()
         return
 

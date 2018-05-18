@@ -56,7 +56,10 @@ def audit_core():
 
     dn = 'ou=People,dc=triumvirate,dc=rocks'
     filterstr = '(!(accountStatus=immortal))'
-    attributes = ['uid', 'characterName', 'accountStatus', 'authGroup', 'corporation', 'alliance', 'allianceName', 'corporationName' ]
+    attributes = ['uid', 'characterName', 'accountStatus', 'authGroup', 'corporation',
+        'alliance', 'allianceName', 'corporationName', 'discordRefreshToken', 'discorduid',
+        'discord2fa', 'discordName' ]
+
     code, users = _ldaphelpers.ldap_search(__name__, dn, filterstr, attributes)
 
     if code == False:
@@ -68,7 +71,6 @@ def audit_core():
     _logger.log('[' + __name__ + '] total tri ldap users: {}'.format(len(tri_users)),_logger.LogLevel.INFO)
 
 
-
     # loop through each user and determine the correct status
 
     activity = dict()
@@ -78,7 +80,6 @@ def audit_core():
         for future in as_completed(futures):
             data = future.result()
             activity[dn] = data
-    print(activity)
 
 def user_audit(dn, details):
 
@@ -95,6 +96,44 @@ def user_audit(dn, details):
     status = details['accountStatus']
     charname = details['characterName']
     raw_groups = details['authGroup']
+    ldap_discorduid = details['discorduid']
+    ldap_discord2fa = details['discord2fa']
+    ldap_discordname = details['discordName']
+
+    # discord
+    # this seems like the best place to put this logic
+
+    if details['discordRefreshToken'] is not None:
+        request_url = '/users/@me'
+        code, result = common.request_esi.esi(__name__, request_url, method='get', charid=charid, version='v6', base='discord')
+
+        if not code == 200:
+            error = 'unable to get discord user information for {0}: ({1}) {2}'.format(dn, code, result)
+            _logger.log('[' + __name__ + '] ' + error,_logger.LogLevel.ERROR)
+            return False
+
+        discorduid = int(result.get('id'))
+        discord2fa = result.get('mfa_enabled')
+        discordname = result.get('username')
+
+        # update/set discord UID and username
+        if ldap_discorduid is None:
+            _ldaphelpers.add_value(dn, 'discorduid', discorduid)
+        elif ldap_discorduid != discorduid:
+            _ldaphelpers.update_singlevalue(dn, 'discorduid', discorduid)
+
+        if ldap_discordname is None:
+            _ldaphelpers.add_value(dn, 'discordName', discordname)
+        elif ldap_discordname != discordname:
+            _ldaphelpers.update_singlevalue(dn, 'discordName', discordname)
+
+        # update 2fa status
+
+        if ldap_discord2fa is None:
+            _ldaphelpers.add_value(dn, 'discord2fa', discord2fa)
+        elif ldap_discord2fa != discord2fa:
+            _ldaphelpers.update_singlevalue(dn, 'discord2fa', discord2fa)
+
 
     # affiliations information
 
@@ -158,13 +197,19 @@ def user_audit(dn, details):
 
     if 'banned' not in raw_groups and status is not 'banned':
 
+        # non-banned people should all have public
+        # not sure how this happens
+
+        if 'public' not in raw_groups:
+            _ldaphelpers.add_value(dn, 'authGroup', 'public')
+
         # this character is blue but not marked as such
         if esi_allianceid in vg_alliances() or esi_allianceid in vg_blues() or esi_allianceid in vg_renters():
             if not status == 'blue':
                 _ldaphelpers.update_singlevalue(dn, 'accountStatus', 'blue')
 
         # pubbies do not need status. this does not affect alts meaningfully.
-        if not esi_allianceid in vg_alliances() and esi_allianceid not in vg_blues():
+        if not esi_allianceid in vg_alliances() and esi_allianceid not in vg_blues() and esi_allianceid not in vg_renters():
 
             if not status == 'public':
                 _ldaphelpers.update_singlevalue(dn, 'accountStatus', 'public')

@@ -9,6 +9,7 @@ from commands.audit.forums import audit_forums
 from commands.audit.supers import audit_supers
 from commands.audit.spyhunt import audit_security
 from commands.audit.discord import audit_discord
+from commands.audit.discord_perms import audit_discord_perms
 
 def audit_all():
     _logger.log('[' + __name__ + '] core audit', _logger.LogLevel.DEBUG)
@@ -56,11 +57,14 @@ class parseaction(argparse.Action):
             audit_security()
         elif value == 'discord':
             audit_discord()
+        elif value == 'discord_perms':
+            audit_discord_perms()
 
 def add_arguments(parser):
     parser.add_argument("--audit",
         nargs=0,
         action=parseaction,
-        choices=[ 'teamspeak', 'core', 'forums', 'bothunt', 'supers', 'spyhunt', 'discord', 'all' ],
+        choices=[ 'teamspeak', 'core', 'forums', 'bothunt', 'supers', 'spyhunt', 'discord', 'discord_perms', 'all' ],
         help='core service auditing',
     )
+
