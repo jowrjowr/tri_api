@@ -365,6 +365,7 @@ def audit_discord_perms():
                     message = 'Unregistered and role-free idlers are not allowed on the TRI discord.\n'
                     message += 'You have 24 hours before being purged.\n'
                     discord_message_user(token=bot_token, member=user['object'], message=message)
+                    continue
 
                 difference = time.time() - float(timestamp)
 
