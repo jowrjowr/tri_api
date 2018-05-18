@@ -25,8 +25,13 @@ def maint_notifications():
 async def run_notifications_forever():
 
     while True:
-        run_notifications()
-        time.sleep(60)
+
+        try:
+            run_notifications()
+        except Exception as e:
+            print(e)
+        finally:
+            time.sleep(60)
 
 def run_notifications():
 
@@ -158,7 +163,11 @@ def run_notifications():
             not_type = notification['type']
             not_timestamp = notification['timestamp_epoch']
 
-            notification['data'] = notification_process(not_type, not_data)
+            try:
+                notification['data'] = notification_process(not_type, not_data)
+            except Exception as e:
+                print(e)
+                continue
 
             if not_timestamp > latest_timestamp:
                 # update redis to the current notification timestamp
@@ -513,30 +522,25 @@ def notification_process(not_type, not_data, charid=None):
 
     # structure info
 
+    if not_data.get('structureShowInfoData') is not None:
+        data['structure_type_data'] = _esihelpers.type_info(not_data.get('structureShowInfoData')[1])
+
     if not_data.get('structureTypeID') is not None:
+        data['structure_type_data'] = _esihelpers.type_info(not_data.get('structureTypeID'))
 
-        ## fetch generic structure type data
+    # structure ID for specific queries
 
-        if not_data.get('structureShowInfoData') is not None:
-            data['structure_type_data'] = _esihelpers.type_info(not_data.get('structureShowInfoData')[1])
-        else:
-            data['structure_type_data'] = _esihelpers.type_info(not_data.get('structureTypeID'))
+    if not_data.get('structureID') is not None:
+       data['structure_id'] = not_data.get('structureID')
 
-        ## fetch more detailed information about the structure
+       # fetch structure name
+       request_url = 'universe/structures/{0}/'.format(data['structure_id'])
+       code, result = common.request_esi.esi(__name__, request_url, version='v1', charid=charid)
 
-        # structure ID for specific queries
+       data['structure_name'] = result.get('name')
 
-        if not_data.get('structureID') is not None:
-            data['structure_id'] = not_data.get('structureID')
-
-            # fetch structure name
-            request_url = 'universe/structures/{0}/'.format(data['structure_id'])
-            code, result = common.request_esi.esi(__name__, request_url, version='v1', charid=charid)
-
-            data['structure_name'] = result.get('name')
-
-            # can get solar system id from corplinkdata but whatever
-            data['solar_system_info'] = _esihelpers.solar_system_info(result['solar_system_id'])
+       # can get solar system id from corplinkdata but whatever
+       data['solar_system_info'] = _esihelpers.solar_system_info(result['solar_system_id'])
 
     # system info
 

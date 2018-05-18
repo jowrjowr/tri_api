@@ -141,7 +141,7 @@ def audit_corp(charid, corp_id):
                     _logger.LogLevel.ERROR)
         return corp_result
 
-    corp_result['name'] = esi_corporation_result['corporation_name']
+    corp_result['name'] = esi_corporation_result['name']
     corp_result['members'] = esi_corporation_result['member_count']
 
     code_mains, result_mains = _ldaphelpers.ldap_search(__name__, dn, '(&(corporation={0})(!(altOf=*)))'

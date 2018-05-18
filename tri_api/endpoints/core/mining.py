@@ -41,6 +41,12 @@ def command_mining_ledger():
 
     for alliance in taxed_alliances:
 
+
+        request_url = 'alliances/{0}/'.format(alliance)
+        code, result = common.request_esi.esi(__name__, request_url, 'get', version='v3')
+
+        alliancename = result.get('name')
+
         request_url = 'alliances/{0}/corporations/'.format(alliance)
         code, result = common.request_esi.esi(__name__, request_url, 'get', version='v1')
 
@@ -70,6 +76,7 @@ def command_mining_ledger():
             command_ledger[corporation] = {
                 'corpid': corporation,
                 'corpname': corpname,
+                'alliancename': alliancename,
                 'moons': 0,
                 'this_month': 0,
                 'last_month': 0,
@@ -82,8 +89,6 @@ def command_mining_ledger():
             filterstr='(&(corporation={0})(esiScope={1})(corporationRole=Director)(esiAccessToken=*))'.format(corporation, mining_scope)
             attrlist=[ 'uid' ]
             code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
-
-            print(code, result)
 
             if code == False:
                 msg = 'unable to fetch ldap information: {}'.format(error)
@@ -121,11 +126,12 @@ def command_mining_ledger():
 
             for structure_id in result:
 
-                try:
-                    data = result[structure_id]
-                except Exception as e:
-                    print(structure_id)
+                data = result[structure_id]
+
+                if data.get('ledger') is None:
+                    print(data)
                     continue
+
                 # fetch the actual ledger data
 
                 last_month = data['ledger']['last_month']['taxable']
@@ -268,6 +274,7 @@ def ledger_parse(moon_data, charid, corpid, object, structure_id):
 
     if not code == 200:
         # something broke severely
+        print(charid, corpid, structure_id)
         _logger.log('[' + __name__ + '] /structures API error ' + str(code) + ': ' + str(data['error']), _logger.LogLevel.ERROR)
         structure['name'] = 'Unknown'
         structure['system'] = 'Unknown'

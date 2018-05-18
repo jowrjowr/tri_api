@@ -2,8 +2,12 @@ import json
 import math
 import MySQLdb as mysql
 import common.credentials.database as _database
+from tri_core.common.moonprices import moon_scandata
 
 def moon_csvprint():
+
+    moon_scandata()
+
     # take the MoonValues data and print a useful CSV
     try:
         sql_conn = mysql.connect(

@@ -31,8 +31,10 @@ def core_corpaudit(charid):
     character_id_list = []
 
     dn = 'ou=People,dc=triumvirate,dc=rocks'
+
     code, char_result = _ldaphelpers.ldap_search(__name__, dn, '(&(|(uid={0})(altOf={0}))(esiAccessToken=*))'
                                                  .format(charid), ['uid', 'corporation'])
+
 
     if code==False:
         error = 'failed to fetch characters for {0}: ({1}) {2}'.format(charid, code, char_result)
@@ -63,9 +65,9 @@ def core_corpaudit(charid):
 
                 if not code == 200:
                     # something broke severely
-                    _logger.log('[' + __name__ + '] corporations API error {0}: {1}'.format(code, result['error']),
+                    _logger.log('[' + __name__ + '] corporations API error {0}: {1}'.format(code, result),
                                 _logger.LogLevel.ERROR)
-                    error = result['error']
+                    error = result
                     result = {'code': code, 'error': error}
                     return code, result
                 character_id_list = result
@@ -99,9 +101,9 @@ def core_corpaudit(charid):
 
         if not code == 200:
             # something broke severely
-            _logger.log('[' + __name__ + '] affiliations API error {0}: {1}'.format(code, result['error']),
+            _logger.log('[' + __name__ + '] affiliations API error {0}: {1}'.format(code, result),
                 _logger.LogLevel.ERROR)
-            error = result['error']
+            error = result
             result = {'code': code, 'error': error}
             return code, result
 
@@ -113,9 +115,9 @@ def core_corpaudit(charid):
 
         if not code == 200:
             # something broke severely
-            _logger.log('[' + __name__ + '] corporations API error {0}: {1}'.format(code, result['error']),
+            _logger.log('[' + __name__ + '] corporations API error {0}: {1}'.format(code, result),
                 _logger.LogLevel.ERROR)
-            error = result['error']
+            error = result
             result = {'code': code, 'error': error}
             return code, result
 
@@ -173,8 +175,6 @@ def fetch_chardetails(charid):
             (dn, info), = result.items()
         except ValueError:
             print("error: {}".format(charid))
-            print(result)
-            return None
 
         chardetails['charname'] = info['characterName']
 
@@ -196,7 +196,6 @@ def fetch_chardetails(charid):
 
         if corp_id is None:
             print("error: {} no corp".format(charid))
-            print(result)
 
         chardetails['corporation'] = info['corporationName']
 
@@ -237,7 +236,7 @@ def fetch_chardetails(charid):
             code, result = common.request_esi.esi(__name__, request_url, 'get')
 
             if not code == 200:
-                _logger.log('[' + __name__ + '] /characters API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.WARNING)
+                _logger.log('[' + __name__ + '] /characters API error {0}: {1}'.format(code, result), _logger.LogLevel.WARNING)
             try:
                 chardetails['altof'] = result['name']
             except KeyError as error:
@@ -255,7 +254,7 @@ def fetch_chardetails(charid):
 
         if not code == 200:
             # it doesn't really matter
-            _logger.log('[' + __name__ + '] characters loction API error {0}: {1}'.format(code, result['error']),_logger.LogLevel.DEBUG)
+            _logger.log('[' + __name__ + '] characters loction API error {0}: {1}'.format(code, result),_logger.LogLevel.DEBUG)
             location = None
             chardetails['location_id'] = location
             chardetails['location'] = 'Unknown'
@@ -269,7 +268,7 @@ def fetch_chardetails(charid):
 
         if not code == 200:
             # it doesn't really matter
-            _logger.log('[' + __name__ + '] characters loction API error {0}: {1}'.format(code, result['error']),_logger.LogLevel.DEBUG)
+            _logger.log('[' + __name__ + '] characters loction API error {0}: {1}'.format(code, result),_logger.LogLevel.DEBUG)
             location = None
         else:
             # can include either station_id or structure_id
@@ -284,7 +283,6 @@ def fetch_chardetails(charid):
             request_url = 'universe/systems/{0}/'.format(location)
             code, result = common.request_esi.esi(__name__, request_url, 'get')
             if not code == 200:
-                print(location)
                 _logger.log('[' + __name__ + '] /universe/systems API error ' + str(code) + ': ' + str(data['error']), _logger.LogLevel.INFO)
                 chardetails['location'] = 'Unknown'
             else:

@@ -252,7 +252,7 @@ def audit_pilot(entry):
 
     uid = entry['uid']
 
-    _logger.log('[' + __name__ + '] auditing character ' + uid, _logger.LogLevel.DEBUG)
+    _logger.log('[' + __name__ + '] auditing character {0}'.format(uid), _logger.LogLevel.DEBUG)
 
     corpid = entry['corporation']
     charname = entry['characterName']
@@ -412,7 +412,7 @@ def audit_pilot_capitals(entry):
 
     uid = entry['uid']
 
-    _logger.log('[' + __name__ + '] auditing character ' + uid, _logger.LogLevel.DEBUG)
+    _logger.log('[' + __name__ + '] auditing character {0}'.format(uid), _logger.LogLevel.DEBUG)
 
     corpid = entry['corporation']
     charname = entry['characterName']

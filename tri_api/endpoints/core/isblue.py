@@ -41,7 +41,7 @@ def test_char(charid):
 
     affilliations = _esihelpers.esi_affiliations(charid)
     allianceid = affilliations.get('allianceid')
-    charname = affiliations.get('charname')
+    charname = affilliations.get('charname')
     corpid = affilliations.get('corpid')
 
     if not allianceid:
@@ -73,7 +73,7 @@ def test_alliance(allianceid):
 
     # check against the blue list
 
-    if allianceid in vg_blues() or alianceid in vg_alliances():
+    if allianceid in vg_blues() or allianceid in vg_alliances():
 
         # blue
         result = { 'code': 1 }
