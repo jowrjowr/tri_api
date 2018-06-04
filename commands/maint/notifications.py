@@ -278,7 +278,6 @@ def char_notifications(r, charid, corpname, corpid):
 
     alliance_notifications = [
         'EntosisCaptureStarted', 'SovCommandNodeEventStarted', 'SovStructureDestroyed',
-        'SovStationEnteredFreeport', 'StationServiceDisabled',
     ]
 
     corp_notifications = [
@@ -492,16 +491,6 @@ def notification_process(not_type, not_data, charid=None):
         data['attacker_affiliations'] = _esihelpers.esi_affiliations(not_data.get('aggressorID'))
         data['status'] = round( 100 * not_data.get('shieldValue'), 2), 100, 100
 
-    if not_type == 'StationServiceDisabled':
-        # example:
-        # {'structureTypeID': 28155, 'solarSystemID': 30000831}
-        pass
-
-    if not_type == 'SovStationEnteredFreeport':
-        # example:
-        # {'structureTypeID': 21646, 'solarSystemID': 30000754, 'freeportexittime': 131590217837311040}
-        data['freeport_exit'] = filetime2epoch(not_data.get('freeportexittime'))
-
     if not_type == 'SovCommandNodeEventStarted':
         # example:
         # {'constellationID': 20000347, 'solarSystemID': 30002365, 'campaignEventType': 1}
@@ -565,12 +554,6 @@ def sov_campaigns(typeid):
 
     if typeid is 2:
         return 'IHUB'
-
-    if typeid is 3:
-        return 'STATION'
-
-    if typeid is 4:
-        return 'FREEPORT'
 
     return None
 
