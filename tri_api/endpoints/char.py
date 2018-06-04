@@ -230,7 +230,7 @@ def fetch_chardetails(info):
             new_entry['location'] = 'Unknown'
         else:
             request_url = 'universe/systems/{0}/'.format(location)
-            code, result = esi(__name__, request_url, 'get')
+            code, result = esi(__name__, request_url, 'get', version='v4')
             if not code == 200:
                 _logger.log('[' + __name__ + '] /universe/systems API error ' + str(code) + ': ' + str(data['error']), _logger.LogLevel.INFO)
                 new_entry['location'] = 'Unknown'

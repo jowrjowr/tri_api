@@ -64,7 +64,7 @@ def ts3_logs(ts3conn):
             _logger.log('[' + __name__ + '] {0}'.format(msg), _logger.LogLevel.WARNING)
             return
         else:
-            r.set('ts_log_processing', 'yep')
+            r.setex('ts_log_processing', 3600, 'yep')
 
     except Exception as err:
         _logger.log('[' + __name__ + '] Redis error: ' + str(err), _logger.LogLevel.ERROR)
@@ -86,7 +86,6 @@ def ts3_logs(ts3conn):
         # a small position offset so i can start/stop cleanly
         if position == 1:
             position = 0
-
         try:
             resp = ts3conn.logview(lines=100, reverse=1, begin_pos=position)
         except ts3.query.TS3QueryError as err:

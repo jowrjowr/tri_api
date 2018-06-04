@@ -279,7 +279,7 @@ def audit_discord_perms():
     msg = 'discord auditing'
     logger.info(msg)
 
-    bot_token = 'MzQ1MzkzMjA0Nzg0MjY3MjY1.DJ9p_Q.e2qHsXSgAy_Tb-ATApTFFsvMVmQ'
+    bot_token = _discord.social_token
     bot_discorduid = 345393204784267265
     server = 358117641724100609
     logging.getLogger('discord.audit').setLevel(logging.DEBUG)
@@ -479,6 +479,11 @@ def audit_discord_perms():
             # tri role and corp tags only meaningful if in tri
             correct_roles.append('[TRI]')
             correct_roles.append('[{0}]'.format(ticker))
+
+            # 2factor secured group membership
+            # this is for tri only
+            if info['discord2fa']:
+                correct_roles.append('2FA')
 
         missing_roles = set(correct_roles) - set(user['roles'])
         extra_roles = set(user['roles']) - set(correct_roles)

@@ -107,15 +107,9 @@ def core_corpsupers():
     # check for auth groups
 
     allowed_roles = ['Director', 'Personnel_Manager']
-    code, result = check_role(__name__, charid, allowed_roles)
+    roles = check_role(charid, allowed_roles)
 
-    if code == 'error':
-        error = 'unable to check character roles for {0}: ({1}) {2}'.format(charid, code, result)
-        _logger.log('[' + __name__ + ']' + error, _logger.LogLevel.ERROR)
-        js = json.dumps({'error': error})
-        resp = Response(js, status=500, mimetype='application/json')
-        return resp
-    elif code == False:
+    if not roles:
         return Response(json.dumps({'error': "forbidden"}), status=403, mimetype='application/json')
 
     # get corp
@@ -187,15 +181,9 @@ def core_corpcapitals():
     # check for auth groups
 
     allowed_roles = ['Director', 'Personnel_Manager']
-    code, result = check_role(__name__, charid, allowed_roles)
+    roles = check_role(charid, allowed_roles)
 
-    if code == 'error':
-        error = 'unable to check character roles for {0}: ({1}) {2}'.format(charid, code, result)
-        _logger.log('[' + __name__ + ']' + error, _logger.LogLevel.ERROR)
-        js = json.dumps({'error': error})
-        resp = Response(js, status=500, mimetype='application/json')
-        return resp
-    elif code == False:
+    if not roles:
         return Response(json.dumps({'error': "forbidden"}), status=403, mimetype='application/json')
 
     # get corp
@@ -356,7 +344,7 @@ def audit_pilot(entry):
                     ships[asset_id]['location_name'] = "STATION ERROR"
             elif asset['location_type'] == 'other':
                 request_url = 'universe/structures/{}/'.format(asset['location_id'])
-                code, result = common.request_esi.esi(__name__, request_url, method='get', version='latest',
+                code, result = common.request_esi.esi(__name__, request_url, method='get', version='v2',
                                                       charid=uid)
 
                 if code == 200:
@@ -511,7 +499,7 @@ def audit_pilot_capitals(entry):
                     ships[asset_id]['location_name'] = "STATION ERROR"
             elif asset['location_type'] == 'other':
                 request_url = 'universe/structures/{}/'.format(asset['location_id'])
-                code, result = common.request_esi.esi(__name__, request_url, method='get', version='latest',
+                code, result = common.request_esi.esi(__name__, request_url, method='get', version='v2',
                                                       charid=uid)
 
                 if code == 200:

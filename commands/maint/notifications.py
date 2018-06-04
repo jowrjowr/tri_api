@@ -524,7 +524,7 @@ def notification_process(not_type, not_data, charid=None):
 
        # fetch structure name
        request_url = 'universe/structures/{0}/'.format(data['structure_id'])
-       code, result = common.request_esi.esi(__name__, request_url, version='v1', charid=charid)
+       code, result = common.request_esi.esi(__name__, request_url, version='v2', charid=charid)
 
        data['structure_name'] = result.get('name')
 

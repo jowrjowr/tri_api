@@ -153,13 +153,9 @@ def core_mining_ledger(charid):
 
 
     allowed_roles = ['Director', 'Accountant']
-    code, result = check_role(__name__, charid, allowed_roles)
+    roles = check_role(charid, allowed_roles)
 
-    if code == 'error':
-        error = 'unable to check character roles for {0}: ({1}) {2}'.format(charid, code, result)
-        _logger.log('[' + __name__ + ']' + error, _logger.LogLevel.ERROR)
-        resp = Response(error, status=500, mimetype='application/json')
-    elif code == False:
+    if roles == False:
         error = 'insufficient corporate roles to access this endpoint.'
         _logger.log('[' + __name__ + '] ' + error,_logger.LogLevel.INFO)
         resp = Response(error, status=500, mimetype='application/json')

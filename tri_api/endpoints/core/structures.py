@@ -17,15 +17,9 @@ def core_structures(charid):
     # check that the user has the right roles (to make the esi endpoint work)
 
     allowed_roles = ['Director', 'Station_Manager']
-    code, result = check_role(__name__, charid, allowed_roles)
+    roles = check_role(charid, allowed_roles)
 
-    if code == 'error':
-        error = 'unable to check character roles for {0}: ({1}) {2}'.format(charid, code, result)
-        _logger.log('[' + __name__ + ']' + error,_logger.LogLevel.ERROR)
-        js = json.dumps({ 'error': error})
-        resp = Response(js, status=500, mimetype='application/json')
-        return resp
-    elif code == False:
+    if not roles:
         error = 'insufficient corporate roles to access this endpoint.'
         _logger.log('[' + __name__ + '] ' + error,_logger.LogLevel.INFO)
         js = json.dumps({ 'error': error})
@@ -149,7 +143,7 @@ def structure_parse(charid, object, structure_id):
         structure['system'] = 'Unknown'
         structure['region'] = 'Unknown'
         error = data['error']
-        error_code = data['code']
+        error_code = data.get('code')
         return structure
 
     # get structure type name

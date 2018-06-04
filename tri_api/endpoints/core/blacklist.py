@@ -1,6 +1,9 @@
 from tri_api import app
 from flask import request, json, Response
 from tri_core.common.session import readsession
+import re
+import time
+
 import common.logger as _logger
 import common.ldaphelpers as _ldaphelpers
 import common.request_esi
@@ -8,8 +11,6 @@ import common.request_esi
 @app.route('/core/blacklist/confirmed', methods=[ 'GET' ])
 def core_blacklist():
 
-    import re
-    import time
 
     # get all users that are confirmed blacklisted
 
@@ -48,22 +49,22 @@ def core_blacklist():
         banlist[charname] = info
         # map the times to friendlier info
 
-        fuckyou = int(float(info['banApprovedOn']))
-        banlist[charname]['banApprovedOn'] = time.strftime('%Y-%m-%d', time.localtime(fuckyou))
+        if info['banApprovedOn']:
+            banlist[charname]['banApprovedOn'] = time.strftime('%Y-%m-%d', time.localtime(info['banApprovedOn']))
 
         # how the fuck did ban reasons/descriptions get stored this way?!
 
         convert = [ 'banDescription', 'banReason' ]
-        for thing in convert:
+#        for thing in convert:
 
-            if banlist[charname][thing] == '': continue
-            if banlist[charname][thing] == None: continue
-            banlist[charname][thing] = re.sub('"$', '', banlist[charname][thing])
-            banlist[charname][thing] = re.sub("'$", '', banlist[charname][thing])
-            banlist[charname][thing] = re.sub("^b'", '', banlist[charname][thing])
-            banlist[charname][thing] = re.sub('^b"', '', banlist[charname][thing])
-            banlist[charname][thing] = re.sub('\\\\r', '<br>', banlist[charname][thing])
-            banlist[charname][thing] = re.sub('\\\\n', '<br>', banlist[charname][thing])
+#            if banlist[charname][thing] == '': continue
+#            if banlist[charname][thing] == None: continue
+#            banlist[charname][thing] = re.sub('"$', '', banlist[charname][thing])
+#            banlist[charname][thing] = re.sub("'$", '', banlist[charname][thing])
+#            banlist[charname][thing] = re.sub("^b'", '', banlist[charname][thing])
+#            banlist[charname][thing] = re.sub('^b"', '', banlist[charname][thing])
+#            banlist[charname][thing] = re.sub('\\\\r', '<br>', banlist[charname][thing])
+#            banlist[charname][thing] = re.sub('\\\\n', '<br>', banlist[charname][thing])
 
         # map the main of the banned alt to a name
 

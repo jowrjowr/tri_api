@@ -1,7 +1,6 @@
 from flask import request, Response, json
 from tri_api import app
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
-from common.check_role import check_role
 import common.ldaphelpers as _ldaphelpers
 import common.logger as _logger
 import common.esihelpers as _esihelpers

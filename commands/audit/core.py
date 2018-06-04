@@ -4,6 +4,7 @@ import common.logger as _logger
 import common.ldaphelpers as _ldaphelpers
 import common.esihelpers as _esihelpers
 import math
+import time
 import resource
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -58,7 +59,7 @@ def audit_core():
     filterstr = '(!(accountStatus=immortal))'
     attributes = ['uid', 'characterName', 'accountStatus', 'authGroup', 'corporation',
         'alliance', 'allianceName', 'corporationName', 'discordRefreshToken', 'discorduid',
-        'discord2fa', 'discordName' ]
+        'discord2fa', 'discordName', 'altOf', 'esiRefreshToken', 'esiScope', 'lastLogin' ]
 
     code, users = _ldaphelpers.ldap_search(__name__, dn, filterstr, attributes)
 
@@ -94,11 +95,28 @@ def user_audit(dn, details):
 
     charid = int(details['uid'])
     status = details['accountStatus']
+    altof = details['altOf']
     charname = details['characterName']
     raw_groups = details['authGroup']
     ldap_discorduid = details['discorduid']
     ldap_discord2fa = details['discord2fa']
     ldap_discordname = details['discordName']
+    ldap_scopes = details['esiScope']
+
+    if ldap_scopes is None:
+        ldap_scopes = []
+
+    if details['lastLogin'] is not None:
+        ldap_lastlogin = float(details['lastLogin'])
+    else:
+        ldap_lastlogin = None
+
+    # bugfix sanity check
+    # there was once a bug where people would be marked as alts of themselves
+    # this results in interesting effects
+
+    if altof == charid:
+        _ldaphelpers.update_singlevalue(dn, 'altOf', None)
 
     # discord
     # this seems like the best place to put this logic
@@ -134,6 +152,28 @@ def user_audit(dn, details):
         elif ldap_discord2fa != discord2fa:
             _ldaphelpers.update_singlevalue(dn, 'discord2fa', discord2fa)
 
+    if details['esiRefreshToken'] is not None and 'esi-location.read_online.v1' in ldap_scopes:
+        # get online status if possible
+
+        request_url = 'characters/{0}/online/'.format(charid)
+        code, result = common.request_esi.esi(__name__, request_url, method='get', charid=charid, version='v2')
+
+        if not code == 200:
+            # it doesn't really matter
+            _logger.log('[' + __name__ + '] characters online API error {0}: {1}'.format(code, result),_logger.LogLevel.ERROR)
+        else:
+            # example:
+            # {'online': False, 'last_login': '2017-07-11T06:38:19Z', 'last_logout': '2017-07-11T06:32:41Z', 'logins': 2474}
+            last_login = time.strptime(result.get('last_login'), "%Y-%m-%dT%H:%M:%SZ")
+            last_login = time.mktime(last_login)
+
+            if ldap_lastlogin != last_login:
+                _ldaphelpers.update_singlevalue(dn, 'lastLogin', last_login)
+                ldap_lastlogin = last_login
+    else:
+        # so there's always a valid comparison
+        if ldap_lastlogin != 0:
+            _ldaphelpers.update_singlevalue(dn, 'lastLogin', 0)
 
     # affiliations information
 
@@ -146,11 +186,6 @@ def user_audit(dn, details):
     esi_alliancename = affilliations.get('alliancename')
     esi_corpid = affilliations.get('corpid')
     esi_corpname = affilliations.get('corpname')
-
-    if not esi_corpid:
-        # most likely doomheim, so treating as such.
-        esi_corpid = 1000001
-        esi_corpname = 'Doomheim'
 
     # what ldap thinks
 
@@ -217,10 +252,23 @@ def user_audit(dn, details):
             if len(eff_groups) > 0:
                 _ldaphelpers.purge_authgroups(dn, eff_groups)
 
+        triumvirate = 933731581
+
+        # activity purge
+
+        if ldap_lastlogin is None:
+            ldap_lastlogin = 0
+
+        login_difference = time.time() - ldap_lastlogin
+
+        if login_difference > 30*86400 and esi_allianceid == triumvirate:
+            # logic to purge out of groups based on inactivity
+            pass
+#            _ldaphelpers.purge_authgroups(dn, eff_groups)
+#            return
+
         # some checks for those marked blue already
         if status == 'blue':
-
-            triumvirate = 933731581
 
             if 'vanguard' in eff_groups and esi_allianceid in vg_blues():
                 # a special case for people moving from vanguard to vg blues
