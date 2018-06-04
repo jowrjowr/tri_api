@@ -1,12 +1,15 @@
 # broadcast a message to a given jabber group
 
 import sleekxmpp
+import time
 import common.logger as _logger
 import sleekxmpp.plugins.xep_0033 as xep_0033
+import MySQLdb as mysql
 
 from sleekxmpp import ClientXMPP, Message
 from sleekxmpp.exceptions import IqError, IqTimeout
 from sleekxmpp.xmlstream import register_stanza_plugin
+from common.discord_api import discord_forward
 
 class BroadcastBot(ClientXMPP):
 
@@ -91,6 +94,7 @@ def broadcast(message, group=None, corpid=None):
 
     import math
     import common.logger as _logger
+    import common.credentials.database as _database
     import common.ldaphelpers as _ldaphelpers
     from tri_core.common.sashslack import sashslack
     from concurrent.futures import ThreadPoolExecutor
@@ -98,7 +102,19 @@ def broadcast(message, group=None, corpid=None):
     from queue import Queue
 
     dn = 'ou=People,dc=triumvirate,dc=rocks'
-    attrlist=['cn']
+    attrlist=[ 'cn', 'uid', 'altOf', 'lastLogin' ]
+
+    try:
+        sql_conn = mysql.connect(
+            database=_database.DB_DATABASE,
+            user=_database.DB_USERNAME,
+            password=_database.DB_PASSWORD,
+            host=_database.DB_HOST)
+    except mysql.Error as err:
+        _logger.log('[' + __name__ + '] mysql error: ' + str(err), _logger.LogLevel.ERROR)
+        return None
+    cursor = sql_conn.cursor()
+
 
     # skip certain users
     skip = [ 'sovereign' ]
@@ -115,7 +131,7 @@ def broadcast(message, group=None, corpid=None):
             # send to #_ops for now
             sashslack(message, 'structures')
 
-        filterstr='(&(objectclass=pilot)(corporation={0}))'.format(corpid)
+        filterstr='(&(objectclass=pilot)(corporation={0})(esiRefreshToken=*)(teamspeakuid=*))'.format(corpid)
 
         code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
 
@@ -137,8 +153,16 @@ def broadcast(message, group=None, corpid=None):
         # send message to sash slack
         sashslack(message, group)
 
+        # send message to discord
 
-        filterstr='(&(objectclass=pilot)(authGroup={0}))'.format(group)
+        discord_msg = '@here\n' + message
+
+        if group == 'triumvirate':
+            discord_forward(discord_msg, server=358117641724100609, dest='pings')
+
+        # send to jabber
+
+        filterstr='(&(objectclass=pilot)(authGroup={0})(esiRefreshToken=*)(teamspeakuid=*))'.format(group)
         code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
 
         if code == False:
@@ -157,12 +181,29 @@ def broadcast(message, group=None, corpid=None):
 
     for dn in result:
         cn = result[dn]['cn']
+        charid = result[dn]['uid']
+        altof = result[dn]['altOf']
+        lastlogin = result[dn]['lastLogin']
         jid = cn + '@triumvirate.rocks'
+
+        if lastlogin is None:
+            lastlogin = 0
+
+        if time.time() - lastlogin > 15*86400:
+            # don't ping people who aren't logging in
+            continue
+
+        if altof is not None:
+            # don't ping alts
+            continue
 
         if cn not in skip:
             users.append(jid)
 
+    _logger.log('[' + __name__ + '] pinging {0} users'.format(len(users)),_logger.LogLevel.INFO)
+
     # break up into chunks to make [undocumented] ejabberd limitations happy
+
     data = []
     chunksize = 250
     for user in users:
@@ -172,5 +213,5 @@ def broadcast(message, group=None, corpid=None):
     for i in range(0, chunks):
         chunk = data[:chunksize]
         del data[:chunksize]
-        _logger.log('[' + __name__ + '] sending broadcast to {0} user block'.format(length),_logger.LogLevel.INFO)
+        _logger.log('[' + __name__ + '] sending broadcast to {0} user block'.format(len(chunk)),_logger.LogLevel.INFO)
         start_jabber(chunk, message)
