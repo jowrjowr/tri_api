@@ -52,8 +52,8 @@ def command_mining_ledger():
 
         if not code == 200:
             # something broke severely
-            _logger.log('[' + __name__ + '] /alliances/{0}/corporations API error {1}: {2}'.format(alliance, code, result['error']), _logger.LogLevel.ERROR)
-            resp = Response(result['error'], status=code, mimetype='application/json')
+            _logger.log('[' + __name__ + '] /alliances/{0}/corporations API error {1}: {2}'.format(alliance, code, result), _logger.LogLevel.ERROR)
+            resp = Response(result, status=code, mimetype='application/json')
             return resp
 
         msg = '/alliances/{0}/corporations output: {1}'.format(alliance, result)

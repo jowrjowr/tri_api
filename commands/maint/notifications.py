@@ -285,11 +285,11 @@ def char_notifications(r, charid, corpname, corpid):
     ]
 
     # fetch the most recent notification epoch time from redis
-
     checkpoint = float(r.get('notification_checkpoint'))
 
+
     request_url = 'characters/{0}/notifications/'.format(charid)
-    code, result = common.request_esi.esi(__name__, request_url, version='v1', charid=charid)
+    code, result = common.request_esi.esi(__name__, request_url, version='v2', charid=charid)
 
     if not code == 200:
         msg = 'characters/{0}/notifications error: {1}'.format(charid, result['error'])

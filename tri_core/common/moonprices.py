@@ -1,3 +1,4 @@
+
 import json
 import common.request_esi
 import common.logger as _logger
@@ -90,8 +91,8 @@ def moon_typedata():
         code, result = common.request_esi.esi(__name__, request_url, version='v3')
 
         if not code == 200:
-            msg = 'universe/types/{0}/ error: {1}'.format(typeid, result['error'])
-            _logger.log('[' + function + '] {0}'.format(msg),  _logger.LogLevel.WARNING)
+            msg = 'universe/types/{0}/ error: {1}'.format(typeid, result)
+            _logger.log('[' + __name__ + '] {0}'.format(msg),  _logger.LogLevel.WARNING)
             continue
 
         moon_ores[typeid]['name'] = result.get('name')

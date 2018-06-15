@@ -169,7 +169,7 @@ def audit_forums():
 
         if user['charid'] == None:
             # need to map the forum username to a character id
-            query = { 'categories': 'character', 'datasource': 'tranquility', 'language': 'en-us', 'search': charname, 'strict': 'true' }
+            query = { 'categories': 'character', 'language': 'en-us', 'search': charname, 'strict': 'true' }
             query = urllib.parse.urlencode(query)
             esi_url = 'search/?' + query
             code, result = common.request_esi.esi(__name__, esi_url, 'get')

@@ -400,7 +400,7 @@ def audit_discord_perms():
 
         if code != 200:
             # something broke severely
-            msg - 'corporations API error {0}: {1}'.format(code, result['error'])
+            msg = 'corporations API error {0}: {1}'.format(code, result)
             logger.error(msg)
 
             # can't process without the ticker.
