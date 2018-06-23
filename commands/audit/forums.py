@@ -114,9 +114,7 @@ def audit_forums():
                 secondaries.append(int(item))
         users[charname]['secondary'] = secondaries
 
-        cn = charname.replace(" ", '')
-        cn = cn.replace("'", '')
-        cn = cn.lower()
+        cn, _ = _ldaphelpers.ldap_normalize_charname(charname)
 
         # match up against ldap data
         dn = 'ou=People,dc=triumvirate,dc=rocks'
@@ -185,38 +183,10 @@ def audit_forums():
 
                 # make a stub ldap entry for them
 
-                attributes = []
-                attributes.append(('objectClass', ['top'.encode('utf-8'), 'pilot'.encode('utf-8'), 'simpleSecurityObject'.encode('utf-8'), 'organizationalPerson'.encode('utf-8')]))
-                attributes.append(('characterName', [charname.encode('utf-8')]))
-                attributes.append(('accountStatus', ['public'.encode('utf-8')]))
-                attributes.append(('authGroup', ['public'.encode('utf-8')]))
-
-                # cn, dn
-                cn = charname.replace(" ", '')
-                cn = cn.replace("'", '')
-                cn = cn.lower()
-                dn = "cn={},ou=People,dc=triumvirate,dc=rocks".format(cn)
-
-                attributes.append(('sn',[cn.encode('utf-8')]))
-                attributes.append(('cn',[cn.encode('utf-8')]))
-
-                # character ID
                 charid = result['character'][0]
                 users[charname]['charid'] = charid
-                attributes.append(('uid', [str(charid).encode('utf-8')]))
 
-                # further affiliations will be handled by maintenance scripts
-
-                # a random password keeps them from logging in but who cares
-
-                password = uuid.uuid4().hex
-                password_hash = ldap_salted_sha1.hash(password)
-                password_hash = password_hash.encode('utf-8')
-                attributes.append(('userPassword', [password_hash]))
-
-                # create the ldap entry
-
-                _ldaphelpers.ldap_adduser(dn, attributes)
+                _ldaphelpers.ldap_create_stub(charname, charid)
 
     _logger.log('[' + __name__ + '] forum users who have biomassed: {0}'.format(really_orphan),_logger.LogLevel.INFO)
 
@@ -409,7 +379,7 @@ def authgroup_map(authgroup):
     if authgroup == 'skirmishfc':       return 11
     if authgroup == 'administration':   return 9
     if authgroup == 'skyteam':          return 12
-    if authgroup == 'forumadmin':       return 4
+#    if authgroup == 'forumadmin':       return 4
     if authgroup == 'board':            return 67
 
     # public is group 2, but that's a primary group
