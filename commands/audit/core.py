@@ -7,20 +7,22 @@ import math
 import time
 import resource
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import logging
 
 from tri_core.common.testing import vg_alliances, vg_blues, vg_renters
+from common.logger import getlogger_new as getlogger
 
 def audit_core():
     # keep the ldap account status entries in sync
 
-    _logger.log('[' + __name__ + '] auditing CORE LDAP',_logger.LogLevel.INFO)
-
-
+    logger = getlogger('audit.core')
+    logger.info('auditing CORE LDAP')
     # fix open file limitations
 
     try:
         resource.setrlimit(resource.RLIMIT_NOFILE, (25000, 75000))
     except Exception as e:
+        logger.warn('unable to set nofile rlimit: {0}'.format(e))
         pass
 
     # fetch all non-banned LDAP users
@@ -31,6 +33,7 @@ def audit_core():
     code, nonbanned_users = _ldaphelpers.ldap_search(__name__, dn, filterstr, attributes)
 
     if code == False:
+        logger.error('unable to find ldap users')
         return
 
     # fetch all tri LDAP users
@@ -41,6 +44,7 @@ def audit_core():
     code, tri_users = _ldaphelpers.ldap_search(__name__, dn, filterstr, attributes)
 
     if code == False:
+        logger.error('unable to find ldap users')
         return
 
     # fetch all blue
@@ -51,6 +55,7 @@ def audit_core():
     code, blue_users = _ldaphelpers.ldap_search(__name__, dn, filterstr, attributes)
 
     if code == False:
+        logger.error('unable to find ldap users')
         return
 
     # fetch ALL LDAP users
@@ -59,38 +64,83 @@ def audit_core():
     filterstr = '(!(accountStatus=immortal))'
     attributes = ['uid', 'characterName', 'accountStatus', 'authGroup', 'corporation',
         'alliance', 'allianceName', 'corporationName', 'discordRefreshToken', 'discorduid',
-        'discord2fa', 'discordName', 'altOf', 'esiRefreshToken', 'esiScope', 'lastLogin' ]
+        'discord2fa', 'discordName', 'altOf', 'esiRefreshToken', 'esiScope', 'lastLogin',
+        'corporationRole'
+    ]
 
     code, users = _ldaphelpers.ldap_search(__name__, dn, filterstr, attributes)
 
     if code == False:
+        logger.error('unable to find ldap users')
         return
 
-    _logger.log('[' + __name__ + '] total ldap users: {}'.format(len(users)),_logger.LogLevel.INFO)
-    _logger.log('[' + __name__ + '] total non-banned ldap users: {}'.format(len(nonbanned_users)),_logger.LogLevel.INFO)
-    _logger.log('[' + __name__ + '] total blue ldap users: {}'.format(len(blue_users)),_logger.LogLevel.INFO)
-    _logger.log('[' + __name__ + '] total tri ldap users: {}'.format(len(tri_users)),_logger.LogLevel.INFO)
+    logger.info('total ldap users: {}'.format(len(users)))
+    logger.info('total non-banned ldap users: {}'.format(len(nonbanned_users)))
+    logger.info('total blue ldap users: {}'.format(len(blue_users)))
+    logger.info('total tri ldap users: {}'.format(len(tri_users)))
 
 
     # loop through each user and determine the correct status
 
     activity = dict()
 
-    with ThreadPoolExecutor(15) as executor:
+    with ThreadPoolExecutor(30) as executor:
         futures = { executor.submit(user_audit, dn, users[dn]): dn for dn in users.keys() }
         for future in as_completed(futures):
             data = future.result()
             activity[dn] = data
 
+def purge(dn, details):
+
+    # start going through and determine whether the ldap entry needs to be removed
+    # no need to keep affiliation info on basically stub entries
+
+    logger = logging.getLogger('audit.core.user.purge')
+
+    status = details['accountStatus']
+    authgroups = details['authGroup']
+    esi_rtoken = details['esiRefreshToken']
+    discord_rtoken = details['discordRefreshToken']
+    discorduid = details['discorduid']
+    altof = details['altOf']
+
+    # only look at people with no access or special significance
+    if status != 'public' and authgroups != [ 'public' ]:
+        return False
+
+    # dont punt registered alts
+    if altof:
+        return False
+
+    # dont purge stuff we have tokens for
+    if esi_rtoken or discord_rtoken:
+        return False
+
+    # dont purge people who we have a discord uid to tie to
+
+    if discorduid:
+        return False
+
+    logger.info('purging {0} from ldap'.format(dn))
+    _ldaphelpers.purge_dn(dn)
+    return True
+
 def user_audit(dn, details):
 
+    if dn == 'ou=People,dc=triumvirate,dc=rocks':
+        return
+
+    logger = logging.getLogger('audit.core.user')
+
     msg = 'auditing user: {0}'.format(dn)
-    _logger.log('[' + __name__ + '] {0}'.format(msg),_logger.LogLevel.DEBUG)
+    logger.debug(msg)
+
     # groups that a non-blue user is allowed to have
 
     safegroups = set([ 'public', 'ban_pending', 'banned', ])
 
     if details['uid'] == None:
+        logger.error('dn {0} has no charid'.format(dn))
         return False
 
     charid = int(details['uid'])
@@ -98,25 +148,49 @@ def user_audit(dn, details):
     altof = details['altOf']
     charname = details['characterName']
     raw_groups = details['authGroup']
+    esi_rtoken = details['esiRefreshToken']
+    discord_rtoken = details['discordRefreshToken']
     ldap_discorduid = details['discorduid']
     ldap_discord2fa = details['discord2fa']
     ldap_discordname = details['discordName']
     ldap_scopes = details['esiScope']
+    ldap_roles = details['corporationRole']
 
     if ldap_scopes is None:
         ldap_scopes = []
+    if ldap_roles is None:
+        ldap_roles = []
 
     if details['lastLogin'] is not None:
         ldap_lastlogin = float(details['lastLogin'])
     else:
-        ldap_lastlogin = None
+        ldap_lastlogin = 0
 
-    # bugfix sanity check
+    # we do not need to keep entries on people where there's no meaningful data
+
+    purged = purge(dn, details)
+
+    if purged:
+        # this has been purged, we're done here.
+        msg = 'successfully purged dn {0}'.format(dn)
+        logger.debug(msg)
+        return
+
+    ## bugfix sanity checks
     # there was once a bug where people would be marked as alts of themselves
     # this results in interesting effects
 
     if altof == charid:
         _ldaphelpers.update_singlevalue(dn, 'altOf', None)
+
+    # there was once a time where tokens were purged but their associated scopes and roles were not
+
+    if esi_rtoken is None:
+
+        if ldap_scopes != []:
+            _ldaphelpers.update_singlevalue(dn, 'esiScope', None)
+        if ldap_roles != []:
+            _ldaphelpers.update_singlevalue(dn, 'corporationRole', None)
 
     # discord
     # this seems like the best place to put this logic
@@ -126,8 +200,8 @@ def user_audit(dn, details):
         code, result = common.request_esi.esi(__name__, request_url, method='get', charid=charid, version='v6', base='discord')
 
         if not code == 200:
-            error = 'unable to get discord user information for {0}: ({1}) {2}'.format(dn, code, result)
-            _logger.log('[' + __name__ + '] ' + error,_logger.LogLevel.ERROR)
+            msg = 'unable to get discord user information for {0}: ({1}) {2}'.format(dn, code, result)
+            logger.error(msg)
             return False
 
         discorduid = int(result.get('id'))
@@ -160,7 +234,8 @@ def user_audit(dn, details):
 
         if not code == 200:
             # it doesn't really matter
-            _logger.log('[' + __name__ + '] characters online API error {0}: {1}'.format(code, result),_logger.LogLevel.ERROR)
+            msg = 'characters online API error {0}: {1}'.format(code, result)
+            logger.error(msg)
         else:
             # example:
             # {'online': False, 'last_login': '2017-07-11T06:38:19Z', 'last_logout': '2017-07-11T06:32:41Z', 'logins': 2474}

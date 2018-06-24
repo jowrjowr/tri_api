@@ -37,7 +37,10 @@ class parseaction(argparse.Action):
         else:
             filename = namespace.logname
 
-        _logger.LogSetup(namespace.loglevel, filename, namespace.logdir)
+        newlogging = ['core']
+
+        if value not in newlogging:
+            _logger.LogSetup(namespace.loglevel, filename, namespace.logdir)
 
         # do actual things
 
