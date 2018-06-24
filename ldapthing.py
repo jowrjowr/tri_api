@@ -19,7 +19,8 @@ for filename in onlyfiles:
 
     for dn, record in records.all_records:
         try:
-            rtoken = record['esiRefreshToken'][0].decode('utf-8')
+#            rtoken = record['esiRefreshToken'][0].decode('utf-8')
+            rtoken = record['discordRefreshToken'][0].decode('utf-8')
             charid = record['uid'][0].decode('utf-8')
         except Exception as e:
             continue
@@ -33,6 +34,6 @@ for charid in users:
     atoken = 'asdf'
     rtoken = users[charid]
 
-    result, value = storetokens(charid, atoken, rtoken)
+    result, value = storetokens(charid, atoken, rtoken, token_type='discord')
     if result == False:
         print(value)

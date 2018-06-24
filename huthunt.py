@@ -51,7 +51,6 @@ def structure_search(alliance_id, region_id):
             futures = { executor.submit(system_structure_search, charid, system): system for system in systems }
             for future in as_completed(futures):
                 data = future.result()
-#                structures = {**structures, **data}
                 structures.update(data)
 
     return structures
@@ -66,7 +65,6 @@ def system_structure_search(charid, solar_system_name):
 
     if not code == 200:
         # something broke severely
-        print(code, result)
         return {}
 
     structures = dict()

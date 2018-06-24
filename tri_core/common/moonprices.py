@@ -1,4 +1,3 @@
-
 import json
 import common.request_esi
 import common.logger as _logger
@@ -7,7 +6,6 @@ import common.esihelpers as _esihelpers
 import math
 import resource
 import MySQLdb as mysql
-import yaml
 import base64
 import common.credentials.database as _database
 

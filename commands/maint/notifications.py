@@ -309,7 +309,7 @@ def char_notifications(r, charid, corpname, corpid):
 
         # convert the yaml to a dict
         try:
-            not_data = yaml.load(item.get('text'))
+            not_data = yaml.safe_load(item.get('text'))
         except Exception as e:
             # couldn't process the yaml. don't care.
             continue

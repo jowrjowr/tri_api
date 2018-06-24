@@ -114,6 +114,11 @@ def discord_tokenthings(dn, discordtokens):
     if not old_rtoken:
         return True
 
+    if expires:
+        current_time = time.time()
+        if expires - current_time > 86400:
+            return True
+
     result, code = _discordrefresh.refresh_token(old_rtoken)
 
     if code is not True:
@@ -252,10 +257,10 @@ def eve_tokenthings(dn, evetokens):
         code, result = common.request_esi.esi(__name__, request_url, method='get', charid=charid, version='v2')
 
         if code == 403:
-            error = 'no perms to read roles for {0}: ({1}) {2}'.format(charid, code, result['error'])
+            error = 'no perms to read roles for {0}: ({1}) {2}'.format(charid, code, result)
             _logger.log('[' + function + '] ' + error,_logger.LogLevel.DEBUG)
         elif not code == 200:
-            error = 'unable to get character roles for {0}: ({1}) {2}'.format(charid, code, result['error'])
+            error = 'unable to get character roles for {0}: ({1}) {2}'.format(charid, code, result)
             _logger.log('[' + function + '] ' + error,_logger.LogLevel.ERROR)
         else:
 

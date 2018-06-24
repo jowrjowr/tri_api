@@ -109,7 +109,6 @@ def authgroup_mapping(group):
 
     # mappings of authgroups to discord roles
     if group == 'public':           return '@everyone'
-    if group == 'discordadmin':     return 'Director'
     if group == 'skyteam':          return 'Skyteam FC'
     if group == 'skirmishfc':       return 'Skirmish FC'
     if group == '500percent':       return '500percent'
