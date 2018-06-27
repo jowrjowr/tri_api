@@ -50,10 +50,9 @@ def registeruser(charid, atoken, rtoken, isalt=False, altof=None, tempblue=False
         # default level of access
         authgroups = [ 'public' ]
 
-    if 'allianceid' in user.keys():
-        if user['allianceid'] == 933731581:
-            # tri specific authgroup
-            authgroups.append('triumvirate')
+    if allianceid == 933731581:
+        # tri specific authgroup
+        authgroups.append('triumvirate')
 
     # setup the service user/pass
 

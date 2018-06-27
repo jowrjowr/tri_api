@@ -308,7 +308,7 @@ def audit_pilot(entry):
     attrlist = ['uid', 'characterName']
 
     if not altOf == None:
-        result = _ldaphelpers.ldap_uid2name(__name__, altOf)
+        result = _ldaphelpers.ldap_uid2name(altOf)
         if result == None:
             msg = 'failed to find main for {0}'.format(altOf)
             _logger.log('[' + __name__ + ']' + msg, _logger.LogLevel.WARNING)
@@ -463,7 +463,7 @@ def audit_pilot_capitals(entry):
         return ships
 
     if not altOf == None:
-        result = _ldaphelpers.ldap_uid2name(__name__, altOf)
+        result = _ldaphelpers.ldap_uid2name(altOf)
         if result == None:
             msg = 'failed to find main for {0}'.format(altOf)
             _logger.log('[' + __name__ + ']' + msg, _logger.LogLevel.WARNING)

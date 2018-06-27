@@ -80,6 +80,8 @@ def command_mining_ledger():
                 'moons': 0,
                 'this_month': 0,
                 'last_month': 0,
+                'this_month_total': 0,
+                'last_month_total': 0,
                 'token': False,
             }
 
@@ -144,6 +146,9 @@ def command_mining_ledger():
                 command_ledger[corpid]['moons'] += 1
                 command_ledger[corpid]['this_month'] += this_month
                 command_ledger[corpid]['last_month'] += last_month
+                command_ledger[corpid]['this_month_total'] += data['ledger']['this_month']['total']
+                command_ledger[corpid]['last_month_total'] += data['ledger']['last_month']['total']
+    print(command_ledger[1975749457])
 
     js = json.dumps(command_ledger)
     return Response(js, status=200, mimetype='application/json')
@@ -247,26 +252,24 @@ def ledger_parse(moon_data, charid, corpid, object, structure_id):
 
     # goo bearing ores including jackpots
 
-    ubiquitous = list(range(45490, 45494)) + list(range(46280, 46287))
-    common_ore = list(range(45494, 45498)) + list(range(46288, 46296))
-    uncommon = list(range(45498, 45502)) + list(range(46296, 46303))
-    rare = list(range(45502, 45507)) + list(range(46304, 46312))
-    exceptional = list(range(45510, 45514)) + list(range(46312, 46320))
+    common_ore = [ 45494, 46288, 46290, 46294, 46292, 45495, 45497, 45496, 46289, 46291, 46295, 46293 ]
+    exceptional = [ 46316, 46314, 46312, 46318, 45512, 45511, 46317, 46315, 46313, 46319, 45510, 45513 ]
+    rare = [ 45502, 45506, 46305, 46311, 46309, 46307, 45504, 46304, 46310, 46308, 46306, 45503 ]
+    ubiquitous = [ 45492, 46284, 46286, 46282, 46280, 45493, 46285, 46287, 46283, 46281, 45491, 45490 ]
+    uncommon = [ 45501, 46302, 46296, 46298, 46300, 45498, 46303, 46297, 46299, 46301, 45499, 45500 ]
 
     # standard +15% ore varieties
 
     standard = list(range(46675, 46690))
 
     taxable = ubiquitous + common_ore + uncommon + rare + exceptional
-    taxable.append(46287)
-    taxable.append(46303)
 
     all_ores = standard + taxable
 
     structure = { 'structure_id': structure_id }
 
     request_url = 'universe/structures/{0}/'.format(structure_id)
-    code, data = common.request_esi.esi(__name__, request_url, method='get', charid=charid, version='v1')
+    code, data = common.request_esi.esi(__name__, request_url, method='get', charid=charid, version='v2')
 
     if not code == 200:
         # something broke severely

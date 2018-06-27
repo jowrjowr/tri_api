@@ -398,7 +398,7 @@ def ts3_validate_users(ts3conn):
             if code == False:
                 msg = 'unable to setup teamspeak groups for {0}: {1}'.format(charname, result)
                 _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
-                return
+                continue
 
         elif len(result) > 1:
             # multiple TS registrations. naughty.
@@ -445,7 +445,7 @@ def ts3_validate_users(ts3conn):
             if orphan is True and cldbid == ts_dbid:
                 # a registered TS user needs to have an ESI token on their LDAP
                 reason = 'You are no longer registered on CORE'
-
+                continue
                 try:
                     resp = ts3conn.clientkick(reasonid=5, reasonmsg=reason, clid=clid)
                     _logger.log('[' + __name__ + '] ts3 user {0} kicked from server: no active registration'.format(user_nick),_logger.LogLevel.WARNING)
