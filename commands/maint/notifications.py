@@ -289,7 +289,7 @@ def char_notifications(r, charid, corpname, corpid):
 
 
     request_url = 'characters/{0}/notifications/'.format(charid)
-    code, result = common.request_esi.esi(__name__, request_url, version='v2', charid=charid)
+    code, result = common.request_esi.esi(__name__, request_url, version='v3', charid=charid)
 
     if not code == 200:
         msg = 'characters/{0}/notifications error: {1}'.format(charid, result['error'])

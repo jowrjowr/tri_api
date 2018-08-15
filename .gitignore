@@ -9,3 +9,5 @@ common
 !tri_core/common
 sde/*
 ldap
+*.csv
+*.log

@@ -3,31 +3,25 @@ from flask import request, json, Response
 from tri_core.common.session import readsession
 import re
 import time
-
-import common.logger as _logger
+import logging
+import json
 import common.ldaphelpers as _ldaphelpers
 import common.request_esi
+import urllib
+
+from common.logger import securitylog_new as securitylog
 
 @app.route('/core/blacklist/confirmed', methods=[ 'GET' ])
 def core_blacklist():
 
-
     # get all users that are confirmed blacklisted
 
-    ipaddress = request.headers['X-Real-Ip']
-    cookie = request.cookies.get('tri_core')
+    logger = logging.getLogger('tri_api.endpoints.blacklist.confirmed')
 
-    if cookie is not None:
-        payload = readsession(cookie)
-    else:
-        payload = None
+    ipaddress = request.args.get('log_ip')
+    log_charid = request.args.get('charid')
 
-    if payload is not None:
-        log_charid = payload['charID']
-    else:
-        log_charid = None
-
-    _logger.securitylog(__name__, 'viewed blacklist', detail='confirmed', ipaddress=ipaddress, charid=log_charid)
+    securitylog('viewed blacklist', detail='confirmed', ipaddress=ipaddress, charid=log_charid)
 
     dn = 'ou=People,dc=triumvirate,dc=rocks'
     filterstr='accountStatus=banned'
@@ -36,7 +30,7 @@ def core_blacklist():
 
     if code == False:
         msg = 'unable to fetch ldap information: {}'.format(error)
-        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
+        logger.error(msg)
         js = json.dumps({ 'error': msg })
         return Response(js, status=500, mimetype='application/json')
 
@@ -46,6 +40,9 @@ def core_blacklist():
 
     for dn, info in result.items():
         charname = info['characterName']
+        approver_charid = info['banApprovedBy']
+        reporter_charid = info['banReportedBy']
+
         banlist[charname] = info
         # map the times to friendlier info
 
@@ -54,17 +51,7 @@ def core_blacklist():
 
         # how the fuck did ban reasons/descriptions get stored this way?!
 
-        convert = [ 'banDescription', 'banReason' ]
-#        for thing in convert:
-
-#            if banlist[charname][thing] == '': continue
-#            if banlist[charname][thing] == None: continue
-#            banlist[charname][thing] = re.sub('"$', '', banlist[charname][thing])
-#            banlist[charname][thing] = re.sub("'$", '', banlist[charname][thing])
-#            banlist[charname][thing] = re.sub("^b'", '', banlist[charname][thing])
-#            banlist[charname][thing] = re.sub('^b"', '', banlist[charname][thing])
-#            banlist[charname][thing] = re.sub('\\\\r', '<br>', banlist[charname][thing])
-#            banlist[charname][thing] = re.sub('\\\\n', '<br>', banlist[charname][thing])
+        banlist[charname]['banReason'] = ban_convert(info['banReason'])
 
         # map the main of the banned alt to a name
 
@@ -75,7 +62,7 @@ def core_blacklist():
             banlist[charname]['isalt'] = True
             banlist[charname]['main_charid'] = main_charid
 
-            main_name = _ldaphelpers.ldap_uid2name(__name__, main_charid)
+            main_name = _ldaphelpers.ldap_uid2name(main_charid)
 
             if main_name is False or None:
 
@@ -83,86 +70,71 @@ def core_blacklist():
                 code, result = common.request_esi.esi(__name__, request_url, 'get')
 
                 if not code == 200:
-                    _logger.log('[' + function + '] /characters API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.WARNING)
+                    msg = '/characters API error {0}: {1}'.format(code, result)
+                    logger.warning(msg)
                     banlist[charname]['main_charname'] = 'Unknown'
-                try:
+                else:
                     banlist[charname]['main_charname'] = result['name']
-                except KeyError as error:
-                    _logger.log('[' + function + '] User does not exist: {0})'.format(charid), _logger.LogLevel.ERROR)
-                    banlist[charname]['main_charname'] = 'Unknown'
             else:
                 banlist[charname]['main_charname'] = main_name
         else:
             banlist[charname]['isalt'] = False
+            banlist[charname]['main_charname'] = None
+            banlist[charname]['main_charid'] = None
 
         # map the reporter and approver's ids to names
 
-        approver = _ldaphelpers.ldap_uid2name(__name__, info['banApprovedBy'])
-        reporter = _ldaphelpers.ldap_uid2name(__name__, info['banReportedBy'])
+        approver_name = _ldaphelpers.ldap_uid2name(approver_charid)
+        reporter_name = _ldaphelpers.ldap_uid2name(reporter_charid)
 
-        if approver is False or None:
-            # no loger in ldap?
-            request_url = 'characters/{0}/'.format(info['banApprovedBy'])
+        if not approver_name and approver_charid:
+            # no longer in ldap?
+            request_url = 'characters/{0}/'.format(approver_charid)
             code, result = common.request_esi.esi(__name__, request_url, 'get')
-
             if not code == 200:
-                _logger.log('[' + function + '] /characters API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.WARNING)
+                msg = '/characters API error {0}: {1}'.format(code, result)
+                logger.warning(msg)
                 banlist[charname]['banApprovedBy'] = 'Unknown'
-            try:
+            else:
                 banlist[charname]['banApprovedBy'] = result['name']
-            except KeyError as error:
-                _logger.log('[' + function + '] User does not exist: {0})'.format(charid), _logger.LogLevel.ERROR)
-                banlist[charname]['banApprovedBy'] = 'Unknown'
         else:
-            banlist[charname]['banApprovedBy'] = approver
+            banlist[charname]['banApprovedBy'] = approver_name
 
-        if reporter is False or None:
+        if not reporter_name and reporter_charid:
             request_url = 'characters/{0}/'.format(info['banReportedBy'])
             code, result = common.request_esi.esi(__name__, request_url, 'get')
-
             if not code == 200:
-                _logger.log('[' + function + '] /characters API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.WARNING)
+                msg = '/characters API error {0}: {1}'.format(code, result)
+                logger.warning(msg)
                 banlist[charname]['banReportedBy'] = 'Unknown'
-            try:
+            else:
                 banlist[charname]['banReportedBy'] = result['name']
-            except KeyError as error:
-                _logger.log('[' + function + '] User does not exist: {0})'.format(charid), _logger.LogLevel.ERROR)
-                banlist[charname]['banReportedBy'] = 'Unknown'
         else:
-            banlist[charname]['banReportedBy'] = reporter
+            banlist[charname]['banReportedBy'] = reporter_name
 
     return Response(json.dumps(banlist), status=200, mimetype='application/json')
 
 @app.route('/core/blacklist/pending', methods=[ 'GET' ])
 def core_blacklist_pending():
 
-    import re
-    import time
-
     # get all users that are waiting to be blacklisted
 
-    ipaddress = request.headers['X-Real-Ip']
+    logger = logging.getLogger('tri_api.endpoints.blacklist.pending')
+
+    ipaddress = request.args.get('log_ip')
+    log_charid = request.args.get('charid')
     cookie = request.cookies.get('tri_core')
 
-    if cookie is not None:
-        payload = readsession(cookie)
-    else:
-        payload = None
-
-    if payload is not None:
-        log_charid = payload['charID']
-    else:
-        log_charid = None
-    _logger.securitylog(__name__, 'viewed blacklist', detail='pending', ipaddress=ipaddress, charid=log_charid)
+    securitylog('viewed blacklist', detail='pending', ipaddress=ipaddress, charid=log_charid)
 
     dn = 'ou=People,dc=triumvirate,dc=rocks'
     filterstr='authGroup=ban_pending'
-    attrlist=['characterName', 'uid', 'altOf', 'banReason', 'banReportedBy', 'banDescription' ]
+    attrlist=['characterName', 'uid', 'altOf', 'banReason', 'banReportedBy', 'banDescription', 'banDate' ]
     code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
 
     if code == False:
         msg = 'unable to fetch ldap information: {}'.format(error)
-        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
+        logger.error(msg)
         js = json.dumps({ 'error': msg })
         return Response(js, status=500, mimetype='application/json')
 
@@ -172,22 +144,13 @@ def core_blacklist_pending():
 
     for dn, info in result.items():
         charname = info['characterName']
+        reporter_charid = info['banReportedBy']
+
         banlist[charname] = info
         # map the times to friendlier info
 
-        # how the fuck did ban reasons/descriptions get stored this way?!
-
-        convert = [ 'banDescription', 'banReason' ]
-        for thing in convert:
-
-            if banlist[charname][thing] == '': continue
-            if banlist[charname][thing] == None: continue
-            banlist[charname][thing] = re.sub('"$', '', banlist[charname][thing])
-            banlist[charname][thing] = re.sub("'$", '', banlist[charname][thing])
-            banlist[charname][thing] = re.sub("^b'", '', banlist[charname][thing])
-            banlist[charname][thing] = re.sub('^b"', '', banlist[charname][thing])
-            banlist[charname][thing] = re.sub('\\\\r', '<br>', banlist[charname][thing])
-            banlist[charname][thing] = re.sub('\\\\n', '<br>', banlist[charname][thing])
+        if info['banDate']:
+            banlist[charname]['banDate'] = time.strftime('%Y-%m-%d', time.localtime(info['banDate']))
 
         # map the main of the banned alt to a name
 
@@ -198,7 +161,7 @@ def core_blacklist_pending():
             banlist[charname]['isalt'] = True
             banlist[charname]['main_charid'] = main_charid
 
-            main_name = _ldaphelpers.ldap_uid2name(__name__, main_charid)
+            main_name = _ldaphelpers.ldap_uid2name(main_charid)
 
             if main_name is False or None:
 
@@ -206,36 +169,34 @@ def core_blacklist_pending():
                 code, result = common.request_esi.esi(__name__, request_url, 'get')
 
                 if not code == 200:
-                    _logger.log('[' + function + '] /characters API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.WARNING)
+                    msg = '/characters API error {0}: {1}'.format(code, result)
+                    logger.warning(msg)
                     banlist[charname]['main_charname'] = 'Unknown'
-                try:
+                else:
                     banlist[charname]['main_charname'] = result['name']
-                except KeyError as error:
-                    _logger.log('[' + function + '] User does not exist: {0})'.format(charid), _logger.LogLevel.ERROR)
-                    banlist[charname]['main_charname'] = 'Unknown'
             else:
                 banlist[charname]['main_charname'] = main_name
         else:
+            banlist[charname]['main_charid'] = None
+            banlist[charname]['main_charname'] = None
             banlist[charname]['isalt'] = False
 
-        # map the reporter and approver's ids to names
+        # map the reporter id to name
 
-        reporter = _ldaphelpers.ldap_uid2name(__name__, info['banReportedBy'])
+        reporter_name = _ldaphelpers.ldap_uid2name(reporter_charid)
 
-        if reporter is False or None:
+        if not reporter_name and reporter_charid:
             request_url = 'characters/{0}/'.format(info['banReportedBy'])
             code, result = common.request_esi.esi(__name__, request_url, 'get')
 
             if not code == 200:
-                _logger.log('[' + function + '] /characters API error {0}: {1}'.format(code, result['error']), _logger.LogLevel.WARNING)
+                msg = '/characters API error {0}: {1}'.format(code, result)
+                logger.warning(msg)
                 banlist[charname]['banReportedBy'] = 'Unknown'
-            try:
+            else:
                 banlist[charname]['banReportedBy'] = result['name']
-            except KeyError as error:
-                _logger.log('[' + function + '] User does not exist: {0})'.format(charid), _logger.LogLevel.ERROR)
-                banlist[charname]['banReportedBy'] = 'Unknown'
         else:
-            banlist[charname]['banReportedBy'] = reporter
+            banlist[charname]['banReportedBy'] = reporter_name
 
     return Response(json.dumps(banlist), status=200, mimetype='application/json')
 
@@ -250,336 +211,268 @@ def core_blacklist_details():
 @app.route('/core/blacklist/<ban_charid>/confirm', methods=[ 'GET' ])
 def core_blacklist_confirm(ban_charid):
 
-    import time
-    import uuid
-    import ldap
-    from passlib.hash import ldap_salted_sha1
-
     # promote someone from 'ban pending' to 'banned'
 
     # logging
-    ipaddress = request.headers['X-Real-Ip']
+    logger = logging.getLogger('tri_api.endpoints.blacklist.confirm')
+
+    ipaddress = request.args.get('log_ip')
     log_charid = request.args.get('charid')
 
-    # optional charid override for command line tinkering to record correctly
-
-    _logger.securitylog(__name__, 'blacklist confirm'.format(ban_charid), ipaddress=ipaddress, charid=log_charid, detail='charid {0}'.format(ban_charid))
+    securitylog('blacklist confirm'.format(ban_charid), ipaddress=ipaddress, charid=log_charid, detail='charid {0}'.format(ban_charid))
 
     # fetch details including main + alts
 
     dn = 'ou=People,dc=triumvirate,dc=rocks'
-    filterstr='(&(authGroup=ban_pending)(uid={}))'.format(ban_charid)
-    attrlist=['characterName', 'uid', 'altOf', 'banReason', 'banDate', 'banReportedBy', 'banDescription' ]
+    filterstr='(&(authGroup=ban_pending)(|(altOf={0})(uid={0})))'.format(ban_charid)
+    attrlist=['characterName', 'uid', 'altOf', 'accountStatus' ]
     code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
 
     if code == False:
         msg = 'unable to fetch ldap information: {}'.format(error)
-        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
+        logger.error(msg)
         js = json.dumps({ 'error': msg })
         return Response(js, status=500, mimetype='application/json')
 
     if result == None:
         msg = 'charid {0} isnt on the pending blacklist'.format(ban_charid)
-        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
+        logger.warning(msg)
         js = json.dumps({ 'error': msg })
-        return Response(js, status=500, mimetype='application/json')
+        return Response(js, status=404, mimetype='application/json')
 
-    (dn, info), = result.items()
+    for dn, info in result.items():
 
-    # setup the ldap connection for the modifications
+        # change account status and authgroup to banned
+        # add an approved by/time
 
-    ldap_conn = _ldaphelpers.ldap_binding(__name__)
+        # do sanity checks
 
-    if ldap_conn == None:
-        msg = 'unable to create an ldap connection'
-        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
-        js = json.dumps({ 'error': msg })
-        return Response(js, status=500, mimetype='application/json')
+        status = info['accountStatus']
+        charname = info['characterName']
+        altof = info['altOf']
 
-    # this will be true for everyone
+        if status == 'banned':
+            msg = 'user {0} already banned'.format(charname)
+            logger.info(msg)
+            return Response({}, status=200, mimetype='application/json')
+        elif status != 'ban_pending':
+            msg = 'user {0} not pending ban confirmation'.format(charname)
+            logger.info(msg)
+            return Response({}, status=200, mimetype='application/json')
+        else:
+            msg = 'setting dn {0} to banned'.format(dn)
+            logger.info(msg)
 
-    approved_on = str( time.time() ).encode('utf-8')
-    approved_by = str( log_charid ).encode('utf-8')
-    status = 'banned'.encode('utf-8')
-    group = 'banned'.encode('utf-8')
+        _ldaphelpers.update_singlevalue(dn, 'accountStatus', 'banned')
+        _ldaphelpers.update_singlevalue(dn, 'banApprovedBy', log_charid)
+        _ldaphelpers.update_singlevalue(dn, 'banApprovedOn', time.time())
 
-    # scramble password w/ random password
-    password = uuid.uuid4().hex
-    password_hash = ldap_salted_sha1.hash(password)
-    password_hash = password_hash.encode('utf-8')
-
-    mod_attrs = []
-
-    # change account status and authgroup to banned
-    # add an approved by/time
-
-    mod_attrs.append((ldap.MOD_REPLACE, 'authGroup', [ group ] ))
-    mod_attrs.append((ldap.MOD_REPLACE, 'accountStatus', [ status ] ))
-    mod_attrs.append((ldap.MOD_REPLACE, 'userPassword', [ password_hash ] ))
-    mod_attrs.append((ldap.MOD_REPLACE, 'banApprovedBy', [ approved_by ] ))
-    mod_attrs.append((ldap.MOD_REPLACE, 'banApprovedOn', [ approved_on ] ))
-
-    # only because other chars that get sucked up in this might not have these details
-    # so synchronize
-
-    mod_attrs.append((ldap.MOD_REPLACE, 'banDate', [ str(info['banDate']).encode('utf-8') ] ))
-    mod_attrs.append((ldap.MOD_REPLACE, 'banReason', [ str(info['banReason']).encode('utf-8') ] ))
-    mod_attrs.append((ldap.MOD_REPLACE, 'banReportedBy', [ str(info['banReportedBy']).encode('utf-8') ] ))
-    mod_attrs.append((ldap.MOD_REPLACE, 'banDescription', [ str(info['banDescription']).encode('utf-8') ] ))
-
-    promote = set()
-
-    altof = info['altOf']
-
-    # this character gets promoted regardless
-
-    promote.add(dn)
-
-    if altof is not None:
-        # promote it and all alts to banned
-        result = promote(__name__, ldap_conn, altof, 'BANNED', mod_attrs)
-        if result == None:
-            msg = 'charid {0} does not exist'.format(altof)
-            _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
-            js = json.dumps({ 'error': msg })
-            return Response(js, status=500, mimetype='application/json')
-        if result == False:
-            msg = 'unable to promote {0} to banned'.format(altof)
-            _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
-            js = json.dumps({ 'error': msg })
-            return Response(js, status=500, mimetype='application/json')
     # all done
-    ldap_conn.unbind()
     return Response({}, status=200, mimetype='application/json')
 
 
-@app.route('/core/blacklist/<ban_charid>/remove', methods=[ 'GET' ])
-def core_blacklist_remove(ban_charid):
-
-    import ldap
+@app.route('/core/blacklist/<charid>/remove', methods=[ 'GET' ])
+def core_blacklist_remove(charid):
 
     # demote someone from the blacklist
 
     # logging
-    ipaddress = request.headers['X-Real-Ip']
+    logger = logging.getLogger('tri_api.endpoints.blacklist.remove')
+
+    ipaddress = request.args.get('log_ip')
     log_charid = request.args.get('charid')
 
     # optional charid override for command line tinkering to record correctly
 
-    _logger.securitylog(__name__, 'blacklist remove', ipaddress=ipaddress, charid=log_charid, detail='charid {0}'.format(ban_charid))
+    securitylog('blacklist removal', ipaddress=ipaddress, charid=log_charid, detail='charid {0}'.format(charid))
 
     # fetch details
 
     dn = 'ou=People,dc=triumvirate,dc=rocks'
-    filterstr='(&(authGroup=banned)(uid={}))'.format(ban_charid)
+    filterstr='(&(accountStatus=banned)(|(altOf={0})(uid={0})))'.format(charid)
     attrlist=['characterName', 'uid', 'altOf' ]
     code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
 
     if code == False:
         msg = 'unable to fetch ldap information: {}'.format(error)
-        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
+        logger.error(msg)
         js = json.dumps({ 'error': msg })
         return Response(js, status=500, mimetype='application/json')
 
     if result == None:
-        msg = 'charid {0} isnt banned dum-dum'.format(ban_charid)
-        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
+        msg = 'charid {0} isnt banned dum-dum'.format(charid)
+        logger.error(msg)
         js = json.dumps({ 'error': msg })
         return Response(js, status=500, mimetype='application/json')
 
-    (dn, info), = result.items()
+    for dn, info in result.items():
 
-    # setup the ldap connection for the modifications
+        purge = [ 'banApprovedBy', 'banApprovedOn', 'banDate', 'banReason', 'banReportedBy', 'banDescription' ]
 
-    ldap_conn = _ldaphelpers.ldap_binding(__name__)
+        _ldaphelpers.update_singlevalue(dn, 'accountStatus', 'public')
+        _ldaphelpers.add_value(dn, 'authGroup', 'public')
+        _ldaphelpers.purge_authgroups(dn, [ 'banned' ])
+        for attr in purge:
+            _ldaphelpers.update_singlevalue(dn, attr, None)
 
-    if ldap_conn == None:
-        msg = 'unable to create an ldap connection'
-        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
-        js = json.dumps({ 'error': msg })
-        return Response(js, status=500, mimetype='application/json')
-
-    mod_attrs = []
-
-    # promoted to pubbie. a step up.
-
-    status = 'public'.encode('utf-8')
-    group = status
-
-    mod_attrs.append((ldap.MOD_REPLACE, 'authGroup', [ group ] ))
-    mod_attrs.append((ldap.MOD_REPLACE, 'accountStatus', [ status ] ))
-
-    purge = [ 'banApprovedBy', 'banApprovedOn', 'banDate', 'banReason', 'banReportedBy' ]
-
-    for attr in purge:
-        mod_attrs.append((ldap.MOD_DELETE, attr, None ))
-
-    promote = set()
-    promote.add(dn)
-
-    if altof is not None:
-        result = promote(__name__, ldap_conn, altof, 'UNBANNED', mod_attrs)
-        if result == None:
-            msg = 'charid {0} does not exist'.format(altof)
-            _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
-            js = json.dumps({ 'error': msg })
-            return Response(js, status=500, mimetype='application/json')
-        if result == False:
-            msg = 'unable to promote {0} to unbanned'.format(altof)
-            _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
-            js = json.dumps({ 'error': msg })
-            return Response(js, status=500, mimetype='application/json')
-
-    # all done
-    ldap_conn.unbind()
     return Response({}, status=200, mimetype='application/json')
 
-@app.route('/core/blacklist/<ban_charid>/add', methods=[ 'POST' ])
-def core_blacklist_add(ban_charid):
-
-    import ldap
+@app.route('/core/blacklist/add', methods=[ 'POST' ])
+def core_blacklist_add():
 
     # put someone into the blacklist, pending confirmation
 
-    ban_data = json.loads(request.data)
-
     # logging
-    ipaddress = request.headers['X-Real-Ip']
+    logger = logging.getLogger('tri_api.endpoints.blacklist.add')
+    ipaddress = request.args.get('log_ip')
     log_charid = request.args.get('charid')
 
     # optional charid override for command line tinkering to record correctly
 
-    _logger.securitylog(__name__, 'blacklist add', ipaddress=ipaddress, charid=log_charid, detail='charid {0}'.format(ban_charid))
+    # leave some test data in place
+    #request.data = '{"banreason": "shitlord", "alts": ["chumsicle", "sales alt"], "main": "Searbhreathach", "bandescription": "because shithead"}'
 
-    # fetch details
+    ban_data = json.loads(request.data)
 
-    dn = 'ou=People,dc=triumvirate,dc=rocks'
-    filterstr='uid={}'.format(ban_charid)
-    attrlist=['characterName', 'uid', 'altOf' ]
-    code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
+    main_charname = ban_data['main']
 
-    if code == False:
-        msg = 'unable to fetch ldap information: {}'.format(error)
-        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
-        js = json.dumps({ 'error': msg })
-        return Response(js, status=500, mimetype='application/json')
+    securitylog('blacklist add', ipaddress=ipaddress, charid=log_charid, detail='charname {0}'.format(main_charname))
 
-    if result == None:
-        # we'll have to create a stub ldap to hold the ban if there is no ldap entry already
-        pass
-    (dn, info), = result.items()
+    # batch search the main and alts
 
-    # setup the ldap connection for the modifications
+    chardata = dict()
 
-    ldap_conn = _ldaphelpers.ldap_binding(__name__)
+    for charname in [ main_charname ] + ban_data['alts']:
+        query = { 'categories': 'character', 'language': 'en-us', 'search': charname, 'strict': 'true' }
+        query = urllib.parse.urlencode(query)
+        request_url = 'search/?' + query
+        code, result = common.request_esi.esi(__name__, request_url, 'get', version='v2')
 
-    if ldap_conn == None:
-        msg = 'unable to create an ldap connection'
-        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
-        js = json.dumps({ 'error': msg })
-        return Response(js, status=500, mimetype='application/json')
+        # will allow a hardfail for bans
 
-    mod_attrs = []
-
-    # promoted to pubbie. a step up.
-
-    status = 'public'.encode('utf-8')
-    group = status
-
-    mod_attrs.append((ldap.MOD_REPLACE, 'authGroup', [ group ] ))
-    mod_attrs.append((ldap.MOD_REPLACE, 'accountStatus', [ status ] ))
-
-    purge = [ 'banApprovedBy', 'banApprovedOn', 'banDate', 'banReason', 'banReportedBy' ]
-
-    for attr in purge:
-        mod_attrs.append((ldap.MOD_DELETE, attr, None ))
-
-    promote = set()
-    promote.add(dn)
-
-    if altof is not None:
-        result = promote(__name__, ldap_conn, altof, 'UNBANNED', mod_attrs)
-        if result == None:
-            msg = 'charid {0} does not exist'.format(altof)
-            _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
+        if result.get('character') is None:
+            msg = 'unable to identify charname: {0}'.format(charname)
+            logger.error(msg)
             js = json.dumps({ 'error': msg })
-            return Response(js, status=500, mimetype='application/json')
-        if result == False:
-            msg = 'unable to promote {0} to unbanned'.format(altof)
-            _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
+            return Response(js, status=400, mimetype='application/json')
+
+        if len(result.get('character')) > 1:
+            msg = 'more than one return for charname {0} from ESI search'.format(main_charname)
+            logger.error(msg)
             js = json.dumps({ 'error': msg })
-            return Response(js, status=500, mimetype='application/json')
+            return Response(js, status=400, mimetype='application/json')
 
-    # all done
-    ldap_conn.unbind()
-    return Response({}, status=200, mimetype='application/json')
+        # even on a single result its still a list
+        charid = result.get('character')[0]
+        chardata[charname] = charid
 
+    # ban the main
 
-def promote(function, ldap_conn, charid, reason, modlist):
+    main_charid = chardata[main_charname]
+    result = ban_character(main_charid)
 
-    # PROMOTIONS!
-    # same function is used over and over...
+    if not result:
+        msg = 'unable to ban character {0}'.format(main_charname)
+        logger.error(msg)
+        js = json.dumps({ 'error': msg })
+        return Response(js, status=400, mimetype='application/json')
 
-    dn = 'ou=People,dc=triumvirate,dc=rocks'
-    filterstr='uid={}'.format(charid)
-    attrlist=['characterName', 'uid' ]
-    code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
+    # tag the ban with flavor text
 
-    if code == False:
-        msg = 'unable to fetch ldap information: {}'.format(error)
-        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
-        ldap_conn.unbind()
-        return False
+    cn, dn = _ldaphelpers.ldap_normalize_charname(main_charname)
 
-    if result == None:
-        # weird.
-        return None
+    _ldaphelpers.add_value(dn, 'banReason', ban_data['banreason'])
+    _ldaphelpers.add_value(dn, 'banDescription', ban_data['bandescription'])
+    _ldaphelpers.add_value(dn, 'banReportedBy', log_charid)
+    _ldaphelpers.add_value(dn, 'banDate', time.time())
 
-    (dn, info), = result.items()
-
-    # the main gets a promotion
-
-    promote = set()
-    main_charid = info['uid']
-    promote.add(dn)
-
-    # any alts?
+    # try to find registered alts and ban those too
 
     dn = 'ou=People,dc=triumvirate,dc=rocks'
     filterstr='altOf={}'.format(main_charid)
-    attrlist=[ 'characterName', 'uid' ]
+    attrlist=['characterName', 'uid', 'altOf', 'accountStatus' ]
     code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
 
     if code == False:
         msg = 'unable to fetch ldap information: {}'.format(error)
-        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
-        ldap_conn.unbind()
-        return False, msg
+        logger.error(msg)
+        js = json.dumps({ 'error': msg })
+        return Response(js, status=500, mimetype='application/json')
 
-    if result is not None:
+    if result:
         for dn, info in result.items():
-            # each alt gets a promotion too!
-            promote.add(dn)
+            charid = info['uid']
+            charname = info['characterName']
+            ban_result = ban_character(main_charid)
+            if not result:
+                msg = 'unable to ban character {0}'.format(charname)
+                logger.error(msg)
+                js = json.dumps({ 'error': msg })
+                return Response(js, status=400, mimetype='application/json')
 
-    for dn in list(promote):
-        msg = 'promoting {0} to {1}'.format(dn, reason)
+    # work through the submitted alts and ban those too
 
-        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.INFO)
+    if len(ban_data['alts']) == 0:
+        # were done here.
+        return Response({}, status=200, mimetype='application/json')
 
-        try:
-            result = ldap_conn.modify_s(dn, modlist)
-        except ldap.LDAPError as error:
-            msg = 'unable to update ldap information: {}'.format(error)
-            _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
-            ldap_conn.unbind()
-            return False
-    # all done promoting
+    msg = 'banning {0} {1} alts'.format(len(ban_data['alts']), main_charname)
+    logger.info(msg)
+
+    for alt_charname in ban_data['alts']:
+        alt_charid = chardata[alt_charname]
+        ban_result = ban_character(alt_charid, altof=main_charid)
+
+        if not ban_result:
+            msg = 'unable to ban {0} alt {1}'.format(main_charname, alt_charname)
+            logger.error(msg)
+            js = json.dumps({ 'error': msg })
+            return Response(js, status=400, mimetype='application/json')
+
+    return Response({}, status=200, mimetype='application/json')
+
+def ban_character(charid, altof=None):
+    # take a charid and ban it
+    # flavor text added in other logic
+
+    logger = logging.getLogger('tri_api.endpoints.blacklist.add.character')
+
+    dn = 'ou=People,dc=triumvirate,dc=rocks'
+    filterstr='uid={}'.format(charid)
+    attrlist=['characterName']
+    code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
+
+    if code == False:
+        msg = 'unable to fetch ldap information: {}'.format(error)
+        logger.error(msg)
+        return False
+
+    if result == None:
+        # not currently in ldap, create a stub
+        _ldaphelpers.ldap_create_stub(charid=charid, authgroups=['public', 'ban_pending'], altof=altof)
+
+    # if a stub is created, i would have to search again
+    charname = _ldaphelpers.ldap_uid2name(charid)
+    cn, dn = _ldaphelpers.ldap_normalize_charname(charname)
+
+    msg = 'banning {0}'.format(charname)
+    logger.info(msg)
+
+    _ldaphelpers.update_singlevalue(dn, 'accountStatus', 'public')
+    _ldaphelpers.add_value(dn, 'authGroup', 'ban_pending')
 
     return True
 
-# ban reasons
-# 1: "shitlord"
-# 2: "spy"
-# 3: "rejected applicant"
-# 4: "other"
+def ban_convert(reason):
+    # legacy blacklist stuff was stored as an enum
 
+    if reason == 1:
+        return "shitlord"
+    elif reason == 2:
+        return "spy"
+    elif reason == 3:
+        return "rejected applicant"
+    elif reason == 4:
+        return "other"
+    else:
+        return reason

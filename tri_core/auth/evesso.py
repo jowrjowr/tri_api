@@ -51,8 +51,8 @@ def evesso(isalt=False, altof=None, tempblue=False, renter=False):
     redirect_url = _eve.redirect_url
 
     base_url = 'https://login.eveonline.com'
-    token_url = base_url + '/oauth/token'
-    base_auth_url = base_url + '/oauth/authorize'
+    token_url = base_url + '/v2/oauth/token'
+    base_auth_url = base_url + '/v2/oauth/authorize'
 
     # security logging
 
@@ -110,7 +110,7 @@ def auth_evesso_callback():
     redirect_url = _eve.redirect_url
 
     base_url = 'https://login.eveonline.com'
-    token_url = base_url + '/oauth/token'
+    token_url = base_url + '/v2/oauth/token'
     verify_url = base_url + '/oauth/verify'
 
     # the user has (ostensibly) authenticated with the application, now
@@ -266,8 +266,10 @@ def auth_evesso_callback():
         # scopes validate
         _logger.log('[' + __name__ + '] user {0} has expected scopes'.format(charid, result),_logger.LogLevel.DEBUG)
 
-        # store the tokens now
-        storetokens(charid, access_token, refresh_token)
+        # register the user, store the tokens
+
+        registeruser(charid, access_token, refresh_token, tempblue=tempblue, isalt=isalt, altof=altof, renter=renter)
+
 
     ## TESTS
     ##
@@ -393,14 +395,12 @@ def auth_evesso_callback():
     if tempblue:
         _logger.log('[' + __name__ + '] user {0} ({1}) not registered'.format(charid, charname),_logger.LogLevel.INFO)
         _logger.securitylog(__name__, 'core user registered', charid=charid, ipaddress=ipaddress, detail='blue from {0}'.format(alliancename))
-        code, result = registeruser(charid, access_token, refresh_token, tempblue=True)
         return response
 
     # handle new renters
     if renter:
         _logger.log('[' + __name__ + '] user {0} ({1}) not registered'.format(charid, charname),_logger.LogLevel.INFO)
         _logger.securitylog(__name__, 'core user registered', charid=charid, ipaddress=ipaddress, detail='renter from {0}'.format(alliancename))
-        code, result = registeruser(charid, access_token, refresh_token, renter=True)
         return response
 
     # handle new alts
@@ -408,10 +408,8 @@ def auth_evesso_callback():
     if isalt:
         _logger.log('[' + __name__ + '] alt user {0} (alt of {1}) not registered'.format(charname, altof),_logger.LogLevel.INFO)
         _logger.securitylog(__name__, 'alt user registered', charid=charid, ipaddress=ipaddress, detail='alt of {0}'.format(altof))
-        code, result = registeruser(charid, access_token, refresh_token, isalt=isalt, altof=altof)
         return response
     else:
         _logger.log('[' + __name__ + '] user {0} ({1}) not registered'.format(charid, charname),_logger.LogLevel.INFO)
         _logger.securitylog(__name__, 'core user registered', charid=charid, ipaddress=ipaddress)
-        code, result = registeruser(charid, access_token, refresh_token)
         return response

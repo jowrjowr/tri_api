@@ -291,10 +291,9 @@ def ledger_parse(moon_data, charid, corpid, object, structure_id):
     # get structure type name
 
     typeid = data['type_id']
-    esi_url = 'universe/types/{0}'.format(typeid)
-    esi_url = esi_url + ''
+    request_url = 'universe/types/{0}/'.format(typeid)
 
-    code, typedata = common.request_esi.esi(__name__, esi_url, 'get')
+    code, typedata = common.request_esi.esi(__name__, request_url, 'get')
     if not code == 200:
         # something broke severely
         _logger.log('[' + __name__ + '] /universe/types API error ' + str(code) + ': ' + str(typedata['error']), _logger.LogLevel.ERROR)

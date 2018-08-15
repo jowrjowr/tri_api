@@ -95,6 +95,8 @@ def purge(dn, details):
     # start going through and determine whether the ldap entry needs to be removed
     # no need to keep affiliation info on basically stub entries
 
+    return False
+
     logger = logging.getLogger('audit.core.user.purge')
 
     status = details['accountStatus']
