@@ -18,6 +18,8 @@ from tri_core.common.storetokens import storetokens
 from tri_core.common.scopes import scope, blue_scope, renter_scope
 from tri_core.common.session import readsession
 from tri_core.common.testing import vg_blues, vg_alliances, vg_renters
+from common.logger import getlogger_new as getlogger
+from common.logger import securitylog_new as securitylog
 
 from requests_oauthlib import OAuth2Session
 
@@ -57,20 +59,22 @@ def evesso(isalt=False, altof=None, tempblue=False, renter=False):
     # security logging
 
     ipaddress = request.headers['X-Real-Ip']
+    detail = None
     if isalt == True:
-        _logger.securitylog(__name__, 'SSO login initiated', ipaddress=ipaddress, detail='alt of {}'.format(altof))
+        detail='alt of {}'.format(altof)
         auth_scopes = scope
     elif tempblue == True:
-        _logger.securitylog(__name__, 'SSO login initiated', ipaddress=ipaddress, detail='temp blue')
+        detail='temp blue'
         # the scope list for temp blues is very short
         auth_scopes = blue_scope
     elif renter == True:
-        _logger.securitylog(__name__, 'SSO login initiated', ipaddress=ipaddress, detail='renter')
+        detail='renter'
         # the renter scope list is distinct
         auth_scopes = renter_scope
     else:
         auth_scopes = scope
-        _logger.securitylog(__name__, 'SSO login initiated', ipaddress=ipaddress)
+
+    securitylog(action='SSO login initiated', ipaddress=ipaddress, detail=detail)
 
     # setup the redirect url for the first stage of oauth flow
 
@@ -105,6 +109,9 @@ def evesso(isalt=False, altof=None, tempblue=False, renter=False):
 @app.route('/auth/eve/callback', methods=['GET'])
 def auth_evesso_callback():
 
+    logger = getlogger('core.sso.callback')
+    logger.propagate = False
+
     client_id = _eve.client_id
     client_secret = _eve.client_secret
     redirect_url = _eve.redirect_url
@@ -126,18 +133,21 @@ def auth_evesso_callback():
     # security logging
 
     if isalt == True:
-        _logger.securitylog(__name__, 'SSO callback received', ipaddress=ipaddress, detail='alt of {}'.format(altof))
+        detail = 'alt of {}'.format(altof)
         auth_scopes = scope
     elif tempblue == True:
-        _logger.securitylog(__name__, 'SSO callback received', ipaddress=ipaddress, detail='temp blue')
+        detail = 'temp blue'
         # make sure we only check for the blue scope list
         auth_scopes = blue_scope
     elif renter == True:
-        _logger.securitylog(__name__, 'SSO callback received', ipaddress=ipaddress, detail='renter')
+        detail = 'renter'
         auth_scopes = renter_scope
     else:
-        _logger.securitylog(__name__, 'SSO callback received', ipaddress=ipaddress)
+        detail = None
         auth_scopes = scope
+
+    action = 'SSO callback'
+    securitylog(action=action, ipaddress=ipaddress, detail=detail)
 
     # handle oauth token manipulation
 
@@ -162,7 +172,8 @@ def auth_evesso_callback():
         )
 
     except Exception as error:
-        _logger.log('[' + __name__ + '] unable to fetch eve sso access token: {0}'.format(error),_logger.LogLevel.ERROR)
+        msg = 'unable to fetch eve sso access token: {0}'.format(error)
+        logger.error(msg)
         return('ERROR: ' + str(error))
 
     access_token = atoken['access_token']
@@ -176,7 +187,7 @@ def auth_evesso_callback():
         result.raise_for_status()
     except requests.exceptions.HTTPError as error:
         msg = 'unable to verify eve sso access token: {0}'.format(error)
-        _logger.log('[' + __name__ + '] {0}'.format(msg),_logger.LogLevel.ERROR)
+        logger.error(msg)
         message = 'SORRY, internal error. Try again.'
         response = make_response(message)
 
@@ -198,7 +209,7 @@ def auth_evesso_callback():
 
     if affilliations.get('error'):
         msg = 'error in fetching affiliations for {0}: {1}'.format(charid, affilliations.get('error'))
-        _logger.log('[' + __name__ + '] {0}'.format(msg),_logger.LogLevel.ERROR)
+        logger.error(msg)
         message = 'SORRY, internal error. Try again.'
         response = make_response(message)
         return response
@@ -224,7 +235,7 @@ def auth_evesso_callback():
     if isalt:
         if altof == None or altof == 'None':
             msg = 'is an alt but altof = None? wtf. charid {0} altof {1} {2}'.format(charid, altof, type(altof))
-            _logger.log('[' + __name__ + '] {0}'.format(msg),_logger.LogLevel.ERROR)
+            logger.error(msg)
             msg = 'error in fetching alt information. please poke saeka.'
             response = make_response(msg)
             return response
@@ -246,7 +257,7 @@ def auth_evesso_callback():
     if code == 'error':
         # something in the check broke
         msg = 'error in testing scopes for {0}: {1}'.format(charid, result)
-        _logger.log('[' + __name__ + '] {0}'.format(msg),_logger.LogLevel.ERROR)
+        logger.error(msg)
         message = 'SORRY, internal error. Try again.'
         response = make_response(message)
         return response
@@ -254,9 +265,9 @@ def auth_evesso_callback():
     elif code == False:
         # the user peeled something off the scope list. naughty.
         msg = 'user {0} modified scope list. missing: {1}'.format(charid, result)
-        _logger.log('[' + __name__ + '] {0}'.format(msg),_logger.LogLevel.WARNING)
+        logger.warning(msg)
 
-        _logger.securitylog(__name__, 'core login scope modification', charid=charid, ipaddress=ipaddress)
+        securitylog(action='core login scope modification', charid=charid, ipaddress=ipaddress)
 
         message = "Don't tinker with the scope list, please.<br>"
         message += "If you have an issue with it, talk to triumvirate leadership."
@@ -264,7 +275,8 @@ def auth_evesso_callback():
         return response
     elif code == True:
         # scopes validate
-        _logger.log('[' + __name__ + '] user {0} has expected scopes'.format(charid, result),_logger.LogLevel.DEBUG)
+        msg = 'user {0} has expected scopes'.format(charid, result)
+        logger.debug(msg)
 
         # register the user, store the tokens
 
@@ -282,12 +294,12 @@ def auth_evesso_callback():
         message = 'nope.avi'
         if isalt == True:
             msg = 'banned user {0} ({1}) tried to register alt {2}'.format(charid, charname, altof)
-            _logger.log('[' + __name__ + '] {0}'.format(msg),_logger.LogLevel.WARNING)
-            _logger.securitylog(__name__, 'banned user tried to register', charid=charid, ipaddress=ipaddress, detail='alt of {0}'.format(altof))
+            logger.warning(msg)
+            securitylog(action='banned user tried to register', charid=charid, ipaddress=ipaddress, detail='alt of {0}'.format(altof))
         else:
             msg = 'banned user {0} ({1}) tried to register'.format(charid, charname)
-            _logger.log('[' + __name__ + '] {0}'.format(msg),_logger.LogLevel.WARNING)
-            _logger.securitylog(__name__, 'banned user tried to register', charid=charid, ipaddress=ipaddress)
+            logger.warning(msg)
+            securitylog(action='banned user tried to register', charid=charid, ipaddress=ipaddress)
         return make_response(message)
 
 
@@ -297,8 +309,8 @@ def auth_evesso_callback():
             # not an alt, not a blue. not a renter. go away.
             msg = 'please contact a recruiter if you are interested in joining triumvirate'
             logmsg = 'non-blue user {0} ({1}) tried to register'.format(charid, charname)
-            _logger.log('[' + __name__ + '] {0}'.format(logmsg),_logger.LogLevel.WARNING)
-            _logger.securitylog(__name__, 'non-blue user tried to register', charid=charid, ipaddress=ipaddress)
+            logger.warning(logmsg)
+            securitylog(action='non-blue user tried to register', charid=charid, ipaddress=ipaddress)
             return make_response(msg)
         else:
             # someone is registering a non-blue alt, nbd
@@ -324,15 +336,16 @@ def auth_evesso_callback():
 
     # security logging
 
-    msg = 'SSO callback completed'
+    action = 'SSO callback completed'
+    detail = None
     if isalt == True:
-        _logger.securitylog(__name__, msg, charid=charid, ipaddress=ipaddress)
+        detail='alt of {0}'.format(altof)
     elif tempblue == True:
-        _logger.securitylog(__name__, msg, charid=charid, ipaddress=ipaddress, detail='blue from {0}'.format(alliancename))
+        detail='blue from {0}'.format(alliancename)
     elif renter == True:
-        _logger.securitylog(__name__, msg, charid=charid, ipaddress=ipaddress, detail='renter from {0}'.format(alliancename))
-    else:
-        _logger.securitylog(__name__, msg, charid=charid, ipaddress=ipaddress, detail='alt of {0}'.format(altof))
+        detail='renter from {0}'.format(alliancename)
+
+    securitylog(action=action, charid=charid, ipaddress=ipaddress, detail=detail)
 
     expire_date = datetime.datetime.now() + datetime.timedelta(days=14)
 
@@ -349,18 +362,22 @@ def auth_evesso_callback():
             response = make_response(redirect('https://www.triumvirate.rocks/altregistration'))
 
         cookie = _session.makesession(altof)
-        _logger.log('[' + __name__ + '] created session for user: {0} (alt of {1})'.format(charname, altof),_logger.LogLevel.INFO)
+        msg = 'created session for user: {0} (alt of {1})'.format(charname, altof)
+        logger.info(msg)
+
     else:
         # proceed normally otherwise
         response = make_response(redirect('https://www.triumvirate.rocks'))
         cookie = _session.makesession(charid)
-        _logger.log('[' + __name__ + '] created session for user: {0} (charid {1})'.format(charname, charid),_logger.LogLevel.INFO)
+        msg = 'created session for user: {0} (charid {1})'.format(charname, charid)
+        logger.info(msg)
 
     response.set_cookie('tri_core', cookie, domain='.triumvirate.rocks', expires=expire_date)
 
     if cookie == False:
         # unable to construct session cookie
-        _logger.log('[' + __name__ + '] error in creating session cookie for user {0}'.format(charid),_logger.LogLevel.ERROR)
+        msg = 'error in creating session cookie for user {0}'.format(charid)
+        logger.error(msg)
         message = 'SORRY, internal error. Try again.'
         return make_response(message)
 
@@ -369,23 +386,27 @@ def auth_evesso_callback():
     if userinfo is not None:
         # already in ldap, and not banned
 
+        action = 'core login'
         if isalt:
             # is a registered alt
-            _logger.log('[' + __name__ + '] alt user {0} (alt of {1}) already registered'.format(charname, altof),_logger.LogLevel.INFO)
-            _logger.securitylog(__name__, 'core login', charid=charid, ipaddress=ipaddress, detail='via alt {0}'.format(altof))
+            msg = 'alt user {0} (alt of {1}) already registered'.format(charname, altof)
+            logger.info(msg)
+            securitylog(action=action, charid=charid, ipaddress=ipaddress, detail='via alt {0}'.format(altof))
             code, result = _ldaphelpers.ldap_altupdate(__name__, altof, charid)
             return response
         else:
             if tempblue:
                 # registered blue main.
-                _logger.log('[' + __name__ + '] user {0} ({1}) already registered'.format(charid, charname),_logger.LogLevel.INFO)
-                _logger.securitylog(__name__, 'core login', charid=charid, ipaddress=ipaddress, detail='blue from {0}'.format(alliancename))
+                msg = 'user {0} ({1}) already registered'.format(charid, charname)
+                logger.info(msg)
+                securitylog(action=action, charid=charid, ipaddress=ipaddress, detail='blue from {0}'.format(alliancename))
                 code, result = _ldaphelpers.ldap_altupdate(__name__, altof, charid)
                 return response
             else:
                 # registered character
-                _logger.log('[' + __name__ + '] user {0} ({1}) already registered'.format(charid, charname),_logger.LogLevel.INFO)
-                _logger.securitylog(__name__, 'core login', charid=charid, ipaddress=ipaddress)
+                msg = 'user {0} ({1}) already registered'.format(charid, charname)
+                logger.info(msg)
+                securitylog(action=action, charid=charid, ipaddress=ipaddress)
                 code, result = _ldaphelpers.ldap_altupdate(__name__, altof, charid)
                 return response
 
@@ -393,23 +414,27 @@ def auth_evesso_callback():
 
     # handle new temp blues
     if tempblue:
-        _logger.log('[' + __name__ + '] user {0} ({1}) not registered'.format(charid, charname),_logger.LogLevel.INFO)
-        _logger.securitylog(__name__, 'core user registered', charid=charid, ipaddress=ipaddress, detail='blue from {0}'.format(alliancename))
+        msg = 'user {0} ({1}) not registered'.format(charid, charname)
+        logger.info(msg)
+        securitylog(action='core user registered', charid=charid, ipaddress=ipaddress, detail='blue from {0}'.format(alliancename))
         return response
 
     # handle new renters
     if renter:
-        _logger.log('[' + __name__ + '] user {0} ({1}) not registered'.format(charid, charname),_logger.LogLevel.INFO)
-        _logger.securitylog(__name__, 'core user registered', charid=charid, ipaddress=ipaddress, detail='renter from {0}'.format(alliancename))
+        msg = 'user {0} ({1}) not registered'.format(charid, charname)
+        logger.info(msg)
+        securitylog(action='core user registered', charid=charid, ipaddress=ipaddress, detail='renter from {0}'.format(alliancename))
         return response
 
     # handle new alts
 
     if isalt:
-        _logger.log('[' + __name__ + '] alt user {0} (alt of {1}) not registered'.format(charname, altof),_logger.LogLevel.INFO)
-        _logger.securitylog(__name__, 'alt user registered', charid=charid, ipaddress=ipaddress, detail='alt of {0}'.format(altof))
+        msg = 'alt user {0} (alt of {1}) not registered'.format(charname, altof)
+        logger.info(msg)
+        securitylog(action='alt user registered', charid=charid, ipaddress=ipaddress, detail='alt of {0}'.format(altof))
         return response
     else:
-        _logger.log('[' + __name__ + '] user {0} ({1}) not registered'.format(charid, charname),_logger.LogLevel.INFO)
-        _logger.securitylog(__name__, 'core user registered', charid=charid, ipaddress=ipaddress)
+        msg = 'user {0} ({1}) not registered'.format(charid, charname)
+        logger.info(msg)
+        securitylog(action='core user registered', charid=charid, ipaddress=ipaddress)
         return response

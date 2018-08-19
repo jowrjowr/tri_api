@@ -28,11 +28,10 @@ def registeruser(charid, atoken, rtoken, isalt=False, altof=None, tempblue=False
 
     if isalt:
         msg = 'registering user {0} (alt of {1})'.format(charid, altof)
-        logger.info(msg)
-
     else:
         msg = 'registering user {}'.format(charid)
-        logger.info(msg)
+
+    logger.info(msg)
 
     # affiliations
 
