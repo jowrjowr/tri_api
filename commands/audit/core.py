@@ -393,4 +393,9 @@ def user_audit(dn, details):
         # purge off any groups you shouldn't have
         if len(eff_groups) > 0:
             _ldaphelpers.purge_authgroups(dn, eff_groups)
+        # make sure banned people don't have pending by accident
+
+        if 'ban_pennding' in raw_groups:
+            _ldaphelpers.purge_authgroups(dn, ['ban_pending'])
+
     return True

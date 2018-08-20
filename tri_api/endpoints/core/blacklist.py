@@ -8,7 +8,7 @@ import json
 import common.ldaphelpers as _ldaphelpers
 import common.request_esi
 import urllib
-
+import requests
 from common.logger import securitylog_new as securitylog
 
 @app.route('/core/blacklist/confirmed', methods=[ 'GET' ])
@@ -70,7 +70,7 @@ def core_blacklist():
                 code, result = common.request_esi.esi(__name__, request_url, 'get')
 
                 if not code == 200:
-                    msg = '/characters API error {0}: {1}'.format(code, result)
+                    msg = '/characters/{0}/ API error {1}: {2}'.format(charid, code, result)
                     logger.warning(msg)
                     banlist[charname]['main_charname'] = 'Unknown'
                 else:
@@ -92,7 +92,7 @@ def core_blacklist():
             request_url = 'characters/{0}/'.format(approver_charid)
             code, result = common.request_esi.esi(__name__, request_url, 'get')
             if not code == 200:
-                msg = '/characters API error {0}: {1}'.format(code, result)
+                msg = '/characters/{0}/ API error {1}: {2}'.format(approver_charid, code, result)
                 logger.warning(msg)
                 banlist[charname]['banApprovedBy'] = 'Unknown'
             else:
@@ -104,7 +104,7 @@ def core_blacklist():
             request_url = 'characters/{0}/'.format(info['banReportedBy'])
             code, result = common.request_esi.esi(__name__, request_url, 'get')
             if not code == 200:
-                msg = '/characters API error {0}: {1}'.format(code, result)
+                msg = '/characters/{0}/ API error {1}: {2}'.format(reporter_charid, code, result)
                 logger.warning(msg)
                 banlist[charname]['banReportedBy'] = 'Unknown'
             else:
@@ -141,6 +141,11 @@ def core_blacklist_pending():
     # start converting the bans into friendly information
 
     banlist = dict()
+
+    if result is None:
+        # nothing pending
+        return Response('{}', status=200, mimetype='application/json')
+
 
     for dn, info in result.items():
         charname = info['characterName']
@@ -200,10 +205,42 @@ def core_blacklist_pending():
 
     return Response(json.dumps(banlist), status=200, mimetype='application/json')
 
-@app.route('/core/blacklist/<charid>', methods=[ 'GET' ])
-def core_blacklist_details():
+@app.route('/core/blacklist/confirmall', methods=[ 'GET' ])
+def core_blacklist_confirmall():
 
-    ipaddress = request.headers['X-Real-Ip']
+    # logging
+    logger = logging.getLogger('tri_api.endpoints.blacklist.confirmall')
+
+    ipaddress = request.args.get('log_ip')
+    log_charid = request.args.get('charid')
+
+    securitylog('blacklist bulk confirm', ipaddress=ipaddress, charid=log_charid, detail='EVERYONE')
+
+    # fetch details including main + alts
+
+    dn = 'ou=People,dc=triumvirate,dc=rocks'
+    filterstr = 'authGroup=ban_pending'
+    attrlist=['characterName', 'uid', 'altOf', 'authGroup', 'accountStatus' ]
+    code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
+
+    if code == False:
+        msg = 'unable to fetch ldap information: {}'.format(error)
+        logger.error(msg)
+        js = json.dumps({ 'error': msg })
+        return Response(js, status=500, mimetype='application/json')
+
+    if result == None:
+        msg = 'no such charid {0}'.format(ban_charid)
+        logger.warning(msg)
+        js = json.dumps({ 'error': msg })
+        return Response(js, status=404, mimetype='application/json')
+
+    for dn, info in result.items():
+        charid = info['uid']
+        msg = 'confirming {0}'.format(charid)
+        core_blacklist_confirm(charid)
+#        url = "https://api.triumvirate.rocks/core/blacklist/{0}/confirm?charid={1}&ipaddress={2}".format(charid, log_charid, ipaddress)
+#        requests.get(url)
 
     # maybe not worth bothering?
     return Response({}, status=200, mimetype='application/json')
@@ -219,13 +256,16 @@ def core_blacklist_confirm(ban_charid):
     ipaddress = request.args.get('log_ip')
     log_charid = request.args.get('charid')
 
+    if log_charid is None:
+        log_charid = 90622096
+
     securitylog('blacklist confirm'.format(ban_charid), ipaddress=ipaddress, charid=log_charid, detail='charid {0}'.format(ban_charid))
 
     # fetch details including main + alts
 
     dn = 'ou=People,dc=triumvirate,dc=rocks'
-    filterstr='(&(authGroup=ban_pending)(|(altOf={0})(uid={0})))'.format(ban_charid)
-    attrlist=['characterName', 'uid', 'altOf', 'accountStatus' ]
+    filterstr='(|(altOf={0})(uid={0}))'.format(ban_charid)
+    attrlist=['characterName', 'uid', 'altOf', 'authGroup', 'accountStatus' ]
     code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
 
     if code == False:
@@ -235,7 +275,7 @@ def core_blacklist_confirm(ban_charid):
         return Response(js, status=500, mimetype='application/json')
 
     if result == None:
-        msg = 'charid {0} isnt on the pending blacklist'.format(ban_charid)
+        msg = 'no such charid {0}'.format(ban_charid)
         logger.warning(msg)
         js = json.dumps({ 'error': msg })
         return Response(js, status=404, mimetype='application/json')
@@ -250,12 +290,15 @@ def core_blacklist_confirm(ban_charid):
         status = info['accountStatus']
         charname = info['characterName']
         altof = info['altOf']
+        groups = info['authGroup']
 
         if status == 'banned':
             msg = 'user {0} already banned'.format(charname)
             logger.info(msg)
             return Response({}, status=200, mimetype='application/json')
-        elif status != 'ban_pending':
+
+        if 'ban_pending' not in groups and altof is None:
+            # need the ban pending auth group
             msg = 'user {0} not pending ban confirmation'.format(charname)
             logger.info(msg)
             return Response({}, status=200, mimetype='application/json')
@@ -263,6 +306,11 @@ def core_blacklist_confirm(ban_charid):
             msg = 'setting dn {0} to banned'.format(dn)
             logger.info(msg)
 
+        # moving from pending to 'actually banned'
+        _ldaphelpers.purge_authgroups(dn, ['ban_pending'])
+        _ldaphelpers.update_singlevalue(dn, 'authGroup', 'banned')
+
+        # actually ban
         _ldaphelpers.update_singlevalue(dn, 'accountStatus', 'banned')
         _ldaphelpers.update_singlevalue(dn, 'banApprovedBy', log_charid)
         _ldaphelpers.update_singlevalue(dn, 'banApprovedOn', time.time())
@@ -289,8 +337,8 @@ def core_blacklist_remove(charid):
     # fetch details
 
     dn = 'ou=People,dc=triumvirate,dc=rocks'
-    filterstr='(&(accountStatus=banned)(|(altOf={0})(uid={0})))'.format(charid)
-    attrlist=['characterName', 'uid', 'altOf' ]
+    filterstr='(|(altOf={0})(uid={0}))'.format(charid)
+    attrlist=['characterName', 'uid', 'altOf', 'authGroup' ]
     code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
 
     if code == False:
@@ -300,7 +348,7 @@ def core_blacklist_remove(charid):
         return Response(js, status=500, mimetype='application/json')
 
     if result == None:
-        msg = 'charid {0} isnt banned dum-dum'.format(charid)
+        msg = 'charid {0} is not in core'.format(charid)
         logger.error(msg)
         js = json.dumps({ 'error': msg })
         return Response(js, status=500, mimetype='application/json')
@@ -310,8 +358,8 @@ def core_blacklist_remove(charid):
         purge = [ 'banApprovedBy', 'banApprovedOn', 'banDate', 'banReason', 'banReportedBy', 'banDescription' ]
 
         _ldaphelpers.update_singlevalue(dn, 'accountStatus', 'public')
-        _ldaphelpers.add_value(dn, 'authGroup', 'public')
-        _ldaphelpers.purge_authgroups(dn, [ 'banned' ])
+        _ldaphelpers.update_singlevalue(dn, 'authGroup', 'public')
+        #_ldaphelpers.purge_authgroups(dn, [ 'banned', 'ban_pending' ])
         for attr in purge:
             _ldaphelpers.update_singlevalue(dn, attr, None)
 
@@ -329,10 +377,19 @@ def core_blacklist_add():
 
     # optional charid override for command line tinkering to record correctly
 
-    # leave some test data in place
-    #request.data = '{"banreason": "shitlord", "alts": ["chumsicle", "sales alt"], "main": "Searbhreathach", "bandescription": "because shithead"}'
+    # parse form data
+    ban_data = dict()
+    ban_data['banreason'] = request.form.get('reason')
+    ban_data['bandescription'] = request.form.get('description')
+    ban_data['main'] = request.form.get('charName')
 
-    ban_data = json.loads(request.data)
+    ban_data['alts'] = list()
+    altfields = ['alt1', 'alt2', 'alt3', 'alt4', 'alt5', 'alt6', 'alt7']
+
+    for alt in altfields:
+        altname = request.form.get(alt)
+        if altname is not None and altname != '':
+            ban_data['alts'].append(altname)
 
     main_charname = ban_data['main']
 
@@ -355,7 +412,8 @@ def core_blacklist_add():
             logger.error(msg)
             js = json.dumps({ 'error': msg })
             return Response(js, status=400, mimetype='application/json')
-
+        print(charname)
+        print(result)
         if len(result.get('character')) > 1:
             msg = 'more than one return for charname {0} from ESI search'.format(main_charname)
             logger.error(msg)
@@ -399,6 +457,8 @@ def core_blacklist_add():
         js = json.dumps({ 'error': msg })
         return Response(js, status=500, mimetype='application/json')
 
+    error = False
+
     if result:
         for dn, info in result.items():
             charid = info['uid']
@@ -406,15 +466,18 @@ def core_blacklist_add():
             ban_result = ban_character(main_charid)
             if not result:
                 msg = 'unable to ban character {0}'.format(charname)
-                logger.error(msg)
                 js = json.dumps({ 'error': msg })
-                return Response(js, status=400, mimetype='application/json')
+                logger.error(msg)
+                error = True
 
     # work through the submitted alts and ban those too
 
     if len(ban_data['alts']) == 0:
         # were done here.
-        return Response({}, status=200, mimetype='application/json')
+        if not error:
+            return Response({}, status=200, mimetype='application/json')
+        else:
+            return Response(js, status=400, mimetype='application/json')
 
     msg = 'banning {0} {1} alts'.format(len(ban_data['alts']), main_charname)
     logger.info(msg)
@@ -427,12 +490,16 @@ def core_blacklist_add():
             msg = 'unable to ban {0} alt {1}'.format(main_charname, alt_charname)
             logger.error(msg)
             js = json.dumps({ 'error': msg })
-            return Response(js, status=400, mimetype='application/json')
+            error = True
+            # keep trying tho
 
-    return Response({}, status=200, mimetype='application/json')
+    if not error:
+        return Response({}, status=200, mimetype='application/json')
+    else:
+        return Response(js, status=400, mimetype='application/json')
 
 def ban_character(charid, altof=None):
-    # take a charid and ban it
+    # take a charid and ban it (technially, set it to pending approval)
     # flavor text added in other logic
 
     logger = logging.getLogger('tri_api.endpoints.blacklist.add.character')
@@ -447,19 +514,18 @@ def ban_character(charid, altof=None):
         logger.error(msg)
         return False
 
-    if result == None:
-        # not currently in ldap, create a stub
-        _ldaphelpers.ldap_create_stub(charid=charid, authgroups=['public', 'ban_pending'], altof=altof)
-
     # if a stub is created, i would have to search again
     charname = _ldaphelpers.ldap_uid2name(charid)
     cn, dn = _ldaphelpers.ldap_normalize_charname(charname)
 
+    if result == None:
+        # not currently in ldap, create a stub
+        _ldaphelpers.ldap_create_stub(charid=charid, authgroups=['public', 'ban_pending'], altof=altof)
+    else:
+        _ldaphelpers.add_value(dn, 'authGroup', 'ban_pending')
+
     msg = 'banning {0}'.format(charname)
     logger.info(msg)
-
-    _ldaphelpers.update_singlevalue(dn, 'accountStatus', 'public')
-    _ldaphelpers.add_value(dn, 'authGroup', 'ban_pending')
 
     return True
 
