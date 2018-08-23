@@ -380,7 +380,13 @@ def audit_discord_perms():
 
             continue
         else:
-            (dn, info), = result.items()
+
+            try:
+                (dn, info), = result.items()
+            except Exception as e:
+                msg = "discord uid {0} has {1} total instances registered".format(user['discorduid'], len(result))
+                logger.warning(msg)
+                continue
 
         corpid = info['corporation']
 
