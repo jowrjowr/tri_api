@@ -25,7 +25,7 @@ def core_blacklist():
 
     dn = 'ou=People,dc=triumvirate,dc=rocks'
     filterstr='accountStatus=banned'
-    attrlist=['characterName', 'uid', 'altOf', 'banApprovedBy', 'banApprovedOn', 'banReason', 'banReportedBy', 'banDescription' ]
+    attrlist=['characterName', 'uid', 'altOf', 'banApprovedBy', 'banApprovedOn', 'banReason', 'banReportedBy', 'banDescription', 'allianceName' ]
     code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
 
     if code == False:
