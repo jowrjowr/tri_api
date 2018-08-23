@@ -9,10 +9,12 @@ import common.logger as _logger
 import common.credentials.eve as _eve
 import common.ldaphelpers as _ldaphelpers
 import common.esihelpers as _esihelpers
+
 from common.check_scope import check_scope
 
 import tri_core.common.session as _session
 
+from common.verify import verify
 from tri_core.common.register import registeruser
 from tri_core.common.storetokens import storetokens
 from tri_core.common.scopes import scope, blue_scope, renter_scope
@@ -94,7 +96,7 @@ def evesso(isalt=False, altof=None, tempblue=False, renter=False):
         altof=altof,
         renter=renter,
         tempblue=tempblue,
-        )
+    )
 
     # store useful parameters in oauth state
 
@@ -110,7 +112,6 @@ def evesso(isalt=False, altof=None, tempblue=False, renter=False):
 def auth_evesso_callback():
 
     logger = getlogger('core.sso.callback')
-    logger.propagate = False
 
     client_id = _eve.client_id
     client_secret = _eve.client_secret
@@ -118,7 +119,6 @@ def auth_evesso_callback():
 
     base_url = 'https://login.eveonline.com'
     token_url = base_url + '/v2/oauth/token'
-    verify_url = base_url + '/oauth/verify'
 
     # the user has (ostensibly) authenticated with the application, now
     # the access token can be fetched
@@ -180,28 +180,15 @@ def auth_evesso_callback():
     refresh_token = atoken['refresh_token']
     expires_at = atoken['expires_at']
 
-    headers = {'Authorization': 'Bearer ' + access_token }
-    result = requests.get(verify_url, headers=headers)
-
     try:
-        result.raise_for_status()
-    except requests.exceptions.HTTPError as error:
+        charid, charname, scopes = verify(access_token)
+    except Exception as e:
+        # this ought to never happen
         msg = 'unable to verify eve sso access token: {0}'.format(error)
         logger.error(msg)
         message = 'SORRY, internal error. Try again.'
         response = make_response(message)
-
         return response
-
-    ## fetch the information for later checking
-
-    # token data
-
-    tokendata = json.loads(result.text)
-    charid = tokendata['CharacterID']
-    tokentype = tokendata['TokenType']
-    expires_at = tokendata['ExpiresOn']
-    charname = tokendata['CharacterName']
 
     # full ESI affiliations
 
@@ -252,19 +239,9 @@ def auth_evesso_callback():
     # verify that the atoken we get actually has the correct scopes that we requested
     # just in case someone got cute and peeled some off.
 
-    code, result = check_scope(__name__, charid, auth_scopes, atoken=access_token)
-
-    if code == 'error':
-        # something in the check broke
-        msg = 'error in testing scopes for {0}: {1}'.format(charid, result)
-        logger.error(msg)
-        message = 'SORRY, internal error. Try again.'
-        response = make_response(message)
-        return response
-
-    elif code == False:
+    if not check_scope(charid, auth_scopes, atoken=access_token):
         # the user peeled something off the scope list. naughty.
-        msg = 'user {0} modified scope list. missing: {1}'.format(charid, result)
+        msg = 'user {0} modified scope list'.format(charid)
         logger.warning(msg)
 
         securitylog(action='core login scope modification', charid=charid, ipaddress=ipaddress)
@@ -273,13 +250,11 @@ def auth_evesso_callback():
         message += "If you have an issue with it, talk to triumvirate leadership."
         response = make_response(message)
         return response
-    elif code == True:
+    else:
         # scopes validate
-        msg = 'user {0} has expected scopes'.format(charid, result)
+        msg = 'user {0} has expected scopes'.format(charid)
         logger.debug(msg)
-
         # register the user, store the tokens
-
         registeruser(charid, access_token, refresh_token, tempblue=tempblue, isalt=isalt, altof=altof, renter=renter)
 
 
