@@ -1,4 +1,3 @@
-import common.logger as _logger
 import common.maint.eve.refresh as _everefresh
 import common.maint.discord.refresh as _discordrefresh
 import common.ldaphelpers as _ldaphelpers
@@ -6,15 +5,23 @@ import common.request_esi
 import time
 import ldap
 
+from common.verify import verify
 from tri_core.common.storetokens import storetokens
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from common.logger import getlogger_new as getlogger
 
 def maint_tokens():
 
-    ldap_conn = _ldaphelpers.ldap_binding(__name__)
+    logger = getlogger('maint.tokens')
 
-    if ldap_conn == None:
-        _logger.log('[' + __name__ + '] LDAP connection error: {}'.format(error),_logger.LogLevel.ERROR)
+    # do esi status check first
+
+    request_url = 'status'
+    code, result = common.request_esi.esi(__name__, request_url, method='get', version='v1')
+
+    if not code == 200:
+        error = 'ESI offline'
+        logger.error(error)
         return
 
     # grab each token from ldap
@@ -28,7 +35,8 @@ def maint_tokens():
     if code == False:
         return
 
-    _logger.log('[' + __name__ + '] ldap users with defined refresh tokens: {0}'.format(len(result)),_logger.LogLevel.INFO)
+    msg = 'ldap users with defined refresh tokens: {0}'.format(len(result))
+    logger.info(msg)
 
     evetokens = dict()
     discordtokens = dict()
@@ -57,9 +65,6 @@ def maint_tokens():
             if info.get('discorduid'):
                 discordtokens[dn]['discorduid'] = int( info.get('discorduid') )
 
-
-    ldap_conn.unbind()
-
     # dump the tokens into a pool to bulk manage
 
     with ThreadPoolExecutor(40) as executor:
@@ -67,8 +72,9 @@ def maint_tokens():
         for future in as_completed(futures):
             data = future.result()
 
-
 def tokenthings(dn, evetokens, discordtokens):
+
+    logger = getlogger('maint.tokens.tokenthings')
 
     # retries
 
@@ -85,7 +91,8 @@ def tokenthings(dn, evetokens, discordtokens):
         while (retry_count < retry_max and not done):
 
             if retry_count > 0:
-                _logger.log('[' + function + '] {0} token update retry {1} of {2}'.format(token_type, retry_count, retry_max), _logger.LogLevel.WARNING)
+                msg = '{0} token update retry {1} of {2}'.format(token_type, retry_count, retry_max)
+                logger.warning(msg)
 
             if token_type == 'eve':
                 result = eve_tokenthings(dn, evetokens)
@@ -98,13 +105,17 @@ def tokenthings(dn, evetokens, discordtokens):
                 # success, all done.
                 done = True
             else:
-                _logger.log('[' + function + '] {0} token update failed. sleeping {1} seconds before retrying'.format(token_type, sleep), _logger.LogLevel.WARNING)
+                msg = '{0} token update failed. sleeping {1} seconds before retrying'.format(token_type, sleep)
+                logger.warning(msg)
                 time.sleep(sleep)
 
             if retry_count == retry_max:
-                _logger.log('[' + function + '] {0} token update failed {1} times. giving up. '.format(token_type, retry_max), _logger.LogLevel.WARNING)
+                msg = '{0} token update failed {1} times. giving up. '.format(token_type, retry_max)
+                logger.warning(msg)
 
 def discord_tokenthings(dn, discordtokens):
+
+    logger = getlogger('maint.tokens.discord')
 
     old_rtoken = discordtokens.get('rtoken')
     expires = discordtokens.get('expires')
@@ -126,7 +137,8 @@ def discord_tokenthings(dn, discordtokens):
         # the distinction matters.
         # see env/lib/python3.5/site-packages/oauthlib/oauth2/rfc6749/errors.py
 
-        _logger.log('[' + __name__ + '] unable to refresh discord token for {0}: {1}'.format(dn, result), _logger.LogLevel.INFO)
+        msg = 'unable to refresh discord token for {0}: {1}'.format(dn, result)
+        logger.info(msg)
 
         # only these exception types are valid reasons to purge a token
         purgetype = [ 'InvalidGrantError', 'UnauthorizedClientError', 'InvalidClientError', 'InvalidTokenError' ]
@@ -139,13 +151,14 @@ def discord_tokenthings(dn, discordtokens):
             _ldaphelpers.update_singlevalue(dn, 'discordAccessToken', None)
             _ldaphelpers.update_singlevalue(dn, 'discordAccessTokenExpires', None)
 
-            _logger.log('[' + __name__ + '] invalid discord token entries purged for user {}'.format(dn), _logger.LogLevel.INFO)
+            msg = 'invalid discord token entries purged for user {}'.format(dn)
+            logger.info(msg)
+
             return True
 
-        # either way, this has failed
+        # either way, this has failed in an unrecoverable way
 
-        ldap_conn.unbind()
-        return False
+        return True
 
     atoken = result.get('access_token')
     rtoken = result.get('refresh_token')
@@ -155,29 +168,23 @@ def discord_tokenthings(dn, discordtokens):
     result, value = storetokens(charid, atoken, rtoken, expires, token_type='discord')
 
     if result == False:
-        _logger.log('[' + __name__ + '] unable to store discord tokens for user {}'.format(dn), _logger.LogLevel.ERROR)
-        ldap_conn.unbind()
+        msg = 'unable to store discord tokens for user {}'.format(dn)
+        logger.error(msg)
         return False
 
     return True
 
 def eve_tokenthings(dn, evetokens):
 
+    logger = getlogger('maint.tokens.eve')
+
     charid = evetokens.get('uid')
     roles = evetokens.get('roles')
     ldap_scopes = evetokens.get('scopes')
     old_rtoken = evetokens.get('rtoken')
-    function = __name__
 
     if not old_rtoken:
         return True
-
-    ldap_conn = _ldaphelpers.ldap_binding(__name__)
-
-    if ldap_conn == None:
-        msg = 'LDAP connection error: {}'.format(error)
-        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
-        return False
 
     if roles is None:
         roles = []
@@ -185,7 +192,7 @@ def eve_tokenthings(dn, evetokens):
         ldap_scopes = []
 
     msg = 'updating eve token for charid {0}'.format(charid)
-    _logger.log('[' + __name__ + '] {0}'.format(msg), _logger.LogLevel.DEBUG)
+    logger.debug(msg)
 
     result, code = _everefresh.refresh_token(old_rtoken)
 
@@ -195,8 +202,7 @@ def eve_tokenthings(dn, evetokens):
         # see env/lib/python3.5/site-packages/oauthlib/oauth2/rfc6749/errors.py
 
         msg = 'unable to refresh token for charid {0}: {1}'.format(charid, result)
-        _logger.log('[' + __name__ + '] {0}'.format(msg), _logger.LogLevel.INFO)
-
+        logger.error(msg)
 
         # only these exception types are valid reasons to purge a token
         purgetype = [ 'InvalidGrantError', 'UnauthorizedClientError', 'InvalidClientError', 'InvalidTokenError' ]
@@ -205,33 +211,21 @@ def eve_tokenthings(dn, evetokens):
 
             # purge the entry from the ldap user
 
-            mod_attrs = []
-            mod_attrs.append((ldap.MOD_REPLACE, 'esiRefreshToken', None ))
-            mod_attrs.append((ldap.MOD_REPLACE, 'esiAccessToken', None ))
-            mod_attrs.append((ldap.MOD_REPLACE, 'esiAccessTokenExpires', None ))
+            _ldaphelpers.update_singlevalue(dn, 'esiRefreshToken', None)
+            _ldaphelpers.update_singlevalue(dn, 'esiAccessToken', None)
+            _ldaphelpers.update_singlevalue(dn, 'esiAccessTokenExpires', None)
 
             # corp roles and esi scopes now serve no purpose since the tokens are gone
 
-            mod_attrs.append((ldap.MOD_REPLACE, 'corporationRole', None ))
-            mod_attrs.append((ldap.MOD_REPLACE, 'esiScope', None ))
+            _ldaphelpers.update_singlevalue(dn, 'esiScope', None)
+            _ldaphelpers.update_singlevalue(dn, 'corporationRole', None)
 
-            try:
-                ldap_conn.modify_s(dn, mod_attrs)
-            except ldap.LDAPError as error:
-                msg = 'unable to purge eve token entries for {0}: {1}'.format(dn, error)
-                _logger.log('[' + __name__ + '] {0}'.format(msg),_logger.LogLevel.ERROR)
-                ldap_conn.unbind()
-                return False
-
-            ldap_conn.unbind()
-            return True
             msg = 'invalid token entries purged for user {}'.format(dn)
-            _logger.log('[' + __name__ + '] {0}'.format(msg), _logger.LogLevel.INFO)
+            logger.info(msg)
 
-        # either way, this has failed
+        # either way, this has failed in an unrecoverable way
 
-        ldap_conn.unbind()
-        return False
+        return True
 
     atoken = result.get('access_token')
     rtoken = result.get('refresh_token')
@@ -241,14 +235,11 @@ def eve_tokenthings(dn, evetokens):
     result, value = storetokens(charid, atoken, rtoken, expires, token_type='esi')
 
     if result == False:
-        _logger.log('[' + __name__ + '] unable to store tokens for user {}'.format(dn), _logger.LogLevel.ERROR)
-        ldap_conn.unbind()
+        msg = 'unable to store tokens for user {}'.format(dn)
+        logger.error(msg)
         return False
 
     # the updated token is now in LDAP
-
-    mod_attrs = []
-
     # fetch all corporation roles for the updated token if the scope allows that
 
     if 'esi-characters.read_corporation_roles.v1' in ldap_scopes:
@@ -258,10 +249,11 @@ def eve_tokenthings(dn, evetokens):
 
         if code == 403:
             error = 'no perms to read roles for {0}: ({1}) {2}'.format(charid, code, result)
-            _logger.log('[' + function + '] ' + error,_logger.LogLevel.DEBUG)
+            logger.debug(error)
         elif not code == 200:
             error = 'unable to get character roles for {0}: ({1}) {2}'.format(charid, code, result)
-            _logger.log('[' + function + '] ' + error,_logger.LogLevel.ERROR)
+            logger.error(error)
+
         else:
 
             # figure out what needs to be added and removed from ldap
@@ -272,56 +264,39 @@ def eve_tokenthings(dn, evetokens):
             extra_roles = set(roles) - set(result)
 
             for missing in list(missing_roles):
-                missing = missing.encode('utf-8')
-                mod_attrs.append((ldap.MOD_ADD, 'corporationRole', [ missing ] ))
+                _ldaphelpers.add_value(dn, 'corporationRole', missing)
 
             for extra in list(extra_roles):
-                extra = extra.encode('utf-8')
-                mod_attrs.append((ldap.MOD_DELETE, 'corporationRole', [ extra ] ))
+                _ldaphelpers.update_singlevalue(dn, 'corporationRole', extra, delete=True)
 
     else:
-        # legacy token that doesn't have this scope. probably not getting updates on these lol
+            # legacy token that doesn't have this scope. probably not getting updates on these lol
         pass
 
-    # determine the scopes the token has access to
-    # the verify url is specifically not versioned
-    # the token parameter is to bypass caching
-
-    verify_url = 'verify/?token={0}'.format(atoken)
-    code, result = common.request_esi.esi(__name__, verify_url, method='get', base='esi_verify')
-    if not code == 200:
-        _logger.log('[' + __name__ + '] unable to get token information for {0}: {1}'.format(charid, result),_logger.LogLevel.ERROR)
-        ldap_conn.unbind()
+    try:
+        token_charid, charname, token_scopes = verify(atoken)
+    except Exception as e:
+        # this ought to never happen
+        msg = 'unable to verify eve sso access token: {0}'.format(error)
+        logger.error(msg)
         return
-
-    # character scopes come out in a space delimited list
-    token_scopes = result['Scopes']
-    token_scopes = token_scopes.split()
-    token_charid = int(result['CharacterID'])
 
     if not token_charid == charid:
-        _logger.log('[' + __name__ + '] stored token for charid {0} belongs to charid {1}'.format(charid, token_charid),_logger.LogLevel.ERROR)
-        ldap_conn.unbind()
+        # ought to never happen, just a safety check from a scare once
+        msg = 'stored token for charid {0} belongs to charid {1}'.format(charid, token_charid)
+        logger.critical(msg)
         return
+
     # so given an array of scopes, let's check that what we want is in the list of scopes the character's token has
 
     missing_scopes = set(token_scopes) - set(ldap_scopes)
+
     extra_scopes = set(ldap_scopes) - set(token_scopes)
 
     for missing in list(missing_scopes):
-        missing = missing.encode('utf-8')
-        mod_attrs.append((ldap.MOD_ADD, 'esiScope', [ missing ]))
+        _ldaphelpers.add_value(dn, 'esiScope', missing)
 
     for extra in list(extra_scopes):
-        extra = extra.encode('utf-8')
-        mod_attrs.append((ldap.MOD_DELETE, 'esiScope', [ extra ] ))
-
-    if len(mod_attrs) > 0:
-        try:
-            ldap_conn.modify_s(dn, mod_attrs)
-        except ldap.LDAPError as error:
-            _logger.log('[' + __name__ + '] unable to update uid {0}: {1}'.format(charid, error),_logger.LogLevel.ERROR)
-            return False
-    ldap_conn.unbind()
+        _ldaphelpers.update_singlevalue(dn, 'esiScope', extra, delete=True)
 
     return True

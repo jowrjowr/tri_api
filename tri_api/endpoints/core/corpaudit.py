@@ -1,29 +1,35 @@
-from flask import request
 from tri_api import app
+from flask import request, Response
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from common.check_role import check_role
+import common.ldaphelpers as _ldaphelpers
+import common.esihelpers as _esihelpers
+import common.logger as _logger
+import common.request_esi
+import json
+import time
+
+from common.logger import getlogger_new as getlogger
+from common.logger import securitylog_new as securitylog
 
 @app.route('/core/corpaudit/<charid>', methods=[ 'GET' ])
 def core_corpaudit(charid):
 
-    from flask import request, Response
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-    from common.check_role import check_role
-    import common.ldaphelpers as _ldaphelpers
-    import common.logger as _logger
-    import common.request_esi
-    import json
 
     # do a corp level audit of who has services
 
     ipaddress = request.headers['X-Real-Ip']
     log_charid = request.args.get('log_charid')
 
-    _logger.securitylog(__name__, 'corp audit information request', ipaddress=ipaddress, charid=log_charid)
+    logger = getlogger('core.corpaudit')
+    securitylog('corp audit information request', ipaddress=ipaddress, charid=log_charid)
 
     try:
         charid = int(charid)
     except ValueError:
-        _logger.log('[' + __name__ + '] charid parameters must be integer: {0}'.format(charid), _logger.LogLevel.WARNING)
-        js = json.dumps({ 'error': 'charid parameter must be integer'})
+        msg = 'charid parameters must be integer: {0}'.format(charid)
+        logger.warning(msg)
+        js = json.dumps({ 'error': msg})
         resp = Response(js, status=401, mimetype='application/json')
         return resp
 
@@ -37,7 +43,7 @@ def core_corpaudit(charid):
 
     if code == False:
         error = 'failed to fetch characters for {0}: ({1}) {2}'.format(charid, code, char_result)
-        _logger.log('[' + __name__ + ']' + error, _logger.LogLevel.ERROR)
+        logger.error(error)
         js = json.dumps({'error': error})
         resp = Response(js, status=500, mimetype='application/json')
         return resp
@@ -49,10 +55,11 @@ def core_corpaudit(charid):
 
         if not roles:
             msg = "character {0} has insufficient roles for {1}".format(data['characterName'], data['corporationName'])
-            _logger.log('[' + __name__ + '] ' + msg, _logger.LogLevel.INFO)
+            logger.info(msg)
             continue
 
-        _logger.log('[' + __name__ + '] sufficient roles to view corp auditing information', _logger.LogLevel.DEBUG)
+        msg = 'character {0} has sufficient roles to view corp auditing information'.format(cn)
+        logger.debug(msg)
 
         if data['corporation'] not in corporation_id_list:
             request_url = 'corporations/{0}/members/'.format(data['corporation'])
@@ -60,9 +67,9 @@ def core_corpaudit(charid):
 
             if not code == 200:
                 # something broke severely
-                _logger.log('[' + __name__ + '] corporations API error {0}: {1}'.format(code, result), _logger.LogLevel.ERROR)
-                error = result
-                result = {'code': code, 'error': error}
+                msg = 'corporations API error {0}: {1}'.format(code, result)
+                logger.error(msg)
+                result = {'code': code, 'error': msg}
                 return code, result
             character_id_list = result
             corporation_id_list.append(data['corporation'])
@@ -83,14 +90,9 @@ def core_corpaudit(charid):
 
 def fetch_chardetails(charid):
 
-    import common.esihelpers as _esihelpers
-    import common.ldaphelpers as _ldaphelpers
-    import common.logger as _logger
-    import common.request_esi
-    import time
-
     chardetails = dict()
 
+    logger = getlogger('core.corpaudit.chardetails.{0}'.format(charid))
 
     dn = 'ou=People,dc=triumvirate,dc=rocks'
     filterstr='(uid={})'.format(charid)
@@ -183,11 +185,13 @@ def fetch_chardetails(charid):
             code, result = common.request_esi.esi(__name__, request_url, 'get')
 
             if not code == 200:
-                _logger.log('[' + __name__ + '] /characters API error {0}: {1}'.format(code, result), _logger.LogLevel.WARNING)
+                msg = '/characters/{0}/ API error {1}: {2}'.format(detail, code, result)
+                logger.warning(msg)
             try:
                 chardetails['altof'] = result['name']
             except KeyError as error:
-                _logger.log('[' + __name__ + '] User does not exist: {0})'.format(charid), _logger.LogLevel.ERROR)
+                msg = 'User does not exist: {0})'.format(charid)
+                logger.error(msg)
                 chardetails['altof'] = 'Unknown'
         else:
             chardetails['altof'] = None
@@ -201,7 +205,8 @@ def fetch_chardetails(charid):
 
         if not code == 200:
             # it doesn't really matter
-            _logger.log('[' + __name__ + '] characters loction API error {0}: {1}'.format(code, result),_logger.LogLevel.DEBUG)
+            msg = 'characters loction API error {0}: {1}'.format(code, result)
+            logger.debug(msg)
             location = None
             chardetails['location_id'] = location
             chardetails['location'] = 'Unknown'
@@ -215,7 +220,8 @@ def fetch_chardetails(charid):
 
         if not code == 200:
             # it doesn't really matter
-            _logger.log('[' + __name__ + '] characters loction API error {0}: {1}'.format(code, result),_logger.LogLevel.DEBUG)
+            msg = 'characters loction API error {0}: {1}'.format(code, result)
+            logger.debug(msg)
             location = None
         else:
             # can include either station_id or structure_id
@@ -230,7 +236,8 @@ def fetch_chardetails(charid):
             request_url = 'universe/systems/{0}/'.format(location)
             code, result = common.request_esi.esi(__name__, request_url, 'get', version='v4')
             if not code == 200:
-                _logger.log('[' + __name__ + '] /universe/systems API error ' + str(code) + ': ' + str(data['error']), _logger.LogLevel.INFO)
+                msg = '{0} API error: {1}'.format(request_url, result)
+                logger.error(msg)
                 chardetails['location'] = 'Unknown'
             else:
                 chardetails['location'] = result['name']
@@ -242,7 +249,8 @@ def fetch_chardetails(charid):
 
         if not code == 200:
             # it doesn't really matter
-            _logger.log('[' + __name__ + '] characters online API error {0}: {1}'.format(code, result['error']),_logger.LogLevel.DEBUG)
+            msg = '{0} API error: {1}'.format(request_url, result)
+            logger.debug(msg)
             location = None
             chardetails['online'] = 'Unknown'
             chardetails['last_online'] = 'Unknown'
@@ -255,10 +263,13 @@ def fetch_chardetails(charid):
 
             if not code_corp == 200:
                 _logger.log('[' + __name__ + '] /corporations API error {0}: {1}'.format(code_corp, result_corp['error']), _logger.LogLevel.WARNING)
+                msg = '{0} API error: {1}'.format(request_url_corp, result)
+                logger.warning(msg)
             else:
                 chardetails['corporation'] = result_corp['name']
         except KeyError as error:
-            _logger.log('[' + __name__ + '] corporation id does not exist: {0}'.format(corp_id), _logger.LogLevel.ERROR)
+            msg = 'corporation id does not exist: {0}'.format(corp_id)
+            logger.error(msg)
             charname = None
     return chardetails
 

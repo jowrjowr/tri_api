@@ -4,15 +4,17 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from common.check_role import check_role
 import common.request_esi
 import common.ldaphelpers as _ldaphelpers
-import common.logger as _logger
 import common.esihelpers as _esihelpers
-import common.check_scope as _check_scope
+from common.logger import getlogger_new as getlogger
+from common.logger import securitylog_new as securitylog
 
 
 @app.route('/core/trisupers/', methods=[ 'GET' ])
 def core_trisupers():
 
     # logging
+
+    logger = getlogger('core.trisupers')
 
     ipaddress = request.args.get('log_ip')
     if ipaddress is None:
@@ -26,7 +28,7 @@ def core_trisupers():
         resp = Response(js, status=405, mimetype='application/json')
         return resp
 
-    _logger.securitylog(__name__, 'supers audit', ipaddress=ipaddress, charid=charid)
+    securitylog('supers audit', ipaddress=ipaddress, charid=charid)
 
     # check for auth groups
 
@@ -37,36 +39,53 @@ def core_trisupers():
 
     if code == 'error':
         error = 'unable to check auth groups roles for {0}: ({1}) {2}'.format(charid, code, result)
-        _logger.log('[' + __name__ + ']' + error, _logger.LogLevel.ERROR)
+        logger.error(error)
         js = json.dumps({'error': error})
         resp = Response(js, status=500, mimetype='application/json')
         return resp
 
     if result == None:
         msg = 'charid {0} not in ldap'.format(charid)
-        _logger.log('[' + __name__ + '] {}'.format(msg), _logger.LogLevel.ERROR)
+        logger.error(msg)
         js = json.dumps({'error': msg})
         return Response(js, status=404, mimetype='application/json')
 
     (_, result), = result.items()
 
-    if not "tsadmin" in result['authGroup']:
-        error = 'insufficient corporate roles to access this endpoint.'
-        _logger.log('[' + __name__ + '] ' + error, _logger.LogLevel.INFO)
+    if not "command" in result['authGroup']:
+        error = 'insufficient authgroup privileges to access this endpoint.'
+        logger.error(error)
         js = json.dumps({'error': error})
         resp = Response(js, status=403, mimetype='application/json')
         return resp
 
-    # get super pilots
+    # get people in trisupers
 
-    filterstr = '(&(esiAccessToken=*)(alliance=933731581))'
+    pilots = []
+
+    filterstr = '(&(esiAccessToken=*)(alliance=933731581)(authGroup=trisupers))'
     attrlist = ['uid', 'corporation', 'characterName', 'altOf']
 
-    code_supers, result_supers = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
+    code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
+
+    for _, info in result.items():
+        pilots.append(info['uid'])
+
+    result_supers = result
+
+    # iterate through and add each charid from registered alts
+
+    for charid in pilots:
+        filterstr = 'altOf={}'.format(charid)
+        attrlist = ['uid', 'corporation', 'characterName', 'altOf']
+
+        code, result = _ldaphelpers.ldap_search(__name__, dn, filterstr, attrlist)
+        if result:
+            result_supers = {**result_supers, **result}
 
     supers = dict()
 
-    with ThreadPoolExecutor(75) as executor:
+    with ThreadPoolExecutor(40) as executor:
         futures = { executor.submit(audit_pilot, result_supers[cn]): cn for cn in result_supers }
         for future in as_completed(futures):
             data = future.result()
@@ -74,7 +93,8 @@ def core_trisupers():
             try:
                 supers.update(data)
             except Exception as err:
-                _logger.log('[' + __name__ + '] super audit for failed: {0}'.format(err), _logger.LogLevel.ERROR)
+                msg = 'super audit for failed: {0}'.format(err)
+                logger.error(msg)
 
     supers_cleaned = {}
 
@@ -88,7 +108,10 @@ def core_trisupers():
 @app.route('/core/corpsupers/', methods=['GET'])
 def core_corpsupers():
     dn = 'ou=People,dc=triumvirate,dc=rocks'
+
     # logging
+
+    logger = getlogger('core.corpsupers')
 
     ipaddress = request.args.get('log_ip')
     if ipaddress is None:
@@ -102,7 +125,7 @@ def core_corpsupers():
         resp = Response(js, status=405, mimetype='application/json')
         return resp
 
-    _logger.securitylog(__name__, 'supers audit', ipaddress=ipaddress, charid=charid)
+    securitylog('supers audit', ipaddress=ipaddress, charid=charid)
 
     # check for auth groups
 
@@ -118,14 +141,14 @@ def core_corpsupers():
 
     if code == 'error':
         error = 'unable to check auth groups roles for {0}: ({1}) {2}'.format(charid, code, result)
-        _logger.log('[' + __name__ + ']' + error, _logger.LogLevel.ERROR)
+        logger.error(msg)
         js = json.dumps({'error': error})
         resp = Response(js, status=500, mimetype='application/json')
         return resp
 
     if result == None:
         msg = 'charid {0} not in ldap'.format(charid)
-        _logger.log('[' + __name__ + '] {}'.format(msg), _logger.LogLevel.ERROR)
+        logger.error(msg)
         js = json.dumps({'error': msg})
         return Response(js, status=404, mimetype='application/json')
 
@@ -148,7 +171,8 @@ def core_corpsupers():
             try:
                 supers.update(data)
             except Exception as err:
-                _logger.log('[' + __name__ + '] super audit for failed: {0}'.format(err), _logger.LogLevel.ERROR)
+                msg = 'super audit for failed: {0}'.format(err)
+                logger.error(msg)
 
     supers_cleaned = {}
 
@@ -164,6 +188,7 @@ def core_corpcapitals():
     dn = 'ou=People,dc=triumvirate,dc=rocks'
     # logging
 
+    logger = getlogger('core.corp_capitals')
     ipaddress = request.args.get('log_ip')
     if ipaddress is None:
         ipaddress = request.headers['X-Real-Ip']
@@ -176,7 +201,7 @@ def core_corpcapitals():
         resp = Response(js, status=405, mimetype='application/json')
         return resp
 
-    _logger.securitylog(__name__, 'capitals audit', ipaddress=ipaddress, charid=charid)
+    securitylog('capitals audit', ipaddress=ipaddress, charid=charid)
 
     # check for auth groups
 
@@ -192,14 +217,14 @@ def core_corpcapitals():
 
     if code == 'error':
         error = 'unable to check auth groups roles for {0}: ({1}) {2}'.format(charid, code, result)
-        _logger.log('[' + __name__ + ']' + error, _logger.LogLevel.ERROR)
+        logger.error(error)
         js = json.dumps({'error': error})
         resp = Response(js, status=500, mimetype='application/json')
         return resp
 
     if result == None:
         msg = 'charid {0} not in ldap'.format(charid)
-        _logger.log('[' + __name__ + '] {}'.format(msg), _logger.LogLevel.ERROR)
+        logger.error(msg)
         js = json.dumps({'error': msg})
         return Response(js, status=404, mimetype='application/json')
 
@@ -222,7 +247,8 @@ def core_corpcapitals():
             try:
                 supers.update(data)
             except Exception as err:
-                _logger.log('[' + __name__ + '] super audit for failed: {0}'.format(err), _logger.LogLevel.ERROR)
+                msg = 'capital audit for failed: {0}'.format(err)
+                logger.error(msg)
 
     supers_cleaned = {}
 
@@ -240,7 +266,10 @@ def audit_pilot(entry):
 
     uid = entry['uid']
 
-    _logger.log('[' + __name__ + '] auditing character {0}'.format(uid), _logger.LogLevel.DEBUG)
+    logger = getlogger('core.audit_pilot.{0}.supers'.format(uid))
+
+    msg = 'auditing character {0} for supers'.format(uid)
+    logger.debug(msg)
 
     corpid = entry['corporation']
     charname = entry['characterName']
@@ -311,9 +340,9 @@ def audit_pilot(entry):
         result = _ldaphelpers.ldap_uid2name(altOf)
         if result == None:
             msg = 'failed to find main for {0}'.format(altOf)
-            _logger.log('[' + __name__ + ']' + msg, _logger.LogLevel.WARNING)
+            logger.warning(msg)
         try:
-            main = result['characterName']
+            main = result
         except:
             main = "Unknown"
     else:
@@ -400,7 +429,9 @@ def audit_pilot_capitals(entry):
 
     uid = entry['uid']
 
-    _logger.log('[' + __name__ + '] auditing character {0}'.format(uid), _logger.LogLevel.DEBUG)
+    logger = getlogger('core.audit_pilot.{0}.capitals'.format(uid))
+    msg = 'auditing character {0} for capitals'.format(uid)
+    logger.debug(msg)
 
     corpid = entry['corporation']
     charname = entry['characterName']
@@ -466,9 +497,9 @@ def audit_pilot_capitals(entry):
         result = _ldaphelpers.ldap_uid2name(altOf)
         if result == None:
             msg = 'failed to find main for {0}'.format(altOf)
-            _logger.log('[' + __name__ + ']' + msg, _logger.LogLevel.WARNING)
+            logger.warning(msg)
         try:
-            main = result['characterName']
+            main = result
         except:
             main = "Unknown"
     else:

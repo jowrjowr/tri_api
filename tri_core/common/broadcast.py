@@ -155,7 +155,7 @@ def broadcast(message, group=None, corpid=None):
 
         # send message to discord
 
-        discord_msg = '@here\n' + message
+        discord_msg = '@everyone\n' + message
 
         if group == 'triumvirate':
             discord_forward(discord_msg, server=358117641724100609, dest='pings')

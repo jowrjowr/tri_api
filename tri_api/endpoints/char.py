@@ -159,15 +159,15 @@ def fetch_chardetails(info):
         return new_entry
     else:
         # valid token. check scopes.
-        code, result = check_scope('acc_management', charid=alt_charid, scopes=scope)
+        result = check_scope(alt_charid, scope)
         # the default is already 'false'
-        if code == True:
+        if result:
             new_entry['esi_token_valid'] = True
 
     # we'll let the token scope status fall where it may and try to get other details
 
     # fetch skill queue
-    if check_scope(__name__, alt_charid, ['esi-skills.read_skillqueue.v1'])[0]:
+    if check_scope(alt_charid, ['esi-skills.read_skillqueue.v1']):
         request_url = 'characters/' + str(alt_charid) + '/skillqueue/'
         code, result = esi(__name__, request_url, 'get', charid=alt_charid, version='v2')
         _logger.log('[' + __name__ + '] /characters output: {}'.format(result), _logger.LogLevel.DEBUG)
@@ -212,7 +212,7 @@ def fetch_chardetails(info):
         pass
 
     # fetch alt location
-    if check_scope(__name__, alt_charid, ['esi-location.read_location.v1'])[0]:
+    if check_scope(alt_charid, ['esi-location.read_location.v1']):
         request_url = 'characters/{0}/location/'.format(alt_charid)
         code, result = esi(__name__, request_url, method='get', charid=alt_charid, version='v1')
         _logger.log('[' + __name__ + '] /characters output: {}'.format(result), _logger.LogLevel.DEBUG)

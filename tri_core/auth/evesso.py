@@ -256,6 +256,7 @@ def auth_evesso_callback():
         logger.debug(msg)
         # register the user, store the tokens
         registeruser(charid, access_token, refresh_token, tempblue=tempblue, isalt=isalt, altof=altof, renter=renter)
+        storetokens(charid, access_token, refresh_token, expires=expires_at)
 
 
     ## TESTS

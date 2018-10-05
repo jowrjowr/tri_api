@@ -37,7 +37,7 @@ def core_audit_alliance(allianceid):
         alliances.append(viral)
     # check for auth groups
 
-    allowed_roles = ['tsadmin']
+    allowed_roles = ['tsadmin', 'command']
     dn = 'ou=People,dc=triumvirate,dc=rocks'
 
     code, result = _ldaphelpers.ldap_search(__name__, dn, '(uid={})'.format(charid), ['authGroup'])
@@ -57,7 +57,7 @@ def core_audit_alliance(allianceid):
 
     (_, result), = result.items()
 
-    if not "tsadmin" in result['authGroup']:
+    if not "command" in result['authGroup']:
         error = 'insufficient corporate roles to access this endpoint.'
         _logger.log('[' + __name__ + '] ' + error, _logger.LogLevel.INFO)
         js = json.dumps({'error': error})
@@ -68,7 +68,7 @@ def core_audit_alliance(allianceid):
 
     # process each alliance with an individual process
 
-    with ProcessPoolExecutor(5) as executor:
+    with ProcessPoolExecutor(15) as executor:
         futures = { executor.submit(alliance_data, charid, alliance): allianceid for alliance in alliances }
         for future in as_completed(futures):
             data = future.result()

@@ -17,6 +17,19 @@ def audit_core():
 
     logger = getlogger('audit.core')
     logger.info('auditing CORE LDAP')
+
+    # online check first
+
+    # do esi status check first
+
+    request_url = 'status'
+    code, result = common.request_esi.esi(__name__, request_url, method='get', version='v1')
+
+    if not code == 200:
+        error = 'ESI offline'
+        logger.error(error)
+        return
+
     # fix open file limitations
 
     try:
