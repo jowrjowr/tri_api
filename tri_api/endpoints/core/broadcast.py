@@ -7,13 +7,19 @@ def core_group_broadcast(group):
     from flask import request, json, Response
     import common.logger as _logger
     from tri_core.common.broadcast import broadcast
-    ipaddress = request.headers['X-Real-Ip']
+
+    ipaddress = request.args.get('log_ip')
+    charid = request.args.get('charid')
+
+    if ipaddress is None:
+        ipaddress = request.headers['X-Real-Ip']
+
     message = request.get_data()
     message = message.decode('utf-8')
 
     # spew at a group
     if request.method == 'POST':
-        _logger.securitylog(__name__, 'broadcast', detail='group {0}'.format(group), ipaddress=ipaddress)
+        _logger.securitylog(__name__, 'broadcast', detail='group {0}'.format(group), ipaddress=ipaddress, charid=charid)
         broadcast(message, group=group)
         return Response({}, status=200, mimetype='application/json')
 

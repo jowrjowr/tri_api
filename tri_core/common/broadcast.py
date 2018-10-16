@@ -150,15 +150,24 @@ def broadcast(message, group=None, corpid=None):
     if group is not None:
         # broadcast message to an authgroup
 
-        # send message to sash slack
-        sashslack(message, group)
 
         # send message to discord
 
         discord_msg = '@everyone\n' + message
 
         if group == 'triumvirate':
-            discord_forward(discord_msg, server=358117641724100609, dest='pings')
+            discord_forward(discord_msg, server=358117641724100609, dest='general')
+        elif group == 'trisupers':
+            discord_forward(discord_msg, server=358117641724100609, dest='supers')
+        elif group == 'administration':
+            discord_forward(discord_msg, server=358117641724100609, dest='administration')
+        elif group == 'skyteam':
+            discord_forward(discord_msg, server=358117641724100609, dest='skyteam')
+        elif group == 'skirmishfc':
+            discord_forward(discord_msg, server=358117641724100609, dest='skirmish')
+
+        # send message to sash slack
+        sashslack(message, group)
 
         # send to jabber
 

@@ -190,7 +190,7 @@ def run_notifications():
 
         for msg in notify_bulk:
             if len(msg) > 0:
-                discord_forward(msg, dest='notification_spam')
+                discord_forward(msg, server=358117641724100609, dest='notifications')
 
         # send corp-level notifications
         for corpid in data[alliance]['corps'].keys():

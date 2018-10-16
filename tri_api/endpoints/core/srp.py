@@ -198,6 +198,11 @@ def core_srp_requests_past(charid):
     payout, = rows
     payout = payout[0]
 
+    # map the charid to a charnme for payments
+
+    paychar = _esihelpers.esi_affiliations(charid)
+    paychar = paychar['charname']
+
     # insert data into SRP table
 
     query = 'INSERT into SRP (RequestTime, RequestedByCharID, LossTime, Shiptype, shipTypeID, charID, '
@@ -206,7 +211,7 @@ def core_srp_requests_past(charid):
     try:
         result = cursor.execute(query, (
             time.time(), charid, killtime, shipname, shipid, victimid,
-            victim['charname'], kill_url, killid, 0, charid, fleetfc, payout, notes
+            victim['charname'], kill_url, killid, 0, paychar, fleetfc, payout, notes
             )
         )
     except mysql.Error as err:

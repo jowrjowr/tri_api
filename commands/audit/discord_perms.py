@@ -112,6 +112,13 @@ def authgroup_mapping(group):
     if group == 'skyteam':          return 'Skyteam FC'
     if group == 'skirmishfc':       return 'Skirmish FC'
     if group == '500percent':       return '500percent'
+    if group == 'triprobers':       return 'Prober'
+    if group == 'recon':            return 'Recon'
+    if group == 'trainers':         return 'Trainer'
+    if group == 'counterintel':     return 'Counter Intel'
+    if group == 'trisupers':        return 'Supers'
+    if group == 'rental':           return 'Rental'
+    if group == 'board':            return 'Command'
 
     # no sale
     return None
@@ -289,7 +296,7 @@ def audit_discord_perms():
 
     # these roles are ones the bot can't manage
 
-    above_bot = [ 'Admin' ]
+    above_bot = [ 'Admin', 'IT Manager' ]
 
     # redis
     r = redis.StrictRedis(host='localhost', port=6379, db=0)
@@ -482,13 +489,16 @@ def audit_discord_perms():
         if info['alliance'] == 933731581:
 
             # tri role and corp tags only meaningful if in tri
-            correct_roles.append('[TRI]')
+
+# tri role is gone in lieu of 2FA but leaving in case
+#            correct_roles.append('[TRI]')
+
             correct_roles.append('[{0}]'.format(ticker))
 
             # 2factor secured group membership
             # this is for tri only
             if info['discord2fa']:
-                correct_roles.append('2FA')
+                correct_roles.append('TRI 2FA')
 
         missing_roles = set(correct_roles) - set(user['roles'])
         extra_roles = set(user['roles']) - set(correct_roles)
