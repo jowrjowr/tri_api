@@ -97,7 +97,7 @@ def audit_core():
 
     activity = dict()
 
-    with ThreadPoolExecutor(30) as executor:
+    with ThreadPoolExecutor(50) as executor:
         futures = { executor.submit(user_audit, dn, users[dn]): dn for dn in users.keys() }
         for future in as_completed(futures):
             data = future.result()
@@ -119,10 +119,11 @@ def purge(dn, details):
     discorduid = details['discorduid']
     altof = details['altOf']
 
-    # only look at people with no access or special significance
-    if status != 'public' and authgroups != [ 'public' ]:
-        return False
+    eff_groups = set(authgroups) - {'public'}
 
+    # only look at people with no access or special significance
+    if status != 'public' or eff_groups:
+        return False
     # dont punt registered alts
     if altof:
         return False
@@ -136,7 +137,7 @@ def purge(dn, details):
     if discorduid:
         return False
 
-    logger.info('purging {0} from ldap'.format(dn))
+    logger.info('purging stale entry {0} from ldap'.format(dn))
     _ldaphelpers.purge_dn(dn)
     return True
 

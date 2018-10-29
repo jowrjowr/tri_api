@@ -186,7 +186,8 @@ def audit_forums():
                 charid = result['character'][0]
                 users[charname]['charid'] = charid
 
-                _ldaphelpers.ldap_create_stub(charname, charid)
+                # the forum stub exists only to pin
+                _ldaphelpers.ldap_create_stub(charname, charid, authgroups=['public', 'forum_stub'])
 
     _logger.log('[' + __name__ + '] forum users who have biomassed: {0}'.format(really_orphan),_logger.LogLevel.INFO)
 
@@ -381,7 +382,7 @@ def authgroup_map(authgroup):
     if authgroup == 'skyteam':          return 12
 #    if authgroup == 'forumadmin':       return 4
     if authgroup == 'board':            return 67
-
+    if authgroup == 'recon':            return 68
     # public is group 2, but that's a primary group
 
     # no match

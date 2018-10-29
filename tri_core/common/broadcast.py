@@ -186,6 +186,11 @@ def broadcast(message, group=None, corpid=None):
 
         _logger.log('[' + __name__ + '] total users in authgroup {0}: {1}'.format(group, len(result)),_logger.LogLevel.INFO)
 
+
+    # disabling jabber pathway
+
+    return
+
     users = list()
 
     for dn in result:

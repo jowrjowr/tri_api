@@ -1,11 +1,11 @@
 from tri_api import app
 from flask import request, json, Response
-from tri_core.common.session import readsession
 import re
 import time
 import logging
 import json
 import common.ldaphelpers as _ldaphelpers
+import common.esihelpers as _esihelpers
 import common.request_esi
 import urllib
 import requests
@@ -412,17 +412,14 @@ def core_blacklist_add():
             logger.error(msg)
             js = json.dumps({ 'error': msg })
             return Response(js, status=400, mimetype='application/json')
-        print(charname)
-        print(result)
         if len(result.get('character')) > 1:
             msg = 'more than one return for charname {0} from ESI search'.format(main_charname)
-            logger.error(msg)
-            js = json.dumps({ 'error': msg })
-            return Response(js, status=400, mimetype='application/json')
+            logger.warning(msg)
 
         # even on a single result its still a list
-        charid = result.get('character')[0]
-        chardata[charname] = charid
+
+        for charid in result.get('character'):
+            chardata[charname] = charid
 
     # ban the main
 
@@ -515,7 +512,11 @@ def ban_character(charid, altof=None):
         return False
 
     # if a stub is created, i would have to search again
-    charname = _ldaphelpers.ldap_uid2name(charid)
+
+    affiliations = _esihelpers.esi_affiliations(charid)
+
+    charname = affiliations['charname']
+
     cn, dn = _ldaphelpers.ldap_normalize_charname(charname)
 
     if result == None:

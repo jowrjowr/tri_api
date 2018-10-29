@@ -29,6 +29,7 @@ async def run_notifications_forever():
         try:
             run_notifications()
         except Exception as e:
+            print('wtffffff foreverrun')
             print(e)
         finally:
             time.sleep(60)
@@ -166,6 +167,7 @@ def run_notifications():
             try:
                 notification['data'] = notification_process(not_type, not_data)
             except Exception as e:
+                print('wtf proccessfail')
                 print(e)
                 continue
 
@@ -190,7 +192,7 @@ def run_notifications():
 
         for msg in notify_bulk:
             if len(msg) > 0:
-                discord_forward(msg, server=358117641724100609, dest='notifications')
+                discord_forward(msg, dest='esi_notifications')
 
         # send corp-level notifications
         for corpid in data[alliance]['corps'].keys():
@@ -262,7 +264,7 @@ def run_notifications():
 
         for msg in notify_bulk:
             if len(msg) > 0:
-                discord_forward(msg, dest='notification_spam')
+                discord_forward(msg, dest='esi_notifications')
 
         if latest_timestamp == 0:
             latest_timestamp = int(time.time())
@@ -286,7 +288,6 @@ def char_notifications(r, charid, corpname, corpid):
 
     # fetch the most recent notification epoch time from redis
     checkpoint = float(r.get('notification_checkpoint'))
-
 
     request_url = 'characters/{0}/notifications/'.format(charid)
     code, result = common.request_esi.esi(__name__, request_url, version='v3', charid=charid)
@@ -414,7 +415,7 @@ def format_for_discord(data):
         body += "Attacking alliance: {0}".format(attacking_alliance)
 
     if not_type == 'TowerAlertMsg':
-        structure_type = data['data']['structure_type_data']['name']
+        structure_type = 'POS (piece of shit)'
         attacking_alliance = data['data']['attacker_affiliations']['alliancename']
         shield, armor, hull = data['data']['status']
         moon = data['data']['moon_info']['name']

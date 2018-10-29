@@ -119,6 +119,7 @@ def authgroup_mapping(group):
     if group == 'trisupers':        return 'Supers'
     if group == 'rental':           return 'Rental'
     if group == 'board':            return 'Command'
+    if group == 'administration':   return 'Administration'
 
     # no sale
     return None
@@ -292,11 +293,11 @@ def audit_discord_perms():
 
     # these discord roles are manually assigned or everyone gets
 
-    ignore_roles = ['Admin', 'TRI Friends', '@everyone', 'production', 'rorqcoordination']
+    ignore_roles = ['Admin', 'IT Manager', 'TRI Friends', '@everyone', 'production', 'rorqcoordination']
 
     # these roles are ones the bot can't manage
 
-    above_bot = [ 'Admin', 'IT Manager' ]
+    above_bot = [ 'Admin' ]
 
     # redis
     r = redis.StrictRedis(host='localhost', port=6379, db=0)
@@ -480,25 +481,26 @@ def audit_discord_perms():
         # should maybe add something for banned users maybe, but they
         # will get purged of all meaningful roles anyway
 
-        # map ldap authgroups to discord roles
-        for authgroup in info['authGroup']:
-            mapping = authgroup_mapping(authgroup)
-            if mapping is not None:
-                correct_roles.append(mapping)
 
         if info['alliance'] == 933731581:
 
             # tri role and corp tags only meaningful if in tri
-
-# tri role is gone in lieu of 2FA but leaving in case
-#            correct_roles.append('[TRI]')
 
             correct_roles.append('[{0}]'.format(ticker))
 
             # 2factor secured group membership
             # this is for tri only
             if info['discord2fa']:
-                correct_roles.append('TRI 2FA')
+                correct_roles.append('Triumvirate')
+
+                # map ldap authgroups to discord roles
+                # only people with 2FA get privileged roles
+                for authgroup in info['authGroup']:
+                    mapping = authgroup_mapping(authgroup)
+                    if mapping is not None:
+                        correct_roles.append(mapping)
+            else:
+                correct_roles.append('NO 2FA')
 
         missing_roles = set(correct_roles) - set(user['roles'])
         extra_roles = set(user['roles']) - set(correct_roles)
