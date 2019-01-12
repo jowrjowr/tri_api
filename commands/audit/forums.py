@@ -219,7 +219,7 @@ def audit_forums():
 
             if code == 200:
 
-                portrait = result['px128x128']
+                portrait = result['px128x128'].replace("http", "https")
                 query = 'UPDATE core_members SET pp_main_photo=%s, pp_thumb_photo=%s, pp_photo_type="custom" WHERE name = %s'
                 try:
                     cursor.execute(query, (portrait, portrait, charname,))
