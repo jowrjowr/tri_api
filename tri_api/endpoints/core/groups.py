@@ -182,10 +182,8 @@ def core_group_members(group):
 
 
     if result == None:
-        msg = 'charid {0} not in ldap'.format(charid)
-        _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.ERROR)
-        js = json.dumps({ 'error': msg })
-        return Response(js, status=404, mimetype='application/json')
+        js = json.dumps({})
+        return Response(js, status=200, mimetype='application/json')
 
     # construct the response object
 

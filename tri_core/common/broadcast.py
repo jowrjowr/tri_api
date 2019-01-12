@@ -127,9 +127,9 @@ def broadcast(message, group=None, corpid=None):
 
         # send message to sash slack
 
-        if corpid == 98203328:
-            # send to #_ops for now
-            sashslack(message, 'structures')
+#        if corpid == 98203328:
+#            # send to #_ops for now
+#            sashslack(message, 'structures')
 
         filterstr='(&(objectclass=pilot)(corporation={0})(esiRefreshToken=*)(teamspeakuid=*))'.format(corpid)
 
@@ -167,7 +167,7 @@ def broadcast(message, group=None, corpid=None):
             discord_forward(discord_msg, server=358117641724100609, dest='skirmish')
 
         # send message to sash slack
-        sashslack(message, group)
+#        sashslack(message, group)
 
         # send to jabber
 

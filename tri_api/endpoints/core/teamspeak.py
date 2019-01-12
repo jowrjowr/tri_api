@@ -84,9 +84,6 @@ def teamspeak_POST(charid):
         # we have a live account. nuke it and try again.
         msg = 'existing teamspeak client. dbid: {0} uid: {1}'.format(ts_dbid, ts_uid)
         _logger.log('[' + __name__ + '] {}'.format(msg),_logger.LogLevel.WARNING)
-        js = json.dumps({ 'error': msg})
-        resp = Response(js, status=400, mimetype='application/json')
-        return resp
 
     # snag the client list
 

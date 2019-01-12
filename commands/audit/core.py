@@ -97,7 +97,7 @@ def audit_core():
 
     activity = dict()
 
-    with ThreadPoolExecutor(50) as executor:
+    with ThreadPoolExecutor(30) as executor:
         futures = { executor.submit(user_audit, dn, users[dn]): dn for dn in users.keys() }
         for future in as_completed(futures):
             data = future.result()
@@ -242,7 +242,7 @@ def user_audit(dn, details):
         elif ldap_discord2fa != discord2fa:
             _ldaphelpers.update_singlevalue(dn, 'discord2fa', discord2fa)
 
-    if details['esiRefreshToken'] is not None and 'esi-location.read_online.v1' in ldap_scopes:
+    if details['esiRefreshToken'] is not None and 'esi-location.read_online.v1' in ldap_scopes and 1 is 2:
         # get online status if possible
 
         request_url = 'characters/{0}/online/'.format(charid)
