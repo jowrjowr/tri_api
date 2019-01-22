@@ -287,7 +287,6 @@ def audit_discord_perms():
     logger.info(msg)
 
     bot_token = _discord.social_token
-    bot_discorduid = 345393204784267265
     server = 358117641724100609
     logging.getLogger('discord.audit').setLevel(logging.DEBUG)
 
@@ -295,9 +294,11 @@ def audit_discord_perms():
 
     ignore_roles = ['Admin', 'IT Manager', 'TRI Friends', '@everyone', 'production', 'rorqcoordination']
 
+    # old and new discord bots
+    ignore_uids = [ 534463865744916480, 345393204784267265 ]
     # these roles are ones the bot can't manage
 
-    above_bot = [ 'Admin' ]
+    above_bot = [ 'Admin', 'BOT' ]
 
     # redis
     r = redis.StrictRedis(host='localhost', port=6379, db=0)
@@ -324,7 +325,7 @@ def audit_discord_perms():
 
         # don't try to audit self
 
-        if user['discorduid'] == bot_discorduid:
+        if user['discorduid'] in ignore_uids:
             continue
 
         dn = 'ou=People,dc=triumvirate,dc=rocks'
